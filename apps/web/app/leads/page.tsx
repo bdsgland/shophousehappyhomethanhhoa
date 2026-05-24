@@ -1,17 +1,29 @@
 import { LeadList } from "@/components/LeadList";
+import { ProjectTabs } from "@/components/ProjectTabs";
 
-export default function LeadsPage() {
+export default function LeadsPage({
+  searchParams,
+}: {
+  searchParams: { project?: string };
+}) {
+  const project = searchParams.project;
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-brand-900">Danh sách lead</h1>
+        <h1 className="text-2xl font-semibold text-brand-900">
+          {project ? `Lead — ${project}` : "Danh sách lead"}
+        </h1>
         <p className="text-sm text-brand-700">
-          Dữ liệu lấy trực tiếp từ agent-engine (
-          <code className="rounded bg-brand-50 px-1 py-0.5">GET /leads</code>).
-          Ở MVP danh sách lưu in-memory — restart server sẽ mất.
+          {project
+            ? `Đang xem lead thuộc dự án "${project}". Click "Tất cả" để xem mọi dự án.`
+            : "Chọn 1 dự án bên dưới để xem lead riêng, hoặc giữ \"Tất cả\" để xem tổng."}
         </p>
       </header>
-      <LeadList />
+
+      <ProjectTabs active={project} />
+
+      <LeadList project={project} />
     </div>
   );
 }

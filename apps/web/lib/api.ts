@@ -7,11 +7,20 @@ export type Lead = {
   phone: string | null;
   email: string | null;
   source_channel: string;
-  interested_project_slug: string | null;
+  project: string | null;
+  project_slug: string | null;
+  facebook_url: string | null;
+  notes: string | null;
   status: "new" | "nurturing" | "hot" | "handed_off" | "lost";
   intent_score: number;
   created_at: string;
   updated_at: string;
+};
+
+export type ProjectSummary = {
+  project_slug: string;
+  project: string;
+  lead_count: number;
 };
 
 export async function fetchHealth(): Promise<{
@@ -29,9 +38,26 @@ export async function fetchHealth(): Promise<{
   }
 }
 
-export async function fetchLeads(): Promise<Lead[]> {
+export async function fetchLeads(opts?: { project?: string }): Promise<Lead[]> {
   try {
-    const res = await fetch(`${AGENT_ENGINE_URL}/leads`, { cache: "no-store" });
+    const qs = opts?.project
+      ? `?project=${encodeURIComponent(opts.project)}`
+      : "";
+    const res = await fetch(`${AGENT_ENGINE_URL}/leads${qs}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchProjects(): Promise<ProjectSummary[]> {
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/leads/projects`, {
+      cache: "no-store",
+    });
     if (!res.ok) return [];
     return await res.json();
   } catch {

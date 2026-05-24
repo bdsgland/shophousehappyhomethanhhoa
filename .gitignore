@@ -48,6 +48,7 @@ lerna-debug.log*
 # ===== IDE / OS =====
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 .DS_Store

@@ -1,4 +1,4 @@
-import { fetchLeads } from "@/lib/api";
+import { fetchLeads, type Lead } from "@/lib/api";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Mới",
@@ -16,17 +16,21 @@ const STATUS_CLASS: Record<string, string> = {
   lost: "bg-gray-200 text-gray-700",
 };
 
-export async function LeadList() {
-  const leads = await fetchLeads();
+export async function LeadList({ project }: { project?: string }) {
+  const leads: Lead[] = await fetchLeads(project ? { project } : undefined);
 
   if (leads.length === 0) {
     return (
       <div className="rounded-xl border border-brand-100 bg-white p-6 text-sm text-brand-700">
-        Chưa có lead nào. Hãy tạo thử bằng API:
+        {project
+          ? `Chưa có lead nào trong dự án "${project}".`
+          : "Chưa có lead nào trong hệ thống."}{" "}
+        Hãy import từ CSV/Excel:
         <pre className="mt-3 overflow-x-auto rounded bg-brand-50 p-3 text-xs text-brand-900">
-{`curl -X POST http://localhost:8000/leads \\
-  -H "Content-Type: application/json" \\
-  -d '{"full_name":"Nguyễn Văn A","phone":"0900000000","interested_project_slug":"the-grand-tower"}'`}
+{`python scripts/import_customers.py <file.xlsx> \\
+  --project "Tên dự án" \\
+  --project-slug ten-du-an \\
+  --source "Nguồn lead"`}
         </pre>
       </div>
     );
@@ -40,21 +44,38 @@ export async function LeadList() {
             <th className="px-4 py-3">Khách hàng</th>
             <th className="px-4 py-3">Liên hệ</th>
             <th className="px-4 py-3">Dự án</th>
+            <th className="px-4 py-3">Nguồn</th>
+            <th className="px-4 py-3">Facebook</th>
             <th className="px-4 py-3">Trạng thái</th>
-            <th className="px-4 py-3 text-right">Điểm intent</th>
+            <th className="px-4 py-3 text-right">Intent</th>
           </tr>
         </thead>
         <tbody>
           {leads.map((lead) => (
-            <tr key={lead.id} className="border-t border-brand-100">
+            <tr key={lead.id} className="border-t border-brand-100 hover:bg-brand-50/40">
               <td className="px-4 py-3 font-medium text-brand-900">
                 {lead.full_name || "(chưa có tên)"}
               </td>
-              <td className="px-4 py-3 text-brand-700">
+              <td className="px-4 py-3 font-mono text-xs text-brand-700">
                 {lead.phone || lead.email || "—"}
               </td>
               <td className="px-4 py-3 text-brand-700">
-                {lead.interested_project_slug || "—"}
+                {lead.project || "—"}
+              </td>
+              <td className="px-4 py-3 text-brand-700">{lead.source_channel}</td>
+              <td className="px-4 py-3">
+                {lead.facebook_url ? (
+                  <a
+                    href={lead.facebook_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand-600 underline hover:text-brand-700"
+                  >
+                    Mở
+                  </a>
+                ) : (
+                  <span className="text-brand-700">—</span>
+                )}
               </td>
               <td className="px-4 py-3">
                 <span
