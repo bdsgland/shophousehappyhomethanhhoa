@@ -54,8 +54,17 @@ lerna-debug.log*
 Thumbs.db
 
 # ===== Dữ liệu nhạy cảm / cục bộ =====
+# Giữ cấu trúc thư mục (qua .gitkeep) nhưng KHÔNG commit nội dung thật:
+# - Hồ sơ dự án có thể là tài liệu nội bộ của CĐT
+# - Danh sách khách hàng là PII (số điện thoại, email, tên thật)
+data/projects/*
+!data/projects/.gitkeep
+data/customers/*
+!data/customers/.gitkeep
 data/raw/
 data/leads/
+
+# Database / dump
 *.sqlite
 *.db
 *.dump
