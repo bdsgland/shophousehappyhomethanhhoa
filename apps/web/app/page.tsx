@@ -1,3 +1,4 @@
+import { ChatWidget } from "@/components/ChatWidget";
 import { HealthStatus } from "@/components/HealthStatus";
 
 export default function HomePage() {
@@ -12,7 +13,13 @@ export default function HomePage() {
           Agent tự học dự án, chăm khách 24/7 và bàn giao những lead đã thật sự
           quan tâm cho saleman thật để gặp & chốt.
         </p>
+        <p className="mt-3 max-w-2xl text-sm text-brand-700/80">
+          Bạn có thể trải nghiệm trợ lý AI ngay tại bong bóng chat góc phải dưới
+          — đây cũng là kênh khách truy cập thật sự sẽ tương tác với hệ thống.
+        </p>
       </section>
+
+      <ChatWidget />
 
       <HealthStatus />
 

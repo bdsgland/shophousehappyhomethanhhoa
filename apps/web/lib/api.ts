@@ -64,3 +64,47 @@ export async function fetchProjects(): Promise<ProjectSummary[]> {
     return [];
   }
 }
+
+export type ChatRole = "user" | "assistant";
+
+export type ChatTurn = {
+  role: ChatRole;
+  content: string;
+};
+
+export type ChatReply = {
+  reply: string;
+  intent_score: number;
+  is_hot: boolean;
+  suggested_next_step: string | null;
+};
+
+export async function postChat(args: {
+  messages: ChatTurn[];
+  projectSlug?: string;
+  signal?: AbortSignal;
+}): Promise<ChatReply> {
+  const res = await fetch(`${AGENT_ENGINE_URL}/agent/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: args.messages,
+      project_slug: args.projectSlug ?? null,
+    }),
+    signal: args.signal,
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = typeof data?.detail === "string" ? data.detail : "";
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      detail || `Agent trả lỗi ${res.status}. Vui lòng thử lại sau.`,
+    );
+  }
+  return (await res.json()) as ChatReply;
+}
