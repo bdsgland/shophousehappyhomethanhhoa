@@ -38,13 +38,20 @@ export async function fetchHealth(): Promise<{
   }
 }
 
-export async function fetchLeads(opts?: { project?: string }): Promise<Lead[]> {
+function authHeaders(token?: string): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function fetchLeads(
+  opts?: { project?: string; token?: string },
+): Promise<Lead[]> {
   try {
     const qs = opts?.project
       ? `?project=${encodeURIComponent(opts.project)}`
       : "";
     const res = await fetch(`${AGENT_ENGINE_URL}/leads${qs}`, {
       cache: "no-store",
+      headers: authHeaders(opts?.token),
     });
     if (!res.ok) return [];
     return await res.json();
@@ -53,15 +60,89 @@ export async function fetchLeads(opts?: { project?: string }): Promise<Lead[]> {
   }
 }
 
-export async function fetchProjects(): Promise<ProjectSummary[]> {
+export async function fetchProjects(opts?: {
+  token?: string;
+}): Promise<ProjectSummary[]> {
   try {
     const res = await fetch(`${AGENT_ENGINE_URL}/leads/projects`, {
       cache: "no-store",
+      headers: authHeaders(opts?.token),
     });
     if (!res.ok) return [];
     return await res.json();
   } catch {
     return [];
+  }
+}
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  role: string;
+  created_at: string;
+};
+
+export type AuthTokenResponse = {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: AuthUser;
+};
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${AGENT_ENGINE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+        ? detail
+            .map(
+              (d: { msg?: string }) =>
+                typeof d?.msg === "string" ? d.msg : JSON.stringify(d),
+            )
+            .join(", ")
+        : `Lỗi ${res.status}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+export function authRegister(payload: {
+  email: string;
+  full_name: string;
+  password: string;
+  phone?: string;
+}): Promise<AuthTokenResponse> {
+  return postJson<AuthTokenResponse>("/auth/register", payload);
+}
+
+export function authLogin(payload: {
+  email: string;
+  password: string;
+}): Promise<AuthTokenResponse> {
+  return postJson<AuthTokenResponse>("/auth/login", payload);
+}
+
+export async function fetchMe(token: string): Promise<AuthUser | null> {
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/auth/me`, {
+      cache: "no-store",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as AuthUser;
+  } catch {
+    return null;
   }
 }
 
