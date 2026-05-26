@@ -29,5 +29,11 @@ class Settings(BaseSettings):
     # CORS (cho dashboard gọi vào)
     cors_allow_origins: str = "http://localhost:3000"
 
+    # Auth (MVP — JWT đơn giản, file-based user store)
+    jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
+    jwt_algorithm: str = "HS256"
+    jwt_expires_minutes: int = 60 * 8  # 8 giờ
+    users_file: str = "data/_runtime/users.json"
+
 
 settings = Settings()

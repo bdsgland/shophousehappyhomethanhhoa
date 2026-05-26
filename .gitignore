@@ -64,6 +64,12 @@ data/customers/*
 !data/customers/.gitkeep
 data/raw/
 data/leads/
+data/_runtime/
+
+# Knowledge base: commit chunks/manifest (text), bỏ qua BM25 index binary (rebuild được)
+data/knowledge_base/**/*.pkl
+data/knowledge_base/**/.DS_Store
+
 
 # Database / dump
 *.sqlite

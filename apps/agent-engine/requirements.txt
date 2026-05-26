@@ -6,6 +6,11 @@ uvicorn[standard]>=0.27.0,<1.0.0
 pydantic>=2.6.0,<3.0.0
 pydantic-settings>=2.2.0,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
+email-validator>=2.0.0,<3.0.0
+
+# Auth (đăng ký/đăng nhập Sale)
+bcrypt>=4.1.0,<5.0.0
+PyJWT>=2.8.0,<3.0.0
 
 # HTTP client
 httpx>=0.27.0,<1.0.0
@@ -17,6 +22,12 @@ anthropic>=0.40.0,<1.0.0
 pandas>=2.0.0,<3.0.0
 openpyxl>=3.1.0,<4.0.0
 requests>=2.31.0,<3.0.0
+
+# Ingest tài liệu dự án (scripts/ingest_projects.py) + retrieval BM25 offline
+pypdf>=4.0.0,<6.0.0
+pdfplumber>=0.10.0,<1.0.0
+python-docx>=1.1.0,<2.0.0
+rank-bm25>=0.2.2,<1.0.0
 
 # Test
 pytest>=8.0.0,<9.0.0
