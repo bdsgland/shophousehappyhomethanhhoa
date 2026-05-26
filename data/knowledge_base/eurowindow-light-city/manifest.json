@@ -1,0 +1,87 @@
+{
+  "project": "eurowindow-light-city",
+  "built_at": 1779622708,
+  "total_chunks": 59,
+  "new_chunks_this_run": 59,
+  "files_extracted": [
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/1._GPXD_-_KDT_Hoang_Long_signed_vietdv.sxd_09-06-2025-19-15-20(09.06.2025_20h05p50)_signed.pdf",
+      "group": "phap-ly",
+      "pages": 6,
+      "chars": 12690,
+      "chunks": 7,
+      "extractor": "pypdf+pdfplumber"
+    },
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/25-1802 QH SDD + Chia Lo Dat O ELC.pdf",
+      "group": "phap-ly",
+      "pages": 1,
+      "chars": 70717,
+      "chunks": 33,
+      "extractor": "pypdf+pdfplumber"
+    },
+    {
+      "file": "Eurowindow Light City/14. BẢNG GIÁ - PHIẾU TÍNH GIÁ/GIỎ HÀNG ĐỢT 1 (FIX).pdf",
+      "group": "bang-gia",
+      "pages": 7,
+      "chars": 1435,
+      "chunks": 1,
+      "extractor": "pypdf+pdfplumber"
+    },
+    {
+      "file": "Eurowindow Light City/11. Q&A/BỘ CÂU HỎI Q&A.pdf",
+      "group": "qa",
+      "pages": 12,
+      "chars": 20673,
+      "chunks": 11,
+      "extractor": "pypdf+pdfplumber"
+    },
+    {
+      "file": "Eurowindow Light City/9. TÀI LIỆU BÁN HÀNG /ELC - Brochure giới thiệu dự án.pdf",
+      "group": "brochure",
+      "pages": 23,
+      "chars": 13039,
+      "chunks": 7,
+      "extractor": "pypdf+pdfplumber"
+    }
+  ],
+  "files_needs_ocr": [
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/250806_ELC_Thông báo tên thương mại.pdf",
+      "group": "phap-ly",
+      "pages": 1,
+      "chars_extracted": 0,
+      "reason": "PDF scan — không có text layer"
+    },
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/250522_EWLC_PC_GCN_DKDN thay đổi lần 3.pdf",
+      "group": "phap-ly",
+      "pages": 2,
+      "chars_extracted": 0,
+      "reason": "PDF scan — không có text layer"
+    },
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/2019-09-27-QĐ 3900 Phê duyệt QHCT XD tỷ lệ 1-500 KĐT mới tại xã Hoằng Quang và Hoằng Long, Thanh Hóa.pdf",
+      "group": "phap-ly",
+      "pages": 12,
+      "chars_extracted": 0,
+      "reason": "PDF scan — không có text layer"
+    },
+    {
+      "file": "Eurowindow Light City/10. PHÁP LÝ DỰ ÁN/2020-10-19-QĐ 4421 Phê duyệt kết quả LCNĐT thực hiện DÁ tại xã Hoằng Qua.._.pdf",
+      "group": "phap-ly",
+      "pages": 4,
+      "chars_extracted": 0,
+      "reason": "PDF scan — không có text layer"
+    }
+  ],
+  "files_error": [],
+  "groups_requested": [
+    "bang-gia",
+    "brochure",
+    "phap-ly",
+    "qa"
+  ],
+  "chunk_size": 2500,
+  "chunk_overlap": 250
+}

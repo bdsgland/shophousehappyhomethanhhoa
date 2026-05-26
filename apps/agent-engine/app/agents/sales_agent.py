@@ -1,15 +1,28 @@
 """Sales Agent — orchestrator chính.
 
-Phiên bản MVP: dùng mock LLM (trả lời thô sơ) hoặc gọi Claude thật tuỳ
-biến môi trường USE_MOCK_LLM. Ở giai đoạn 2 sẽ thay bằng RAG đầy đủ.
+Phiên bản MVP+RAG:
+- Mọi câu hỏi có project_slug đều đi qua retrieval BM25 offline để lấy ngữ
+  cảnh từ tài liệu dự án (KHÔNG cần API key).
+- Sinh câu trả lời:
+    * USE_MOCK_LLM=true hoặc thiếu ANTHROPIC_API_KEY -> mock reply (vẫn lộ
+      trích dẫn nguồn để demo retrieval đã đúng).
+    * Ngược lại -> gọi Claude thật, nhét retrieved context vào system prompt.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
+from app.agents.retrieval import (
+    RetrievedChunk,
+    format_context_for_llm,
+    get_index,
+)
 from app.core.settings import settings
 from app.schemas.chat import ChatMessage, ChatResponse
+
+log = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT_VI = """\
@@ -25,20 +38,46 @@ Mục tiêu:
 """
 
 
-def _mock_reply(messages: List[ChatMessage]) -> str:
-    """Trả lời giả lập khi USE_MOCK_LLM=true (không tốn token)."""
-    last_user_msg = next(
-        (m.content for m in reversed(messages) if m.role == "user"), ""
-    )
-    return (
+def _last_user_text(messages: List[ChatMessage]) -> str:
+    return next((m.content for m in reversed(messages) if m.role == "user"), "")
+
+
+def _retrieve(project_slug: str, query: str, top_k: int = 5) -> list[RetrievedChunk]:
+    idx = get_index(project_slug)
+    if idx is None:
+        log.info("Chưa có knowledge base cho '%s' — bỏ qua retrieval", project_slug)
+        return []
+    return idx.search(query, top_k=top_k)
+
+
+def _mock_reply(messages: List[ChatMessage], chunks: list[RetrievedChunk]) -> str:
+    """Trả lời giả lập — nhưng vẫn lộ trích dẫn nguồn để chứng minh retrieval chạy."""
+    last = _last_user_text(messages)
+    head = (
         "Em chào anh/chị, em là chuyên viên tư vấn của dự án. "
-        f'Em đã ghi nhận câu hỏi: "{last_user_msg[:120]}". '
-        "Anh/chị có thể cho em biết thêm về ngân sách dự kiến và "
-        "thời điểm muốn vào ở để em tư vấn phù hợp nhất ạ?"
+        f'Em đã ghi nhận câu hỏi: "{last[:120]}". '
+    )
+    if not chunks:
+        return head + (
+            "Hiện em chưa tìm thấy thông tin phù hợp trong tài liệu dự án. "
+            "Anh/chị có thể chia sẻ thêm để em hỗ trợ ạ?"
+        )
+    cites = "\n".join(
+        f"  • [{i+1}] {c.source_file} (nhóm {c.group}): {c.short(180)}"
+        for i, c in enumerate(chunks[:3])
+    )
+    return head + (
+        "Em tìm thấy các đoạn tài liệu liên quan sau (chế độ MOCK — chưa có "
+        "ANTHROPIC_API_KEY để soạn câu trả lời tự nhiên):\n"
+        f"{cites}\n"
+        "Anh/chị muốn em đi sâu vào phần nào trước ạ?"
     )
 
 
-async def _real_reply(messages: List[ChatMessage], project_context: str) -> str:
+async def _real_reply(
+    messages: List[ChatMessage],
+    project_context: str,
+) -> str:
     """Gọi Claude thật. Yêu cầu ANTHROPIC_API_KEY."""
     from anthropic import AsyncAnthropic
 
@@ -57,10 +96,7 @@ async def _real_reply(messages: List[ChatMessage], project_context: str) -> str:
 
 
 def _score_intent(messages: List[ChatMessage]) -> int:
-    """Chấm điểm intent thô sơ ở MVP — đếm tín hiệu trong tin của khách.
-
-    Sẽ thay bằng LLM-based scoring ở giai đoạn 2.
-    """
+    """Chấm điểm intent thô sơ ở MVP — đếm tín hiệu trong tin của khách."""
     user_text = " ".join(m.content.lower() for m in messages if m.role == "user")
     signals = {
         "giá": 8,
@@ -85,17 +121,18 @@ async def run_sales_agent(
     messages: List[ChatMessage],
     project_slug: Optional[str] = None,
 ) -> ChatResponse:
-    """Điểm vào chính — sinh trả lời + chấm điểm intent."""
+    """Điểm vào chính — retrieve + sinh trả lời + chấm điểm intent."""
+    chunks: list[RetrievedChunk] = []
     project_context = ""
+
     if project_slug:
-        # Placeholder: giai đoạn 2 sẽ load từ DB + RAG.
-        project_context = (
-            f"Dự án mã: {project_slug}. "
-            "Thông tin chi tiết sẽ được nạp từ knowledge base ở giai đoạn 2."
-        )
+        query = _last_user_text(messages)
+        if query:
+            chunks = _retrieve(project_slug, query, top_k=5)
+            project_context = format_context_for_llm(chunks)
 
     if settings.use_mock_llm or not settings.anthropic_api_key:
-        reply = _mock_reply(messages)
+        reply = _mock_reply(messages, chunks)
     else:
         reply = await _real_reply(messages, project_context)
 
