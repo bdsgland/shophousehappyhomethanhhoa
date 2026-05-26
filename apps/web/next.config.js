@@ -5,11 +5,6 @@ const nextConfig = {
     NEXT_PUBLIC_AGENT_ENGINE_URL:
       process.env.NEXT_PUBLIC_AGENT_ENGINE_URL || "http://localhost:8000",
   },
-  async rewrites() {
-    return [
-      { source: "/", destination: "/elc-home.html" },
-    ];
-  },
 };
 
 module.exports = nextConfig;

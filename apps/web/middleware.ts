@@ -6,6 +6,11 @@ const PROTECTED_PREFIXES = ["/leads"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/elc-home.html", req.url), 308);
+  }
+
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
@@ -21,5 +26,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/leads/:path*", "/leads"],
+  matcher: ["/", "/leads/:path*", "/leads"],
 };

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 export default function HomePage() {
-  return null;
+  redirect("/elc-home.html");
 }
