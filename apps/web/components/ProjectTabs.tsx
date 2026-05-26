@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { fetchProjects } from "@/lib/api";
 
-export async function ProjectTabs({ active }: { active?: string }) {
-  const projects = await fetchProjects();
+export async function ProjectTabs({
+  active,
+  token,
+}: {
+  active?: string;
+  token?: string;
+}) {
+  const projects = await fetchProjects({ token });
   const totalLeads = projects.reduce((sum, p) => sum + p.lead_count, 0);
 
   const tabClass = (isActive: boolean) =>

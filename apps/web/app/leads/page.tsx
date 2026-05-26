@@ -1,5 +1,8 @@
 import { LeadList } from "@/components/LeadList";
 import { ProjectTabs } from "@/components/ProjectTabs";
+import { getServerToken } from "@/lib/auth-server";
+
+export const dynamic = "force-dynamic";
 
 export default function LeadsPage({
   searchParams,
@@ -7,6 +10,7 @@ export default function LeadsPage({
   searchParams: { project?: string };
 }) {
   const project = searchParams.project;
+  const token = getServerToken() ?? undefined;
 
   return (
     <div className="space-y-6">
@@ -21,9 +25,9 @@ export default function LeadsPage({
         </p>
       </header>
 
-      <ProjectTabs active={project} />
+      <ProjectTabs active={project} token={token} />
 
-      <LeadList project={project} />
+      <LeadList project={project} token={token} />
     </div>
   );
 }

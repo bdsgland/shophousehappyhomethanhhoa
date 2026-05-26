@@ -16,8 +16,14 @@ const STATUS_CLASS: Record<string, string> = {
   lost: "bg-gray-200 text-gray-700",
 };
 
-export async function LeadList({ project }: { project?: string }) {
-  const leads: Lead[] = await fetchLeads(project ? { project } : undefined);
+export async function LeadList({
+  project,
+  token,
+}: {
+  project?: string;
+  token?: string;
+}) {
+  const leads: Lead[] = await fetchLeads({ project, token });
 
   if (leads.length === 0) {
     return (
