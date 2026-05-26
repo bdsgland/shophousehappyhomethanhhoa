@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChatWidget } from "@/components/ChatWidget";
 
@@ -80,17 +81,20 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Phá container max-w-6xl của <main> trong layout.tsx để iframe chiếm full viewport */}
-      <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
-        <iframe
-          ref={iframeRef}
-          src="/elc-home.html"
-          title="Eurowindow Light City — Giới thiệu dự án"
-          className="block w-full border-0"
-          style={{ height: `${height}px` }}
-          loading="eager"
-        />
-      </div>
+      <iframe
+        ref={iframeRef}
+        src="/elc-home.html"
+        title="Eurowindow Light City — Giới thiệu dự án"
+        className="block w-full border-0"
+        style={{ height: `${height}px` }}
+        loading="eager"
+      />
+      <Link
+        href="/login"
+        className="fixed right-4 top-4 z-40 rounded-full border border-white/50 bg-white/70 px-3 py-1.5 text-xs font-medium text-brand-900 shadow-sm backdrop-blur transition hover:bg-white"
+      >
+        Đăng nhập Sale
+      </Link>
       <ChatWidget />
     </>
   );
