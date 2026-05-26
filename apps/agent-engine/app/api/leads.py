@@ -6,7 +6,9 @@ Giai đoạn 2 sẽ thay bằng PostgreSQL.
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+
+from app.api.deps import get_current_user
 from app.schemas.lead import Lead, LeadCreate
 
 router = APIRouter(prefix="/leads", tags=["leads"])
@@ -31,6 +33,7 @@ def _find_existing(phone: Optional[str], email: Optional[str]) -> Optional[Lead]
 def list_leads(
     project: Optional[str] = Query(default=None, description="Lọc theo tên dự án"),
     project_slug: Optional[str] = Query(default=None, description="Lọc theo slug dự án"),
+    _user: dict = Depends(get_current_user),
 ) -> List[Lead]:
     leads = list(_LEADS.values())
     if project:
@@ -41,7 +44,7 @@ def list_leads(
 
 
 @router.get("/projects", response_model=List[dict])
-def list_projects() -> List[dict]:
+def list_projects(_user: dict = Depends(get_current_user)) -> List[dict]:
     """Trả về danh sách dự án đã có lead (kèm số lead) — phục vụ dashboard nhóm theo dự án."""
     counts: dict[tuple, int] = {}
     for l in _LEADS.values():
@@ -79,7 +82,7 @@ def create_lead(payload: LeadCreate, response: Response) -> Lead:
 
 
 @router.get("/{lead_id}", response_model=Lead)
-def get_lead(lead_id: str) -> Lead:
+def get_lead(lead_id: str, _user: dict = Depends(get_current_user)) -> Lead:
     lead = _LEADS.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead không tồn tại")
@@ -87,7 +90,9 @@ def get_lead(lead_id: str) -> Lead:
 
 
 @router.post("/{lead_id}/score", response_model=Lead)
-def update_score(lead_id: str, delta: int) -> Lead:
+def update_score(
+    lead_id: str, delta: int, _user: dict = Depends(get_current_user)
+) -> Lead:
     lead = _LEADS.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead không tồn tại")
