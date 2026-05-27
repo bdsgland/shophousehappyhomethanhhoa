@@ -50,14 +50,26 @@ export function AuthBar() {
     );
   }
 
+  const isAdmin = user.role === "admin";
+
   return (
     <div className="flex items-center gap-3">
       <div className="hidden text-right sm:block">
-        <div className="text-xs text-brand-700">Đăng nhập với tư cách</div>
+        <div className="text-xs text-brand-700">
+          {isAdmin ? "Quản trị viên" : "Đăng nhập với tư cách"}
+        </div>
         <div className="text-sm font-semibold text-brand-900">
           {user.full_name}
         </div>
       </div>
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:border-amber-400"
+        >
+          Admin
+        </Link>
+      )}
       <Link
         href="/leads"
         className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"

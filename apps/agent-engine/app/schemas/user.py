@@ -1,11 +1,13 @@
-"""Schema user (Sale) — đăng ký, đăng nhập, hồ sơ."""
+"""Schema user (Sale/Admin) — đăng ký, đăng nhập, hồ sơ."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+UserRole = Literal["admin", "sale"]
 
 
 class UserRegister(BaseModel):
@@ -34,8 +36,16 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     phone: Optional[str] = None
-    role: str = "sale"
+    role: UserRole = "sale"
+    is_active: bool = True
     created_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """Payload PATCH /admin/users/{id} — admin đổi role / khoá-mở."""
+
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
 
 
 class TokenOut(BaseModel):

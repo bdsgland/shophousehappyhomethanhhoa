@@ -81,7 +81,16 @@ export type AuthUser = {
   full_name: string;
   phone: string | null;
   role: string;
+  is_active: boolean;
   created_at: string;
+};
+
+export type AdminOverview = {
+  users_total: number;
+  users_active: number;
+  users_by_role: Record<string, number>;
+  leads_total: number;
+  backend_status: string;
 };
 
 export type AuthTokenResponse = {
@@ -131,6 +140,53 @@ export function authLogin(payload: {
   password: string;
 }): Promise<AuthTokenResponse> {
   return postJson<AuthTokenResponse>("/auth/login", payload);
+}
+
+export async function fetchAdminOverview(
+  token: string,
+): Promise<AdminOverview | null> {
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/admin/overview`, {
+      cache: "no-store",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as AdminOverview;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminUsers(token: string): Promise<AuthUser[]> {
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/admin/users`, {
+      cache: "no-store",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as AuthUser[];
+  } catch {
+    return [];
+  }
+}
+
+export async function patchAdminUser(
+  token: string,
+  userId: string,
+  body: { role?: string; is_active?: boolean },
+): Promise<AuthUser> {
+  const res = await fetch(`${AGENT_ENGINE_URL}/admin/users/${userId}`, {
+    method: "PATCH",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    throw new Error(typeof detail === "string" ? detail : `Lỗi ${res.status}`);
+  }
+  return data as AuthUser;
 }
 
 export async function fetchMe(token: string): Promise<AuthUser | null> {

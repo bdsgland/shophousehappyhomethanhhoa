@@ -41,7 +41,19 @@ def get_current_user(
     user = user_store.find_by_id(sub)
     if not user:
         raise HTTPException(status_code=401, detail="Tài khoản không tồn tại")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khoá")
     return user
 
 
 CurrentUser = Depends(get_current_user)
+
+
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency đảm bảo user hiện tại có role admin."""
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yêu cầu quyền quản trị viên",
+        )
+    return user

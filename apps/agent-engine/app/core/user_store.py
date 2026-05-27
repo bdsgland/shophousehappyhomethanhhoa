@@ -4,9 +4,13 @@ Format file (data/_runtime/users.json):
   {
     "users": [
       {"id": "...", "email": "...", "full_name": "...", "phone": "...",
-       "role": "sale", "password_hash": "$2b$...", "created_at": "ISO8601"}
+       "role": "sale", "is_active": true,
+       "password_hash": "$2b$...", "created_at": "ISO8601"}
     ]
   }
+
+Khi load lần đầu, file cũ thiếu `role`/`is_active` sẽ được migration tự động
+gán mặc định ("sale", True) và ghi đè lại file.
 """
 
 from __future__ import annotations
@@ -39,18 +43,37 @@ def _ensure_file() -> Path:
     return path
 
 
+def _migrate(data: dict) -> bool:
+    """Bổ sung field mới (role, is_active) cho user cũ. Trả về True nếu có thay đổi."""
+    changed = False
+    for u in data.get("users", []):
+        if "role" not in u:
+            u["role"] = "sale"
+            changed = True
+        if "is_active" not in u:
+            u["is_active"] = True
+            changed = True
+    return changed
+
+
 def _load() -> dict:
     path = _ensure_file()
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if _migrate(data):
+        _write(path, data)
+    return data
 
 
-def _save(data: dict) -> None:
-    path = _ensure_file()
+def _write(path: Path, data: dict) -> None:
     tmp = path.with_suffix(".tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     tmp.replace(path)
+
+
+def _save(data: dict) -> None:
+    _write(_ensure_file(), data)
 
 
 def find_by_email(email: str) -> Optional[dict]:
@@ -72,6 +95,12 @@ def find_by_id(user_id: str) -> Optional[dict]:
     return None
 
 
+def list_users() -> list[dict]:
+    with _LOCK:
+        data = _load()
+        return list(data["users"])
+
+
 def create_user(
     *,
     email: str,
@@ -79,6 +108,7 @@ def create_user(
     password_hash: str,
     phone: Optional[str] = None,
     role: str = "sale",
+    is_active: bool = True,
 ) -> dict:
     with _LOCK:
         data = _load()
@@ -92,12 +122,33 @@ def create_user(
             "full_name": full_name.strip(),
             "phone": (phone or "").strip() or None,
             "role": role,
+            "is_active": is_active,
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
         data["users"].append(new_user)
         _save(data)
         return new_user
+
+
+def update_user(
+    user_id: str,
+    *,
+    role: Optional[str] = None,
+    is_active: Optional[bool] = None,
+) -> Optional[dict]:
+    """Cập nhật role/is_active. Trả về user đã cập nhật, None nếu không tìm thấy."""
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                if role is not None:
+                    u["role"] = role
+                if is_active is not None:
+                    u["is_active"] = is_active
+                _save(data)
+                return u
+    return None
 
 
 def public_view(user: dict) -> dict:
@@ -107,5 +158,6 @@ def public_view(user: dict) -> dict:
         "full_name": user["full_name"],
         "phone": user.get("phone"),
         "role": user.get("role", "sale"),
+        "is_active": user.get("is_active", True),
         "created_at": user["created_at"],
     }

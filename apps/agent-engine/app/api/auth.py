@@ -55,6 +55,11 @@ def login(payload: UserLogin) -> TokenOut:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email hoặc mật khẩu không đúng",
         )
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tài khoản đã bị khoá. Liên hệ quản trị viên.",
+        )
     return _issue_token(user)
 
 
