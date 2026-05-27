@@ -8,7 +8,7 @@ export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/elc-home.html", req.url), 308);
+    return NextResponse.rewrite(new URL("/elc-home.html", req.url));
   }
 
   const isProtected = PROTECTED_PREFIXES.some(
