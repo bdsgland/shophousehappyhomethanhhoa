@@ -26,8 +26,12 @@ class Settings(BaseSettings):
     # Agent behaviour
     lead_hot_score_threshold: int = 70
 
-    # CORS (cho dashboard gọi vào)
-    cors_allow_origins: str = "http://localhost:3000"
+    # CORS (cho dashboard + landing page gọi vào)
+    cors_allow_origins: str = (
+        "http://localhost:3000,"
+        "https://eurowindowlightcity.net,"
+        "https://www.eurowindowlightcity.net"
+    )
 
     # Auth (MVP — JWT đơn giản, file-based user store)
     jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
