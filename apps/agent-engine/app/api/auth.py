@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import traceback
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_current_user
@@ -44,23 +46,40 @@ def register(payload: UserRegister) -> TokenOut:
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 — không để 500 trần, trả lỗi rõ ràng
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi đăng ký: {type(e).__name__}: {e}",
+        )
     return _issue_token(user)
 
 
 @router.post("/login", response_model=TokenOut)
 def login(payload: UserLogin) -> TokenOut:
-    user = user_store.find_by_email(payload.email)
-    if not user or not verify_password(payload.password, user["password_hash"]):
+    try:
+        user = user_store.find_by_email(payload.email)
+        if not user or not verify_password(payload.password, user["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email hoặc mật khẩu không đúng",
+            )
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tài khoản đã bị khoá. Liên hệ quản trị viên.",
+            )
+        return _issue_token(user)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 — không để 500 trần, trả lỗi rõ ràng
+        traceback.print_exc()
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email hoặc mật khẩu không đúng",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi đăng nhập: {type(e).__name__}: {e}",
         )
-    if not user.get("is_active", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tài khoản đã bị khoá. Liên hệ quản trị viên.",
-        )
-    return _issue_token(user)
 
 
 @router.get("/me", response_model=UserOut)

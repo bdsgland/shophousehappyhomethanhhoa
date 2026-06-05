@@ -16,6 +16,7 @@ gán mặc định ("sale", True) và ghi đè lại file.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import uuid
 from datetime import datetime
@@ -28,11 +29,27 @@ _LOCK = threading.Lock()
 
 
 def _file_path() -> Path:
+    """Đường dẫn tuyệt đối tới users.json — robust với mọi cấu trúc deploy.
+
+    Trước đây dùng `parents[4]` (giả định cố định cây thư mục) → trên Railway
+    root dir là `apps/agent-engine` nên path nông hơn → `IndexError: 4` làm
+    crash toàn bộ auth. Nay neo theo thư mục `agent-engine`, fallback DATA_DIR/CWD.
+    """
     p = Path(settings.users_file)
-    if not p.is_absolute():
-        # Resolve tương đối repo root (.../app/core/user_store.py → 4 cấp)
-        p = (Path(__file__).resolve().parents[4] / p).resolve()
-    return p
+    if p.is_absolute():
+        return p
+
+    data_dir = os.getenv("DATA_DIR")
+    if data_dir:
+        return (Path(data_dir) / p).resolve()
+
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if parent.name == "agent-engine":
+            return (parent / p).resolve()
+
+    # Fallback cuối: theo thư mục làm việc hiện tại (không bao giờ crash)
+    return (Path.cwd() / p).resolve()
 
 
 def _ensure_file() -> Path:

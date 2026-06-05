@@ -14,6 +14,7 @@ Sau đó mở:
 import os
 import secrets
 import string
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -46,7 +47,8 @@ async def lifespan(app: FastAPI):
         else:
             print(f"[SEED] Admin already exists: {admin_email}")
     except Exception as e:  # noqa: BLE001 — không để seed làm chết app
-        print(f"[SEED] Error: {e}")
+        print(f"[SEED] Error: {type(e).__name__}: {e}")
+        traceback.print_exc()
     yield
 
 
