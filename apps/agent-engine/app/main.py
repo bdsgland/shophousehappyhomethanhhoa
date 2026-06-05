@@ -11,12 +11,44 @@ Sau đó mở:
     http://localhost:8000/docs     — Swagger UI tự sinh
 """
 
+import os
+import secrets
+import string
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api import admin, auth, chat, health, leads
 from app.core.settings import settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Auto-seed tài khoản admin khi khởi động nếu chưa tồn tại."""
+    from app.core import user_store
+    from app.core.security import hash_password
+
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@eurowindowlightcity.net")
+    admin_password = os.getenv("ADMIN_PASSWORD") or "".join(
+        secrets.choice(string.ascii_letters + string.digits) for _ in range(16)
+    )
+    try:
+        if not user_store.find_by_email(admin_email):
+            user_store.create_user(
+                email=admin_email,
+                full_name="Admin",
+                password_hash=hash_password(admin_password),
+                role="admin",
+            )
+            print(f"[SEED] Admin created: {admin_email} / {admin_password}")
+        else:
+            print(f"[SEED] Admin already exists: {admin_email}")
+    except Exception as e:  # noqa: BLE001 — không để seed làm chết app
+        print(f"[SEED] Error: {e}")
+    yield
+
 
 app = FastAPI(
     title="Agent Proptech — Agent Engine",
@@ -25,6 +57,7 @@ app = FastAPI(
         "Cung cấp endpoint cho web dashboard và chat widget."
     ),
     version=__version__,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

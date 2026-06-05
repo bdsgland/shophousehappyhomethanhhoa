@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+# MVP: dùng `str` thay vì `EmailStr` để chấp nhận mọi domain (.net/.local…)
+# và tránh phụ thuộc cứng vào package email-validator khi đăng nhập.
+EmailStr = str
 
 UserRole = Literal["admin", "sale"]
 
