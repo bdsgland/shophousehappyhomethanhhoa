@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE } from "@/lib/auth";
 import { decodeJwtPayload } from "@/lib/jwt";
 
-const PROTECTED_PREFIXES = ["/leads", "/admin"];
+const PROTECTED_PREFIXES = ["/leads", "/admin", "/dashboard"];
 const ADMIN_PREFIX = "/admin";
 
 export function middleware(req: NextRequest) {
@@ -42,5 +42,13 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/leads/:path*", "/leads", "/admin/:path*", "/admin"],
+  matcher: [
+    "/",
+    "/leads/:path*",
+    "/leads",
+    "/admin/:path*",
+    "/admin",
+    "/dashboard/:path*",
+    "/dashboard",
+  ],
 };
