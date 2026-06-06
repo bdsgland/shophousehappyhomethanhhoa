@@ -26,12 +26,33 @@ class Settings(BaseSettings):
     # Agent behaviour
     lead_hot_score_threshold: int = 70
 
-    # CORS (cho dashboard + landing page gọi vào)
+    # Knowledge base mặc định cho kênh chat (Chatwoot webhook).
+    elc_project_slug: str = "eurowindow-light-city"
+
+    # Chatwoot Agent Bot integration (webhook /webhook/chatwoot).
+    # CHATWOOT_API_TOKEN đặt trên Railway sau khi tạo Agent Bot (xem hướng dẫn).
+    chatwoot_base_url: str = "https://chat.eurowindowlightcity.net"
+    chatwoot_api_token: str = ""  # TODO: điền access token của Agent Bot
+    chatwoot_account_id: int = 1
+    chatwoot_bds_team_id: int = 0  # 0 = chưa cấu hình → bỏ qua auto-assign
+    chatwoot_hot_lead_label: str = "hot-lead"
+
+    # CORS (cho dashboard + landing page + admin gọi vào)
     cors_allow_origins: str = (
         "http://localhost:3000,"
+        "http://localhost:3001,"
         "https://eurowindowlightcity.net,"
-        "https://www.eurowindowlightcity.net"
+        "https://www.eurowindowlightcity.net,"
+        "https://admin.eurowindowlightcity.net,"
+        "https://app.eurowindowlightcity.net"
     )
+
+    # URL các nền tảng vệ tinh — dùng cho /admin/platforms/health.
+    # Override qua env (PLATFORM_N8N_URL, ...) nếu subdomain thực tế khác.
+    platform_n8n_url: str = "https://n8n.eurowindowlightcity.net"
+    platform_note_url: str = "https://note.eurowindowlightcity.net"
+    platform_bot_url: str = "https://bot.eurowindowlightcity.net"
+    platform_chat_url: str = "https://chat.eurowindowlightcity.net"
 
     # ----- Automation n8n (3 workflow: hot-lead, commission, daily-briefing) -----
     # Để trống → tự dựng URL từ platform_n8n_url + path mặc định. Đặt env
@@ -68,6 +89,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60 * 8  # 8 giờ
     users_file: str = "data/_runtime/users.json"
+
+    # Sale Learning Center — thư mục lưu tài liệu upload + index BM25 + phiếu báo
+    # giá. Tương đối thì resolve theo $DATA_DIR (Railway volume) hoặc thư mục
+    # agent-engine; tuyệt đối thì dùng nguyên (xem core/learning_store.py).
+    learning_dir: str = "data/learning"
 
 
 settings = Settings()
