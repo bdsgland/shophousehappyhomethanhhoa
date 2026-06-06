@@ -71,6 +71,12 @@ export function AuthBar() {
         </Link>
       )}
       <Link
+        href="/agent/profile"
+        className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
+      >
+        Tài khoản
+      </Link>
+      <Link
         href="/dashboard/project/eurowindow-light-city"
         className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
       >

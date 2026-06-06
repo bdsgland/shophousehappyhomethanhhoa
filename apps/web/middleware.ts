@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE } from "@/lib/auth";
 import { decodeJwtPayload } from "@/lib/jwt";
 
-const PROTECTED_PREFIXES = ["/leads", "/admin", "/dashboard"];
+const PROTECTED_PREFIXES = ["/leads", "/admin", "/dashboard", "/agent"];
 const ADMIN_PREFIX = "/admin";
 
 export function middleware(req: NextRequest) {
@@ -50,5 +50,7 @@ export const config = {
     "/admin",
     "/dashboard/:path*",
     "/dashboard",
+    "/agent/:path*",
+    "/agent",
   ],
 };

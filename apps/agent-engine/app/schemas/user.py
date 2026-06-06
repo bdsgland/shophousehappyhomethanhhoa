@@ -19,6 +19,8 @@ class UserRegister(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     password: str = Field(min_length=8, max_length=128)
     phone: Optional[str] = Field(default=None, max_length=20)
+    # Mã giới thiệu của upline (nếu đăng ký qua link ?ref=...)
+    ref: Optional[str] = Field(default=None, max_length=32)
 
     @field_validator("password")
     @classmethod
@@ -42,6 +44,10 @@ class UserOut(BaseModel):
     phone: Optional[str] = None
     role: UserRole = "sale"
     is_active: bool = True
+    dob: Optional[str] = None
+    region: Optional[str] = None
+    referral_code: Optional[str] = None
+    upline_email: Optional[str] = None
     created_at: datetime
 
 

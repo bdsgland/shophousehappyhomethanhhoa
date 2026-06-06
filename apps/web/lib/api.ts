@@ -82,6 +82,10 @@ export type AuthUser = {
   phone: string | null;
   role: string;
   is_active: boolean;
+  dob?: string | null;
+  region?: string | null;
+  referral_code?: string | null;
+  upline_email?: string | null;
   created_at: string;
 };
 
@@ -200,6 +204,119 @@ export async function fetchMe(token: string): Promise<AuthUser | null> {
   } catch {
     return null;
   }
+}
+
+// ----- Portal cá nhân (/me) -----
+
+export type CommissionTransaction = {
+  date: string;
+  type: string;
+  customer: string;
+  product: string;
+  revenue: number;
+  commission: number;
+  status: string;
+};
+
+export type CommissionData = {
+  total_received: number;
+  this_month: number;
+  pending: number;
+  closed_count: number;
+  current_tier: string;
+  current_tier_label: string;
+  luy_tien_level: number;
+  luy_tien_pct: number;
+  referral_commission_pct: number;
+  transactions: CommissionTransaction[];
+  referral_deals: Array<{
+    customer: string;
+    project: string;
+    status: string;
+    expected_commission: number;
+  }>;
+  monthly_revenue: number[];
+};
+
+export type ReferralNode = {
+  email: string;
+  full_name: string;
+  role: string;
+  phone: string | null;
+  region?: string | null;
+  closed_count?: number;
+  commission_to_me?: number;
+};
+
+export type ReferralsData = {
+  referral_code: string | null;
+  upline: ReferralNode | null;
+  downlines: ReferralNode[];
+  team_size: number;
+  team_revenue: number;
+  team_commission_to_me: number;
+};
+
+async function requestJson<T>(
+  path: string,
+  opts: { method?: string; token?: string; body?: unknown },
+): Promise<T> {
+  const res = await fetch(`${AGENT_ENGINE_URL}${path}`, {
+    method: opts.method ?? "GET",
+    headers: {
+      ...authHeaders(opts.token),
+      ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+        ? detail
+            .map((d: { msg?: string }) =>
+              typeof d?.msg === "string" ? d.msg : JSON.stringify(d),
+            )
+            .join(", ")
+        : `Lỗi ${res.status}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+export function fetchAgentMe(token: string): Promise<AuthUser> {
+  return requestJson<AuthUser>("/me", { token });
+}
+
+export function updateAgentProfile(
+  token: string,
+  body: {
+    full_name?: string;
+    phone?: string;
+    dob?: string;
+    region?: string;
+  },
+): Promise<AuthUser> {
+  return requestJson<AuthUser>("/me", { method: "PATCH", token, body });
+}
+
+export function changeAgentPassword(
+  token: string,
+  body: { old_password: string; new_password: string },
+): Promise<{ ok: boolean; message: string }> {
+  return requestJson("/me/change-password", { method: "POST", token, body });
+}
+
+export function fetchCommission(token: string): Promise<CommissionData> {
+  return requestJson<CommissionData>("/me/commission", { token });
+}
+
+export function fetchReferrals(token: string): Promise<ReferralsData> {
+  return requestJson<ReferralsData>("/me/referrals", { token });
 }
 
 export type ChatRole = "user" | "assistant";

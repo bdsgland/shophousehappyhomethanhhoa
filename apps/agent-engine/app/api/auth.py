@@ -38,11 +38,17 @@ def _issue_token(user: dict) -> TokenOut:
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 def register(payload: UserRegister) -> TokenOut:
     try:
+        upline_email = None
+        if payload.ref:
+            upline = user_store.find_by_referral_code(payload.ref)
+            if upline:
+                upline_email = upline["email"]
         user = user_store.create_user(
             email=payload.email,
             full_name=payload.full_name,
             password_hash=hash_password(payload.password),
             phone=payload.phone,
+            upline_email=upline_email,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

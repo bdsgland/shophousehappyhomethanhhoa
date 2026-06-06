@@ -187,3 +187,86 @@ export function ChevronRightSmall(p: IconProps) {
     </svg>
   );
 }
+
+export function User(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+    </svg>
+  );
+}
+
+export function Users(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M3 21c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <path d="M16 4.5a3.5 3.5 0 0 1 0 7" />
+      <path d="M21 21c0-3.3-2.2-6-5-6" />
+    </svg>
+  );
+}
+
+export function DollarSign(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 2v20" />
+      <path d="M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.8 7 7s2.2 3 5 3.5 5 1.3 5 3.5-2.2 3.5-5 3.5-5-1.1-5-3" />
+    </svg>
+  );
+}
+
+export function ShoppingBag(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M5 7h14l-1 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1Z" />
+      <path d="M9 7V6a3 3 0 0 1 6 0v1" />
+    </svg>
+  );
+}
+
+export function Calendar(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 9h18M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+export function Heart(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 20s-7-4.4-9.3-9C1.4 8.3 2.6 5 6 5c2 0 3.2 1.3 4 2.5C10.8 6.3 12 5 14 5c3.4 0 4.6 3.3 3.3 6-2.3 4.6-9.3 9-9.3 9Z" />
+    </svg>
+  );
+}
+
+export function Copy(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+    </svg>
+  );
+}
+
+export function LogOut(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 17l-5-5 5-5" />
+      <path d="M5 12h12" />
+    </svg>
+  );
+}
+
+export function Award(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="9" r="6" />
+      <path d="M8.5 14 7 22l5-3 5 3-1.5-8" />
+    </svg>
+  );
+}
