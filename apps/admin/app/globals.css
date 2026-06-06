@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --primary: 33 49% 48%; /* vàng đồng ELC */
+    --primary-foreground: 40 50% 98%;
+
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 16% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 16% 93%;
+    --accent-foreground: 222 47% 11%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 33 49% 48%;
+
+    --success: 152 60% 40%;
+    --warning: 38 92% 50%;
+    --danger: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 222 47% 9%;
+    --foreground: 210 20% 96%;
+    --card: 222 40% 12%;
+    --card-foreground: 210 20% 96%;
+    --primary: 33 55% 55%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 217 33% 16%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 18%;
+    --accent-foreground: 210 20% 96%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 33 55% 55%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+}
