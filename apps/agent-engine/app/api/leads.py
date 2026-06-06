@@ -8,7 +8,7 @@ from typing import List, Optional
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_user_or_service
 from app.schemas.lead import Lead, LeadCreate
 
 router = APIRouter(prefix="/leads", tags=["leads"])
@@ -86,6 +86,38 @@ def get_lead(lead_id: str, _user: dict = Depends(get_current_user)) -> Lead:
     lead = _LEADS.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead không tồn tại")
+    return lead
+
+
+@router.get("/{lead_id}/contacted_at")
+def get_contacted_at(
+    lead_id: str, _principal: dict = Depends(require_user_or_service)
+) -> dict:
+    """Trả về thời điểm sale đã liên hệ lead (None = chưa).
+
+    Workflow n8n "Hot Lead Alert" gọi sau 5 phút: nếu contacted_at vẫn null thì
+    escalate lên manager. Cho phép service token (X-Internal-Token) để n8n gọi.
+    """
+    lead = _LEADS.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead không tồn tại")
+    return {
+        "lead_id": lead_id,
+        "contacted_at": lead.contacted_at.isoformat() + "Z" if lead.contacted_at else None,
+    }
+
+
+@router.post("/{lead_id}/contacted", response_model=Lead)
+def mark_contacted(
+    lead_id: str, _principal: dict = Depends(require_user_or_service)
+) -> Lead:
+    """Đánh dấu sale đã liên hệ lead (dừng escalate). Idempotent — giữ mốc đầu tiên."""
+    lead = _LEADS.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead không tồn tại")
+    if lead.contacted_at is None:
+        lead.contacted_at = datetime.utcnow()
+    lead.updated_at = datetime.utcnow()
     return lead
 
 

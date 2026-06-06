@@ -57,6 +57,7 @@ class UserOut(BaseModel):
     upline_email: Optional[str] = None
     projects_interested: list[str] = Field(default_factory=list)
     favorites: list[str] = Field(default_factory=list)
+    telegram_chat_id: Optional[str] = None
     created_at: datetime
 
 

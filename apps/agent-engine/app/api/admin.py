@@ -7,10 +7,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api import leads as leads_module
-from app.api.deps import require_admin
+from app.api.deps import require_admin, require_admin_or_service
 from app.core import user_store
 from app.schemas.user import UserOut, UserUpdate
 
@@ -71,3 +73,100 @@ def patch_user(
     if not updated:
         raise HTTPException(status_code=404, detail="User không tồn tại")
     return UserOut(**user_store.public_view(updated))
+
+
+
+# ---------------------------------------------------------------------------
+# Daily Briefing (n8n workflow 3) — sales active + leads cần follow-up
+# ---------------------------------------------------------------------------
+
+@router.get("/sales/active")
+def sales_active(
+    _principal: dict = Depends(require_admin_or_service),
+) -> dict:
+    """Danh sách sale đang hoạt động — n8n daily-briefing loop qua từng người.
+
+    Cho phép service token (X-Internal-Token) để n8n gọi không cần đăng nhập.
+    """
+    sales = user_store.list_active_sales()
+    return {
+        "sales": [
+            {
+                "id": s["id"],
+                "full_name": s["full_name"],
+                "email": s["email"],
+                "phone": s.get("phone"),
+                "telegram_chat_id": s.get("telegram_chat_id"),
+                "telegram_linked": bool(s.get("telegram_chat_id")),
+            }
+            for s in sales
+        ],
+        "count": len(sales),
+    }
+
+
+def _lead_brief(lead) -> dict:
+    """Rút gọn lead cho briefing (chỉ field cần để Claude tóm tắt)."""
+    return {
+        "id": lead.id,
+        "full_name": lead.full_name,
+        "phone": lead.phone,
+        "status": lead.status,
+        "intent_score": lead.intent_score,
+        "project": lead.project,
+        "next_followup_at": lead.next_followup_at.isoformat() + "Z"
+        if lead.next_followup_at
+        else None,
+        "updated_at": lead.updated_at.isoformat() + "Z" if lead.updated_at else None,
+    }
+
+
+@router.get("/leads/needs-followup")
+def leads_needs_followup(
+    sale_id: str = Query(..., description="user_id của sale"),
+    _principal: dict = Depends(require_admin_or_service),
+) -> dict:
+    """Tổng hợp lead cần follow-up của 1 sale cho briefing sáng.
+
+    Nhóm: hot leads chưa liên hệ / lịch gọi lại hôm nay / lead "ngủ đông" 3+ ngày /
+    booking sắp đến trong 24h. Lọc theo lead.assigned_sale_id == sale_id.
+    """
+    now = datetime.utcnow()
+    today = now.date()
+    in_24h = now + timedelta(hours=24)
+    dormant_before = now - timedelta(days=3)
+
+    mine = [
+        l for l in leads_module._LEADS.values() if l.assigned_sale_id == sale_id
+    ]
+
+    hot_uncontacted = [
+        l for l in mine if l.status == "hot" and l.contacted_at is None
+    ]
+    callbacks_today = [
+        l for l in mine if l.next_followup_at and l.next_followup_at.date() == today
+    ]
+    upcoming_bookings = [
+        l for l in mine if l.next_followup_at and now <= l.next_followup_at <= in_24h
+    ]
+    dormant = [
+        l
+        for l in mine
+        if l.status in ("new", "nurturing", "hot")
+        and (l.updated_at or now) < dormant_before
+    ]
+
+    return {
+        "sale_id": sale_id,
+        "generated_at": now.isoformat() + "Z",
+        "hot_uncontacted": [_lead_brief(l) for l in hot_uncontacted],
+        "callbacks_today": [_lead_brief(l) for l in callbacks_today],
+        "upcoming_bookings_24h": [_lead_brief(l) for l in upcoming_bookings],
+        "dormant_3days": [_lead_brief(l) for l in dormant],
+        "counts": {
+            "hot_uncontacted": len(hot_uncontacted),
+            "callbacks_today": len(callbacks_today),
+            "upcoming_bookings_24h": len(upcoming_bookings),
+            "dormant_3days": len(dormant),
+        },
+    }

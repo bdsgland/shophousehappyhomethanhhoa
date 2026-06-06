@@ -18,9 +18,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_current_user
-from app.core import user_store
+from app.api.deps import get_current_user, optional_service_guard
+from app.core import telegram_link, user_store
 from app.core.security import hash_password, verify_password
+from app.core.settings import settings
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -39,6 +40,13 @@ class ProfileUpdate(BaseModel):
 class ChangePassword(BaseModel):
     old_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class TelegramLinkIn(BaseModel):
+    """Bot/n8n gửi lên sau khi sale bấm /start: token + chat_id Telegram."""
+
+    verification_token: str = Field(min_length=8, max_length=128)
+    chat_id: str = Field(min_length=1, max_length=64)
 
 
 # ----- Helpers -----
@@ -147,6 +155,66 @@ def get_commission(user: dict = Depends(get_current_user)) -> dict:
         "referral_deals": [],
         "monthly_revenue": [0, 0, 0, 0, 0, 0],
     }
+
+
+# ----- Liên kết Telegram (nhận alert + briefing) -----
+
+@router.get("/telegram")
+def telegram_status(user: dict = Depends(get_current_user)) -> dict:
+    """Trạng thái liên kết Telegram của tài khoản hiện tại."""
+    chat_id = user.get("telegram_chat_id")
+    return {
+        "linked": bool(chat_id),
+        "chat_id": chat_id,
+        "bot_username": settings.telegram_bot_username,
+    }
+
+
+@router.post("/telegram/link-token")
+def telegram_link_token(user: dict = Depends(get_current_user)) -> dict:
+    """Sinh token + deep-link để sale mở bot Telegram và bấm Start liên kết."""
+    token = telegram_link.issue_token(user["id"])
+    return {
+        "verification_token": token,
+        "bot_username": settings.telegram_bot_username,
+        "deep_link": telegram_link.deep_link(settings.telegram_bot_username, token),
+        "expires_in": 15 * 60,
+    }
+
+
+@router.post("/telegram/link")
+def telegram_link_finalize(
+    payload: TelegramLinkIn,
+    _guard: dict = Depends(optional_service_guard),
+) -> dict:
+    """Bot/n8n gọi sau khi sale bấm Start: đổi token lấy user_id rồi set chat_id.
+
+    Không yêu cầu JWT của user (bot không đăng nhập được) — chính token dùng-một-
+    lần là bằng chứng. Khi đã cấu hình INTERNAL_WEBHOOK_TOKEN thì còn phải kèm
+    header X-Internal-Token (xem optional_service_guard).
+    """
+    user_id = telegram_link.consume_token(payload.verification_token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token liên kết không hợp lệ hoặc đã hết hạn",
+        )
+    updated = user_store.set_telegram_chat_id(user_id, payload.chat_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
+    return {
+        "ok": True,
+        "user_id": user_id,
+        "full_name": updated.get("full_name"),
+        "chat_id": payload.chat_id,
+    }
+
+
+@router.delete("/telegram")
+def telegram_unlink(user: dict = Depends(get_current_user)) -> dict:
+    """Gỡ liên kết Telegram."""
+    user_store.set_telegram_chat_id(user["id"], None)
+    return {"ok": True, "linked": False}
 
 
 @router.get("/referrals")

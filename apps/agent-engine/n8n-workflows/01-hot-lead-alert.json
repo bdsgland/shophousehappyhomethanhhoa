@@ -1,0 +1,222 @@
+{
+  "name": "ELC — 01 Hot Lead Alert",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔥 Hot Lead Alert\nFastAPI gọi webhook này khi có booking mới.\n\n**Cần cấu hình (n8n → Settings → Variables/Env):**\n- `ELC_API_URL` = https://api.eurowindowlightcity.net\n- `INTERNAL_WEBHOOK_TOKEN` = trùng env backend\n- `MANAGER_TELEGRAM_CHAT_ID` = chat_id manager/admin\n- Credential **Telegram** = bot token từ @BotFather\n\nGợi ý nút bấm: thêm Inline Keyboard trong node Telegram nếu muốn (xem docs/n8n-setup.md).",
+        "height": 320,
+        "width": 380
+      },
+      "id": "note-1",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-40, -40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hot-lead-alert",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 200],
+      "webhookId": "hot-lead-alert"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Webhook').item.json.body.sale_telegram_chat_id }}",
+        "text": "=🔥 *HOT LEAD MỚI — 30 GIÂY ĐỂ PHẢN HỒI*\n\n👤 *Khách:* {{ $('Webhook').item.json.body.lead_name }}\n📞 {{ $('Webhook').item.json.body.lead_phone }}\n🏠 *Căn:* {{ $('Webhook').item.json.body.unit_id }} — {{ $('Webhook').item.json.body.unit_summary }}\n🕐 *Hẹn:* {{ $('Webhook').item.json.body.booking_time }}\n⭐ *AI score:* {{ $('Webhook').item.json.body.ai_score }}/100\n\n📝 {{ $('Webhook').item.json.body.ai_summary }}\n\n👉 [Mở Chatwoot trả lời ngay]({{ $('Webhook').item.json.body.conversation_url }})",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-notify",
+      "name": "Telegram — Báo Sale",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [640, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "id": "wait-5m",
+      "name": "Chờ 5 phút",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [880, 200],
+      "webhookId": "wait-hot-lead"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ELC_API_URL }}/leads/{{ $('Webhook').item.json.body.lead_id }}/contacted_at",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-check",
+      "name": "Check contacted_at",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-uncontacted",
+              "leftValue": "={{ $json.contacted_at }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-uncontacted",
+      "name": "Sale chưa phản hồi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1360, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MANAGER_TELEGRAM_CHAT_ID }}",
+        "text": "=⚠️ *CẢNH BÁO: SALE CHƯA PHẢN HỒI HOT LEAD*\n\nSale *{{ $('Webhook').item.json.body.sale_name }}* chưa liên hệ sau 5 phút.\n\n👤 Khách: {{ $('Webhook').item.json.body.lead_name }} — {{ $('Webhook').item.json.body.lead_phone }}\n🏠 Căn: {{ $('Webhook').item.json.body.unit_id }}\n⭐ AI score: {{ $('Webhook').item.json.body.ai_score }}/100\n\n👉 [Mở Chatwoot]({{ $('Webhook').item.json.body.conversation_url }})",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-escalate",
+      "name": "Telegram — Escalate Manager",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1620, 120],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.sale_email }}",
+        "subject": "=[HOT LEAD] {{ $('Webhook').item.json.body.lead_name }} — phản hồi ngay",
+        "emailFormat": "text",
+        "text": "=Bạn có hot lead chưa phản hồi:\n\nKhách: {{ $('Webhook').item.json.body.lead_name }} - {{ $('Webhook').item.json.body.lead_phone }}\nCăn: {{ $('Webhook').item.json.body.unit_id }} - {{ $('Webhook').item.json.body.unit_summary }}\nHẹn: {{ $('Webhook').item.json.body.booking_time }}\n\nMở Chatwoot: {{ $('Webhook').item.json.body.conversation_url }}",
+        "options": {}
+      },
+      "id": "email-backup",
+      "name": "Email backup (bật khi Telegram lỗi)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1620, 320],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Báo Sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram — Báo Sale": {
+      "main": [
+        [
+          {
+            "node": "Chờ 5 phút",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chờ 5 phút": {
+      "main": [
+        [
+          {
+            "node": "Check contacted_at",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check contacted_at": {
+      "main": [
+        [
+          {
+            "node": "Sale chưa phản hồi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sale chưa phản hồi?": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Escalate Manager",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email backup (bật khi Telegram lỗi)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

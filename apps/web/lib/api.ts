@@ -88,6 +88,7 @@ export type AuthUser = {
   upline_email?: string | null;
   projects_interested?: string[];
   favorites?: string[];
+  telegram_chat_id?: string | null;
   created_at: string;
 };
 
@@ -315,6 +316,40 @@ export function changeAgentPassword(
   body: { old_password: string; new_password: string },
 ): Promise<{ ok: boolean; message: string }> {
   return requestJson("/me/change-password", { method: "POST", token, body });
+}
+
+// ----- Liên kết Telegram -----
+
+export type TelegramStatus = {
+  linked: boolean;
+  chat_id: string | null;
+  bot_username: string;
+};
+
+export type TelegramLinkToken = {
+  verification_token: string;
+  bot_username: string;
+  deep_link: string;
+  expires_in: number;
+};
+
+export function fetchTelegramStatus(token: string): Promise<TelegramStatus> {
+  return requestJson<TelegramStatus>("/me/telegram", { token });
+}
+
+export function requestTelegramLinkToken(
+  token: string,
+): Promise<TelegramLinkToken> {
+  return requestJson<TelegramLinkToken>("/me/telegram/link-token", {
+    method: "POST",
+    token,
+  });
+}
+
+export function unlinkTelegram(
+  token: string,
+): Promise<{ ok: boolean; linked: boolean }> {
+  return requestJson("/me/telegram", { method: "DELETE", token });
 }
 
 export function fetchCommission(token: string): Promise<CommissionData> {

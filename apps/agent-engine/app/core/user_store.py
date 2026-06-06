@@ -114,6 +114,9 @@ def _migrate(data: dict) -> bool:
         if "favorites" not in u:
             u["favorites"] = []
             changed = True
+        if "telegram_chat_id" not in u:
+            u["telegram_chat_id"] = None
+            changed = True
         # Khách hàng (client) không có mã giới thiệu; chỉ sinh cho admin/sale.
         if u.get("role") != "client" and not u.get("referral_code"):
             code = _gen_referral_code(u.get("full_name", ""), existing_codes)
@@ -210,6 +213,7 @@ def create_user(
             "referral_code": referral_code,
             "projects_interested": list(projects_interested or []),
             "favorites": [],
+            "telegram_chat_id": None,
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
@@ -305,6 +309,49 @@ def get_favorites(user_id: str) -> list[str]:
     return []
 
 
+def set_telegram_chat_id(user_id: str, chat_id: Optional[str]) -> Optional[dict]:
+    """Liên kết / huỷ liên kết Telegram chat_id cho user. None để gỡ liên kết."""
+    chat_id_clean = (str(chat_id).strip() or None) if chat_id is not None else None
+    with _LOCK:
+        data = _load()
+        # Bảo đảm 1 chat_id chỉ gắn cho 1 user (gỡ ở user cũ nếu trùng).
+        if chat_id_clean:
+            for u in data["users"]:
+                if u.get("telegram_chat_id") == chat_id_clean and u["id"] != user_id:
+                    u["telegram_chat_id"] = None
+        for u in data["users"]:
+            if u["id"] == user_id:
+                u["telegram_chat_id"] = chat_id_clean
+                _save(data)
+                return u
+    return None
+
+
+def find_by_telegram_chat_id(chat_id: str) -> Optional[dict]:
+    chat_id_clean = str(chat_id).strip()
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u.get("telegram_chat_id") == chat_id_clean:
+                return u
+    return None
+
+
+def list_active_sales(days: int = 7) -> list[dict]:
+    """Sale đang hoạt động — MVP: tài khoản role=sale còn mở (is_active).
+
+    Tham số `days` để dành cho khi có tracking last_active_at (giai đoạn 2);
+    hiện chưa lưu hoạt động theo thời gian nên trả toàn bộ sale đang mở.
+    """
+    with _LOCK:
+        data = _load()
+        return [
+            u
+            for u in data["users"]
+            if u.get("role") == "sale" and u.get("is_active", True)
+        ]
+
+
 def set_password(user_id: str, password_hash: str) -> Optional[dict]:
     with _LOCK:
         data = _load()
@@ -350,5 +397,6 @@ def public_view(user: dict) -> dict:
         "upline_email": user.get("upline_email"),
         "projects_interested": user.get("projects_interested") or [],
         "favorites": user.get("favorites") or [],
+        "telegram_chat_id": user.get("telegram_chat_id"),
         "created_at": user["created_at"],
     }

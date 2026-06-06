@@ -6,8 +6,12 @@ import { Copy } from "@/components/dashboard/icons";
 import {
   changeAgentPassword,
   fetchAgentMe,
+  fetchTelegramStatus,
+  requestTelegramLinkToken,
+  unlinkTelegram,
   updateAgentProfile,
   type AuthUser,
+  type TelegramLinkToken,
 } from "@/lib/api";
 import { readToken, readUserFromCookie, setUserCookie } from "@/lib/auth";
 
@@ -38,6 +42,12 @@ export default function ProfilePage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // telegram linking
+  const [tgLinked, setTgLinked] = useState(false);
+  const [tgLink, setTgLink] = useState<TelegramLinkToken | null>(null);
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgMsg, setTgMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   useEffect(() => {
     const t = readToken();
     setToken(t);
@@ -52,6 +62,7 @@ export default function ProfilePage() {
         setPhone(u.phone ?? "");
         setDob(u.dob ?? "");
         setRegion(u.region ?? "Thanh Hoá");
+        setTgLinked(Boolean(u.telegram_chat_id));
       })
       .catch(() => {
         // fallback từ cookie nếu API lỗi
@@ -133,6 +144,68 @@ export default function ProfilePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+  }
+
+  async function createTgLink() {
+    if (!token) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      const link = await requestTelegramLinkToken(token);
+      setTgLink(link);
+    } catch (err) {
+      setTgMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : "Không tạo được link.",
+      });
+    } finally {
+      setTgBusy(false);
+    }
+  }
+
+  async function refreshTgStatus() {
+    if (!token) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      const st = await fetchTelegramStatus(token);
+      setTgLinked(st.linked);
+      if (st.linked) {
+        setTgLink(null);
+        setTgMsg({ ok: true, text: "Đã liên kết Telegram thành công." });
+      } else {
+        setTgMsg({
+          ok: false,
+          text: "Chưa thấy liên kết — hãy bấm Start trong bot rồi thử lại.",
+        });
+      }
+    } catch (err) {
+      setTgMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : "Kiểm tra thất bại.",
+      });
+    } finally {
+      setTgBusy(false);
+    }
+  }
+
+  async function doUnlinkTg() {
+    if (!token) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      await unlinkTelegram(token);
+      setTgLinked(false);
+      setTgLink(null);
+      setTgMsg({ ok: true, text: "Đã gỡ liên kết Telegram." });
+    } catch (err) {
+      setTgMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : "Gỡ liên kết thất bại.",
+      });
+    } finally {
+      setTgBusy(false);
+    }
   }
 
   if (loading) {
@@ -279,6 +352,104 @@ export default function ProfilePage() {
           )}
         </div>
       </form>
+
+      {/* Liên kết Telegram */}
+      <section className="rounded-2xl border border-brand-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-brand-900">
+              Liên kết Telegram
+            </h2>
+            <p className="mt-1 text-sm text-brand-700">
+              Nhận cảnh báo hot lead, hoa hồng và briefing sáng qua bot Telegram.
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              tgLinked
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-brand-50 text-brand-600"
+            }`}
+          >
+            {tgLinked ? "Đã liên kết ✅" : "Chưa liên kết"}
+          </span>
+        </div>
+
+        {!tgLinked && (
+          <div className="mt-4 space-y-3">
+            {!tgLink ? (
+              <button
+                type="button"
+                onClick={createTgLink}
+                disabled={tgBusy}
+                className="rounded-lg bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 disabled:opacity-60"
+              >
+                {tgBusy ? "Đang tạo…" : "Tạo link liên kết"}
+              </button>
+            ) : (
+              <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+                <ol className="list-decimal space-y-1.5 pl-5 text-sm text-brand-800">
+                  <li>
+                    Bấm nút bên dưới để mở bot{" "}
+                    <span className="font-mono">@{tgLink.bot_username}</span>.
+                  </li>
+                  <li>
+                    Trong Telegram bấm <b>Start</b> (hoặc gửi lệnh{" "}
+                    <span className="font-mono">/start</span>).
+                  </li>
+                  <li>
+                    Quay lại đây bấm <b>Tôi đã bấm Start</b> để xác nhận.
+                  </li>
+                </ol>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <a
+                    href={tgLink.deep_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+                  >
+                    Mở bot Telegram
+                  </a>
+                  <button
+                    type="button"
+                    onClick={refreshTgStatus}
+                    disabled={tgBusy}
+                    className="rounded-lg border border-brand-100 px-4 py-2 text-sm font-medium text-brand-800 hover:border-orange-400 disabled:opacity-60"
+                  >
+                    {tgBusy ? "Đang kiểm tra…" : "Tôi đã bấm Start"}
+                  </button>
+                </div>
+                <p className="mt-2 break-all text-xs text-brand-500">
+                  Link có hiệu lực ~15 phút. Nếu hết hạn, tạo lại link mới.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tgLinked && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={doUnlinkTg}
+              disabled={tgBusy}
+              className="rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+            >
+              {tgBusy ? "Đang xử lý…" : "Gỡ liên kết"}
+            </button>
+          </div>
+        )}
+
+        {tgMsg && (
+          <p
+            className={`mt-3 text-sm ${
+              tgMsg.ok ? "text-emerald-700" : "text-rose-600"
+            }`}
+          >
+            {tgMsg.text}
+          </p>
+        )}
+      </section>
 
       {/* Đổi mật khẩu */}
       <form

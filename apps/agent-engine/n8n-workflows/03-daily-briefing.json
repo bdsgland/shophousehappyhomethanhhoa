@@ -1,0 +1,283 @@
+{
+  "name": "ELC — 03 Daily Briefing",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📅 Daily Briefing 7h sáng\nChạy theo lịch cron `0 7 * * *` (giờ Asia/Ho_Chi_Minh).\n\n**Cấu hình env n8n:**\n- `ELC_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `ANTHROPIC_API_KEY` (gọi Claude sinh briefing)\n- `ADMIN_TELEGRAM_CHAT_ID`\n- Credential **Telegram** (ELC Sale Bot)\n\nTest nhanh: bấm **Execute Workflow** (không cần chờ 7h).",
+        "height": 320,
+        "width": 380
+      },
+      "id": "note-3",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -60]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-7am",
+      "name": "7h sáng mỗi ngày",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [400, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ELC_API_URL }}/admin/sales/active",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-sales",
+      "name": "GET sales active",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [620, 240]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "=🌅 Briefing sáng {{ new Date().toLocaleDateString('vi-VN') }} — đang gửi cho *{{ $json.count }}* sale đang hoạt động.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-admin",
+      "name": "Telegram — Tổng kết Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [860, 80],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "sales",
+        "options": {}
+      },
+      "id": "split-sales",
+      "name": "Tách sale",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [860, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-linked",
+              "leftValue": "={{ $json.telegram_linked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-linked",
+      "name": "Đã liên kết Telegram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1080, 360]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ELC_API_URL }}/admin/leads/needs-followup",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sale_id",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-followup",
+      "name": "GET needs-followup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: 'Bạn là trợ lý nội bộ ELC, viết briefing sáng cho sale ngắn gọn, ưu tiên hành động. Tối đa 200 chữ tiếng Việt. Liệt kê 3-5 việc cần làm hôm nay theo thứ tự ưu tiên, nhắc 2-3 lịch hẹn kèm giờ, và 1 tip tăng tỷ lệ chốt. Không chào hỏi dài dòng.', messages: [ { role: 'user', content: 'Dữ liệu lead cần follow-up hôm nay (JSON): ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "http-claude",
+      "name": "Claude — Sinh briefing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 340],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Tách sale').item.json.telegram_chat_id }}",
+        "text": "=🌅 *Briefing sáng {{ new Date().toLocaleDateString('vi-VN') }} — {{ $('Tách sale').item.json.full_name }}*\n\n{{ $json.content[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-brief",
+      "name": "Telegram — Gửi Sale",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1800, 340],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "7h sáng mỗi ngày": {
+      "main": [
+        [
+          {
+            "node": "GET sales active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET sales active": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Tổng kết Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tách sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách sale": {
+      "main": [
+        [
+          {
+            "node": "Đã liên kết Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Đã liên kết Telegram?": {
+      "main": [
+        [
+          {
+            "node": "GET needs-followup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GET needs-followup": {
+      "main": [
+        [
+          {
+            "node": "Claude — Sinh briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — Sinh briefing": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Gửi Sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

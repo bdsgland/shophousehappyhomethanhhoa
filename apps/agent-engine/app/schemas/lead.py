@@ -26,6 +26,13 @@ class Lead(BaseModel):
     notes: Optional[str] = None
     status: LeadStatus = "new"
     intent_score: int = Field(default=0, ge=0, le=100)
+    # Sale đã chủ động liên hệ lead lúc nào (None = chưa liên hệ). Workflow
+    # "Hot Lead Alert" của n8n dựa vào field này để escalate sau 5 phút.
+    contacted_at: Optional[datetime] = None
+    # Sale phụ trách (user_id) — gán khi booking/handoff để briefing lọc theo sale.
+    assigned_sale_id: Optional[str] = None
+    # Lịch hẹn gọi lại / xem nhà gần nhất (ISO) — phục vụ briefing sáng.
+    next_followup_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

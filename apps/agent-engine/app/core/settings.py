@@ -33,6 +33,33 @@ class Settings(BaseSettings):
         "https://www.eurowindowlightcity.net"
     )
 
+    # ----- Automation n8n (3 workflow: hot-lead, commission, daily-briefing) -----
+    # Để trống → tự dựng URL từ platform_n8n_url + path mặc định. Đặt env
+    # N8N_HOT_LEAD_WEBHOOK_URL / N8N_COMMISSION_WEBHOOK_URL nếu path khác.
+    n8n_hot_lead_webhook_url: str = ""
+    n8n_commission_webhook_url: str = ""
+
+    # Telegram Bot (sale nhận alert + briefing). Token lấy từ @BotFather, đặt
+    # env TELEGRAM_BOT_TOKEN trên Railway. KHÔNG commit token vào code.
+    telegram_bot_token: str = ""
+    telegram_bot_username: str = "elc_sale_bot"  # không có @, dùng dựng link t.me
+
+    # Secret chia sẻ cho webhook nội bộ + n8n gọi vào API (header X-Internal-Token).
+    # Trống ở dev = không bắt buộc; production NÊN đặt env INTERNAL_WEBHOOK_TOKEN.
+    internal_webhook_token: str = ""
+
+    def hot_lead_webhook_url(self) -> str:
+        return (
+            self.n8n_hot_lead_webhook_url
+            or f"{self.platform_n8n_url.rstrip('/')}/webhook/hot-lead-alert"
+        )
+
+    def commission_webhook_url(self) -> str:
+        return (
+            self.n8n_commission_webhook_url
+            or f"{self.platform_n8n_url.rstrip('/')}/webhook/commission-calc"
+        )
+
     # Auth (MVP — JWT đơn giản, file-based user store)
     jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
     jwt_algorithm: str = "HS256"
