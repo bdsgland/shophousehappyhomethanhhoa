@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { ChatWidget } from "@/components/ChatWidget";
 import {
   BookOpen,
   Camera,
@@ -27,9 +28,12 @@ import {
   CONNECTIONS,
   DOCUMENTS,
   HERO_IMAGES,
+  MAP_LAT,
+  MAP_LNG,
   NEWS,
   OVERVIEW_ROWS,
   POLICIES,
+  PRICE_TABLE,
   STATUS_FILTERS,
   SUBZONES,
   TIMELINE,
@@ -37,8 +41,12 @@ import {
   TRAININGS,
   UNITS,
   ZONE_FILTERS,
-  type UnitStatus,
 } from "@/components/dashboard/elc-data";
+import {
+  fetchInventory,
+  fetchInventoryStats,
+  type InventoryStats,
+} from "@/lib/api";
 
 type ComponentType<P> = (props: P) => JSX.Element;
 
@@ -79,6 +87,7 @@ export function ProjectDetailDashboard() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-brand-700">
@@ -170,6 +179,9 @@ export function ProjectDetailDashboard() {
         {activeTab === "tin-tuc" && <NewsTab />}
       </div>
     </div>
+    {/* Chatbot tư vấn nổi — giúp sale hỏi nhanh ngay trong dashboard */}
+    <ChatWidget />
+    </>
   );
 }
 
@@ -183,15 +195,16 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function statusBadge(status: UnitStatus) {
-  const map: Record<UnitStatus, string> = {
+function statusBadge(status: string) {
+  const map: Record<string, string> = {
     "Còn hàng": "bg-emerald-50 text-emerald-700 border-emerald-200",
     "Đặt cọc": "bg-amber-50 text-amber-700 border-amber-200",
     "Đã bán": "bg-rose-50 text-rose-700 border-rose-200",
   };
+  const cls = map[status] ?? "bg-brand-50 text-brand-700 border-brand-100";
   return (
     <span
-      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${map[status]}`}
+      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}
     >
       {status}
     </span>
@@ -332,11 +345,11 @@ function LocationTab() {
           </ul>
         </div>
 
-        {/* Google Maps embed */}
+        {/* Google Maps embed — toạ độ thật Nguyệt Viên, TP Thanh Hoá */}
         <div className="overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm">
           <iframe
             title="Bản đồ Eurowindow Light City"
-            src="https://www.google.com/maps?q=Nguy%E1%BB%87t+Vi%C3%AAn,+Thanh+H%C3%B3a&output=embed"
+            src={`https://www.google.com/maps?q=${MAP_LAT},${MAP_LNG}&z=15&output=embed`}
             className="h-full min-h-[300px] w-full"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
@@ -370,28 +383,41 @@ function TrainingTab() {
               {t.size} · {t.date}
             </p>
             <div className="mt-4 flex gap-2">
-              <a
-                href={t.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-brand-100 px-3 py-2 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
-              >
-                <Eye size={15} /> Xem
-              </a>
-              <a
-                href={t.href}
-                download
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white"
-                style={{ backgroundColor: ACCENT }}
-              >
-                <Download size={15} /> Tải xuống
-              </a>
+              {t.ready ? (
+                <>
+                  <a
+                    href={t.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-brand-100 px-3 py-2 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
+                  >
+                    <Eye size={15} /> Xem
+                  </a>
+                  <a
+                    href={t.href}
+                    download
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    <Download size={15} /> Tải xuống
+                  </a>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700"
+                >
+                  Đang cập nhật
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
       <p className="text-xs italic text-brand-700">
-        * Liên kết tài liệu sẽ được kích hoạt khi backend phục vụ file đào tạo.
+        * Tài liệu đào tạo sẽ được kích hoạt khi chủ đầu tư cung cấp file chính
+        thức.
       </p>
     </div>
   );
@@ -418,20 +444,23 @@ function SubzonesTab() {
               />
             </div>
             <div className="p-4">
-              <h3 className="text-base font-bold text-brand-900">
-                Phân khu {z.name}
-              </h3>
-              <p className="mt-0.5 text-sm text-brand-700">{z.style}</p>
-              <p className="mt-1 text-xs font-medium text-brand-600">
-                {z.units}
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-brand-900">
+                  Phân khu {z.name}
+                </h3>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  {z.units}
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm font-medium text-brand-600">
+                {z.style}
               </p>
-              <button
-                type="button"
-                className="mt-3 inline-flex items-center gap-1 text-sm font-semibold"
-                style={{ color: ACCENT }}
-              >
-                Xem chi tiết <ChevronRightSmall size={15} />
-              </button>
+              <p className="mt-2 text-sm leading-relaxed text-brand-700">
+                {z.desc}
+              </p>
             </div>
           </div>
         ))}
@@ -442,27 +471,80 @@ function SubzonesTab() {
 
 // ---------- 5 & 6. Mặt bằng quỹ căn / Quỹ căn ----------
 
+type Row = {
+  code: string;
+  zone: string;
+  area: number;
+  facade: number;
+  status: string;
+  price: string;
+};
+
+function localFallback(zone: string, status: string): Row[] {
+  return UNITS.filter((u) => {
+    if (zone !== "Tất cả" && u.zone !== zone) return false;
+    if (status !== "Tất cả" && u.status !== status) return false;
+    return true;
+  });
+}
+
 function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
   const [zone, setZone] = useState<string>("Tất cả");
   const [status, setStatus] = useState<string>(
     focusAvailable ? "Còn hàng" : "Tất cả",
   );
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiOk, setApiOk] = useState(true);
+  const [stats, setStats] = useState<InventoryStats | null>(null);
 
-  const rows = useMemo(() => {
-    return UNITS.filter((u) => {
-      if (zone !== "Tất cả" && u.zone !== zone) return false;
-      if (status !== "Tất cả" && u.status !== status) return false;
-      return true;
+  // Thống kê — lấy 1 lần khi mount.
+  useEffect(() => {
+    let alive = true;
+    fetchInventoryStats().then((s) => {
+      if (alive && s) setStats(s);
     });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Danh sách căn — fetch lại mỗi khi đổi bộ lọc, fallback demo nếu API lỗi.
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+    setLoading(true);
+    fetchInventory({ phankhu: zone, status, signal: controller.signal })
+      .then((data) => {
+        if (!alive) return;
+        if (data) {
+          setRows(data);
+          setApiOk(true);
+        } else {
+          setRows(localFallback(zone, status));
+          setApiOk(false);
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+      controller.abort();
+    };
   }, [zone, status]);
 
-  const stats = useMemo(() => {
-    const total = UNITS.length;
-    const available = UNITS.filter((u) => u.status === "Còn hàng").length;
-    const sold = UNITS.filter((u) => u.status === "Đã bán").length;
-    const deposit = UNITS.filter((u) => u.status === "Đặt cọc").length;
-    return { total, available, sold, deposit };
+  // Số liệu thẻ thống kê: ưu tiên API, nếu không có thì tính từ fallback.
+  const fallbackStats = useMemo(() => {
+    const all = UNITS;
+    return {
+      total: all.length,
+      available: all.filter((u) => u.status === "Còn hàng").length,
+      sold: all.filter((u) => u.status === "Đã bán").length,
+      reserved: all.filter((u) => u.status === "Đặt cọc").length,
+    } as InventoryStats;
   }, []);
+  const shownStats = stats ?? fallbackStats;
 
   return (
     <div className="space-y-5">
@@ -470,18 +552,32 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
         {focusAvailable ? "Danh sách quỹ căn" : "Mặt bằng quỹ căn"}
       </SectionTitle>
 
+      {!apiOk && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          Không kết nối được hệ thống quỹ căn — đang hiển thị dữ liệu demo.
+        </div>
+      )}
+
       {focusAvailable && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Tổng căn" value="5.262" tone="brand" />
+          <StatCard
+            label="Tổng căn"
+            value={String(shownStats.total)}
+            tone="brand"
+          />
           <StatCard
             label="Còn quỹ"
-            value={String(stats.available)}
+            value={String(shownStats.available)}
             tone="emerald"
           />
-          <StatCard label="Đã bán" value={String(stats.sold)} tone="rose" />
+          <StatCard
+            label="Đã bán"
+            value={String(shownStats.sold)}
+            tone="rose"
+          />
           <StatCard
             label="Đặt cọc"
-            value={String(stats.deposit)}
+            value={String(shownStats.reserved)}
             tone="amber"
           />
         </div>
@@ -502,7 +598,7 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
           options={[...STATUS_FILTERS]}
         />
         <span className="ml-auto text-sm text-brand-700">
-          {rows.length} căn
+          {loading ? "Đang tải…" : `${rows.length} căn`}
         </span>
       </div>
 
@@ -520,26 +616,40 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((u, i) => (
-              <tr
-                key={u.code}
-                className={`border-t border-brand-100 ${
-                  i % 2 ? "bg-white" : "bg-brand-50/30"
-                }`}
-              >
-                <td className="px-4 py-3 font-semibold text-brand-900">
-                  {u.code}
-                </td>
-                <td className="px-4 py-3 text-brand-700">{u.zone}</td>
-                <td className="px-4 py-3 text-brand-700">{u.area} m²</td>
-                <td className="px-4 py-3 text-brand-700">{u.facade} m</td>
-                <td className="px-4 py-3">{statusBadge(u.status)}</td>
-                <td className="px-4 py-3 font-semibold text-brand-900">
-                  {u.price}
+            {loading && (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-4 py-10 text-center text-sm text-brand-700"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-100 border-t-brand-500" />
+                    Đang tải dữ liệu quỹ căn…
+                  </span>
                 </td>
               </tr>
-            ))}
-            {rows.length === 0 && (
+            )}
+            {!loading &&
+              rows.map((u, i) => (
+                <tr
+                  key={u.code}
+                  className={`border-t border-brand-100 ${
+                    i % 2 ? "bg-white" : "bg-brand-50/30"
+                  }`}
+                >
+                  <td className="px-4 py-3 font-semibold text-brand-900">
+                    {u.code}
+                  </td>
+                  <td className="px-4 py-3 text-brand-700">{u.zone}</td>
+                  <td className="px-4 py-3 text-brand-700">{u.area} m²</td>
+                  <td className="px-4 py-3 text-brand-700">{u.facade} m</td>
+                  <td className="px-4 py-3">{statusBadge(u.status)}</td>
+                  <td className="px-4 py-3 font-semibold text-brand-900">
+                    {u.price}
+                  </td>
+                </tr>
+              ))}
+            {!loading && rows.length === 0 && (
               <tr>
                 <td
                   colSpan={6}
@@ -553,7 +663,8 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
         </table>
       </div>
       <p className="text-xs italic text-brand-700">
-        * Số liệu demo — cập nhật từ chủ đầu tư.
+        * Dữ liệu quỹ căn cung cấp qua hệ thống Agent Engine — số liệu minh hoạ,
+        chốt căn vui lòng xác nhận với chủ đầu tư.
       </p>
     </div>
   );
@@ -633,19 +744,21 @@ function Tours360Tab() {
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
-                <span
-                  className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
-                  style={{ backgroundColor: ACCENT }}
-                >
-                  <Camera size={16} /> Xem 360°
+                <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-brand-900">
+                  <Camera size={16} /> Đang cập nhật
                 </span>
               </div>
               <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
                 360°
               </span>
             </div>
-            <div className="p-4">
+            <div className="flex items-center justify-between gap-2 p-4">
               <p className="text-sm font-medium text-brand-900">{t.title}</p>
+              {!t.ready && (
+                <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
+                  Đang cập nhật
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -658,7 +771,7 @@ function Tours360Tab() {
 
 function PolicyTab() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <SectionTitle>Chính sách bán hàng</SectionTitle>
       <div className="space-y-4">
         {POLICIES.map((p) => (
@@ -667,7 +780,19 @@ function PolicyTab() {
             className="rounded-xl border border-brand-100 bg-white p-5 shadow-sm"
           >
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-base font-bold text-brand-900">{p.title}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-brand-900">
+                  {p.title}
+                </h3>
+                {p.open && (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    Đang mở
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-medium text-brand-600">
                 {p.date}
               </span>
@@ -689,16 +814,58 @@ function PolicyTab() {
                 </li>
               ))}
             </ul>
-            <a
-              href={p.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-brand-100 px-4 py-2 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
-            >
-              <FileText size={15} /> Xem chi tiết (PDF)
-            </a>
           </div>
         ))}
+      </div>
+
+      {/* Bảng giá tham khảo */}
+      <div className="overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm">
+        <div className="border-b border-brand-100 bg-brand-50 px-5 py-3 text-sm font-bold uppercase tracking-wide text-brand-900">
+          Bảng giá tham khảo
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs font-bold uppercase tracking-wide text-brand-700">
+              <th className="px-5 py-2.5">Loại sản phẩm</th>
+              <th className="px-5 py-2.5">Diện tích</th>
+              <th className="px-5 py-2.5">Giá từ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PRICE_TABLE.map((r, i) => (
+              <tr
+                key={r.product}
+                className={`border-t border-brand-100 ${
+                  i % 2 ? "bg-white" : "bg-brand-50/30"
+                }`}
+              >
+                <td className="px-5 py-3 font-semibold text-brand-900">
+                  {r.product}
+                </td>
+                <td className="px-5 py-3 text-brand-700">{r.area}</td>
+                <td className="px-5 py-3 font-semibold" style={{ color: ACCENT }}>
+                  {r.from}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="border-t border-brand-100 px-5 py-2.5 text-xs italic text-brand-700">
+          * Giá tham khảo từ tin tức thị trường, chưa bao gồm VAT và phí. Bảng
+          giá chính thức theo từng đợt mở bán.
+        </p>
+      </div>
+
+      {/* Hoa hồng cho sale */}
+      <div className="rounded-xl border border-brand-100 bg-white p-5 shadow-sm">
+        <h3 className="text-base font-bold text-brand-900">
+          Chính sách hoa hồng cho sale / đại lý
+        </h3>
+        <p className="mt-2 text-sm text-brand-700">
+          Mức hoa hồng cạnh tranh kèm thưởng nóng theo căn cho đại lý F1. Chi
+          tiết theo phụ lục hợp đồng phân phối từng đợt —{" "}
+          <span className="font-medium text-brand-900">đang cập nhật</span>.
+        </p>
       </div>
     </div>
   );
@@ -783,15 +950,25 @@ function DocumentsTab() {
                 <td className="px-4 py-3 text-brand-700">{d.size}</td>
                 <td className="px-4 py-3 text-brand-700">{d.date}</td>
                 <td className="px-4 py-3 text-right">
-                  <a
-                    href={d.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    <Download size={15} /> Tải
-                  </a>
+                  {d.ready ? (
+                    <a
+                      href={d.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      <Download size={15} /> Tải xuống
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700"
+                    >
+                      Đang cập nhật
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -830,13 +1007,15 @@ function NewsTab() {
                 {n.title}
               </h3>
               <p className="mt-2 flex-1 text-sm text-brand-700">{n.excerpt}</p>
-              <button
-                type="button"
+              <a
+                href={n.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold"
                 style={{ color: ACCENT }}
               >
                 Đọc tiếp <ChevronRightSmall size={15} />
-              </button>
+              </a>
             </div>
           </article>
         ))}

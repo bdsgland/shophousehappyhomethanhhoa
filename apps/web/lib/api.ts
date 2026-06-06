@@ -216,6 +216,84 @@ export type ChatReply = {
   suggested_next_step: string | null;
 };
 
+// ----- Inventory (quỹ căn) -----
+
+export type InventoryUnit = {
+  code: string;
+  zone: string;
+  type: string;
+  area: number;
+  facade: number;
+  status: string;
+  price: string;
+};
+
+export type InventoryStats = {
+  total: number;
+  available: number;
+  sold: number;
+  reserved: number;
+};
+
+const INVENTORY_SLUG = "eurowindow-light-city";
+
+/** Lấy danh sách quỹ căn. Trả null nếu không kết nối được API (để UI fallback). */
+export async function fetchInventory(opts?: {
+  phankhu?: string;
+  status?: string;
+  signal?: AbortSignal;
+}): Promise<InventoryUnit[] | null> {
+  try {
+    const params = new URLSearchParams();
+    if (opts?.phankhu && opts.phankhu !== "Tất cả")
+      params.set("phankhu", opts.phankhu);
+    if (opts?.status && opts.status !== "Tất cả")
+      params.set("status", opts.status);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(
+      `${AGENT_ENGINE_URL}/inventory/${INVENTORY_SLUG}/units${qs}`,
+      { cache: "no-store", signal: opts?.signal },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{
+      id: string;
+      phan_khu: string;
+      loai: string;
+      dien_tich: number;
+      mat_tien: number;
+      trang_thai: string;
+      gia: string;
+    }>;
+    return data.map((u) => ({
+      code: u.id,
+      zone: u.phan_khu,
+      type: u.loai,
+      area: u.dien_tich,
+      facade: u.mat_tien,
+      status: u.trang_thai,
+      price: u.gia,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/** Thống kê quỹ căn. Trả null nếu không kết nối được API. */
+export async function fetchInventoryStats(
+  signal?: AbortSignal,
+): Promise<InventoryStats | null> {
+  try {
+    const res = await fetch(
+      `${AGENT_ENGINE_URL}/inventory/${INVENTORY_SLUG}/stats`,
+      { cache: "no-store", signal },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as InventoryStats;
+  } catch {
+    return null;
+  }
+}
+
 export async function postChat(args: {
   messages: ChatTurn[];
   projectSlug?: string;

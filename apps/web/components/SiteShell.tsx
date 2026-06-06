@@ -28,20 +28,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </Link>
-          <nav className="hidden gap-6 text-sm md:flex">
-            <a href="/#tong-quan" className="text-brand-900 hover:text-brand-600">
-              Tổng quan
-            </a>
-            <a href="/#san-pham" className="text-brand-900 hover:text-brand-600">
-              Sản phẩm
-            </a>
-            <a href="/#tien-ich" className="text-brand-900 hover:text-brand-600">
-              Tiện ích
-            </a>
-            <a href="/#phap-ly" className="text-brand-900 hover:text-brand-600">
-              Pháp lý
-            </a>
-          </nav>
           <AuthBar />
         </div>
       </header>

@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import admin, auth, chat, health, leads
+from app.api import admin, auth, chat, health, inventory, leads
 from app.core.settings import settings
 
 
@@ -74,6 +74,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(leads.router)
+app.include_router(inventory.router)
 app.include_router(admin.router)
 
 
