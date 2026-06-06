@@ -52,3 +52,16 @@ export function readUserFromCookie(): AuthUser | null {
 export function readToken(): string | null {
   return readCookie(AUTH_COOKIE);
 }
+
+/** Đường dẫn portal mặc định theo vai trò sau khi đăng nhập/đăng ký. */
+export function redirectByRole(role: string | undefined | null): string {
+  switch (role) {
+    case "admin":
+      return "/dashboard/project/eurowindow-light-city";
+    case "client":
+      return "/client";
+    case "sale":
+    default:
+      return "/agent/profile";
+  }
+}

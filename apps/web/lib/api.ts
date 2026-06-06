@@ -86,6 +86,8 @@ export type AuthUser = {
   region?: string | null;
   referral_code?: string | null;
   upline_email?: string | null;
+  projects_interested?: string[];
+  favorites?: string[];
   created_at: string;
 };
 
@@ -135,6 +137,9 @@ export function authRegister(payload: {
   full_name: string;
   password: string;
   phone?: string;
+  role?: "sale" | "client";
+  ref?: string;
+  projects_interested?: string[];
 }): Promise<AuthTokenResponse> {
   return postJson<AuthTokenResponse>("/auth/register", payload);
 }
@@ -299,6 +304,7 @@ export function updateAgentProfile(
     phone?: string;
     dob?: string;
     region?: string;
+    projects_interested?: string[];
   },
 ): Promise<AuthUser> {
   return requestJson<AuthUser>("/me", { method: "PATCH", token, body });
@@ -412,6 +418,66 @@ export async function fetchInventoryStats(
   } catch {
     return null;
   }
+}
+
+// ----- Portal khách hàng (/client) -----
+
+/** Raw unit từ backend (giữ field tiếng Việt) cho phần gợi ý/yêu thích. */
+export type RawUnit = {
+  id: string;
+  lo: string;
+  phan_khu: string;
+  loai: string;
+  dien_tich: number;
+  mat_tien: number;
+  trang_thai: string;
+  gia_tri: number;
+  gia: string;
+  position?: { x: number; y: number };
+};
+
+/** Chuẩn hoá RawUnit → InventoryUnit (field tiếng Anh) dùng chung cho UI. */
+export function normalizeUnit(u: RawUnit): InventoryUnit {
+  return {
+    code: u.id,
+    zone: u.phan_khu,
+    type: u.loai,
+    area: u.dien_tich,
+    facade: u.mat_tien,
+    status: u.trang_thai,
+    price: u.gia,
+    position: u.position,
+  };
+}
+
+export function fetchRecommended(token: string): Promise<RawUnit[]> {
+  return requestJson<RawUnit[]>("/client/recommended", { token });
+}
+
+export function fetchFavorites(
+  token: string,
+): Promise<{ unit_ids: string[]; units: RawUnit[] }> {
+  return requestJson("/me/favorites", { token });
+}
+
+export function addFavorite(
+  token: string,
+  unitId: string,
+): Promise<{ ok: boolean; unit_ids: string[] }> {
+  return requestJson(`/me/favorites/${encodeURIComponent(unitId)}`, {
+    method: "POST",
+    token,
+  });
+}
+
+export function removeFavorite(
+  token: string,
+  unitId: string,
+): Promise<{ ok: boolean; unit_ids: string[] }> {
+  return requestJson(`/me/favorites/${encodeURIComponent(unitId)}`, {
+    method: "DELETE",
+    token,
+  });
 }
 
 export async function postChat(args: {

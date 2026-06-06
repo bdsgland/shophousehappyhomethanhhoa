@@ -11,7 +11,10 @@ from pydantic import BaseModel, Field, field_validator
 # và tránh phụ thuộc cứng vào package email-validator khi đăng nhập.
 EmailStr = str
 
-UserRole = Literal["admin", "sale"]
+UserRole = Literal["admin", "sale", "client"]
+
+# Role được phép đăng ký công khai (admin chỉ tạo qua seed/quản trị).
+PublicRole = Literal["sale", "client"]
 
 
 class UserRegister(BaseModel):
@@ -19,8 +22,12 @@ class UserRegister(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     password: str = Field(min_length=8, max_length=128)
     phone: Optional[str] = Field(default=None, max_length=20)
+    # Vai trò đăng ký: 'sale' (mặc định) hoặc 'client'. Admin không cho công khai.
+    role: PublicRole = "sale"
     # Mã giới thiệu của upline (nếu đăng ký qua link ?ref=...)
     ref: Optional[str] = Field(default=None, max_length=32)
+    # Khách hàng: danh sách dự án quan tâm (slug hoặc tên).
+    projects_interested: list[str] = Field(default_factory=list)
 
     @field_validator("password")
     @classmethod
@@ -48,6 +55,8 @@ class UserOut(BaseModel):
     region: Optional[str] = None
     referral_code: Optional[str] = None
     upline_email: Optional[str] = None
+    projects_interested: list[str] = Field(default_factory=list)
+    favorites: list[str] = Field(default_factory=list)
     created_at: datetime
 
 

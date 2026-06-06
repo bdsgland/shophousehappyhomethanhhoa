@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 
 import { authLogin } from "@/lib/api";
-import { setAuthCookie, setUserCookie } from "@/lib/auth";
+import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
 
 export default function LoginPage() {
   return (
@@ -18,7 +18,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/leads";
+  const next = searchParams.get("next");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +33,8 @@ function LoginForm() {
       const data = await authLogin({ email: email.trim(), password });
       setAuthCookie(data.access_token, data.expires_in);
       setUserCookie(data.user, data.expires_in);
-      router.replace(next);
+      // Ưu tiên ?next= (deep-link bị chặn), nếu không thì điều hướng theo vai trò.
+      router.replace(next || redirectByRole(data.user.role));
       router.refresh();
     } catch (err) {
       setError((err as Error).message || "Đăng nhập thất bại");
@@ -45,11 +46,9 @@ function LoginForm() {
   return (
     <div className="mx-auto max-w-md">
       <div className="rounded-2xl border border-brand-100 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-brand-900">
-          Đăng nhập dành cho Sale
-        </h1>
+        <h1 className="text-2xl font-semibold text-brand-900">Đăng nhập</h1>
         <p className="mt-2 text-sm text-brand-700">
-          Khu vực dành cho chuyên viên kinh doanh. Khách tham quan không cần đăng nhập —
+          Dành cho chuyên viên kinh doanh và khách hàng đã đăng ký. Khách tham quan
           xem trực tiếp{" "}
           <Link href="/" className="text-brand-600 underline">
             trang giới thiệu dự án
@@ -106,6 +105,13 @@ function LoginForm() {
           Chưa có tài khoản?{" "}
           <Link href="/register" className="font-medium text-brand-600 hover:underline">
             Đăng ký Sale
+          </Link>
+          {" · "}
+          <Link
+            href="/register?type=client"
+            className="font-medium text-indigo-600 hover:underline"
+          >
+            Đăng ký Khách hàng
           </Link>
         </div>
       </div>

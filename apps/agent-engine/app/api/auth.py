@@ -38,8 +38,11 @@ def _issue_token(user: dict) -> TokenOut:
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 def register(payload: UserRegister) -> TokenOut:
     try:
+        # Chặn tự đăng ký admin — chỉ cho 'sale' hoặc 'client'.
+        role = payload.role if payload.role in ("sale", "client") else "sale"
         upline_email = None
-        if payload.ref:
+        # Khách hàng (client) không tham gia hệ thống giới thiệu/hoa hồng.
+        if role == "sale" and payload.ref:
             upline = user_store.find_by_referral_code(payload.ref)
             if upline:
                 upline_email = upline["email"]
@@ -48,7 +51,9 @@ def register(payload: UserRegister) -> TokenOut:
             full_name=payload.full_name,
             password_hash=hash_password(payload.password),
             phone=payload.phone,
+            role=role,
             upline_email=upline_email,
+            projects_interested=payload.projects_interested,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

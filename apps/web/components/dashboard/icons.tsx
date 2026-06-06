@@ -270,3 +270,50 @@ export function Award(p: IconProps) {
     </svg>
   );
 }
+
+export function MessageCircle(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.8-.8L3 21l1.9-5.2A8.4 8.4 0 0 1 21 11.5Z" />
+    </svg>
+  );
+}
+
+export function Calculator(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <path d="M8 6h8" />
+      <path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+    </svg>
+  );
+}
+
+export function GitCompare(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="6" r="3" />
+      <path d="M6 15V9a3 3 0 0 1 3-3h6" />
+      <path d="M18 9v6a3 3 0 0 1-3 3H9" />
+    </svg>
+  );
+}
+
+export function Send(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </svg>
+  );
+}
+
+export function Sparkles(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8Z" />
+      <path d="M19 14l.7 1.8L21.5 16l-1.8.7L19 18.5l-.7-1.8L16.5 16l1.8-.7Z" />
+    </svg>
+  );
+}

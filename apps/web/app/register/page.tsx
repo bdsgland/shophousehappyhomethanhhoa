@@ -1,19 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 
 import { authRegister } from "@/lib/api";
-import { setAuthCookie, setUserCookie } from "@/lib/auth";
+import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
+
+type Tab = "sale" | "client";
+
+const PROJECTS = ["Eurowindow Light City", "Khác"];
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md" />}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab: Tab = searchParams.get("type") === "client" ? "client" : "sale";
+
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [ref, setRef] = useState(searchParams.get("ref") ?? "");
+  const [project, setProject] = useState(PROJECTS[0]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,10 +49,13 @@ export default function RegisterPage() {
         full_name: fullName.trim(),
         password,
         phone: phone.trim() || undefined,
+        role: tab,
+        ...(tab === "sale" && ref.trim() ? { ref: ref.trim() } : {}),
+        ...(tab === "client" ? { projects_interested: [project] } : {}),
       });
       setAuthCookie(data.access_token, data.expires_in);
       setUserCookie(data.user, data.expires_in);
-      router.replace("/leads");
+      router.replace(redirectByRole(data.user.role));
       router.refresh();
     } catch (err) {
       setError((err as Error).message || "Đăng ký thất bại");
@@ -43,26 +64,54 @@ export default function RegisterPage() {
     }
   }
 
+  const inputCls =
+    "mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
+  const labelCls = "block text-sm font-medium text-brand-900";
+  const isClient = tab === "client";
+
   return (
     <div className="mx-auto max-w-md">
       <div className="rounded-2xl border border-brand-100 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-brand-900">
-          Đăng ký tài khoản Sale
-        </h1>
+        <h1 className="text-2xl font-semibold text-brand-900">Đăng ký tài khoản</h1>
         <p className="mt-2 text-sm text-brand-700">
-          Tài khoản này dành cho chuyên viên kinh doanh nội bộ — truy cập danh sách lead
-          và công cụ agent. Khách tham quan vào{" "}
-          <Link href="/" className="text-brand-600 underline">
-            trang giới thiệu
-          </Link>{" "}
-          không cần đăng ký.
+          Chọn loại tài khoản phù hợp với bạn.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        {/* Tabs */}
+        <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-brand-50 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("sale")}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              tab === "sale"
+                ? "bg-white text-brand-900 shadow-sm"
+                : "text-brand-600 hover:text-brand-900"
+            }`}
+          >
+            Tôi là Sale
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("client")}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              tab === "client"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-brand-600 hover:text-brand-900"
+            }`}
+          >
+            Tôi là Khách hàng
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-brand-600">
+          {isClient
+            ? "Tài khoản khách hàng: tra cứu quỹ căn, tính giá, lãi vay và chat AI tư vấn dự án."
+            : "Tài khoản chuyên viên kinh doanh: quản lý lead, hoa hồng và công cụ bán hàng."}
+        </p>
+
+        <form onSubmit={onSubmit} className="mt-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-brand-900">
-              Họ và tên
-            </label>
+            <label className={labelCls}>Họ và tên</label>
             <input
               type="text"
               required
@@ -70,38 +119,64 @@ export default function RegisterPage() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               autoComplete="name"
-              className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className={inputCls}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brand-900">
-              Email
-            </label>
+            <label className={labelCls}>Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className={inputCls}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brand-900">
-              Điện thoại (tuỳ chọn)
+            <label className={labelCls}>
+              Số điện thoại {isClient ? "" : "(tuỳ chọn)"}
             </label>
             <input
               type="tel"
+              required={isClient}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
-              className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className={inputCls}
             />
           </div>
+
+          {isClient ? (
+            <div>
+              <label className={labelCls}>Dự án quan tâm</label>
+              <select
+                className={inputCls}
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+              >
+                {PROJECTS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className={labelCls}>Mã giới thiệu (tuỳ chọn)</label>
+              <input
+                type="text"
+                value={ref}
+                onChange={(e) => setRef(e.target.value)}
+                placeholder="VD: RAI-THU-1234"
+                className={`${inputCls} font-mono uppercase`}
+              />
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-brand-900">
-              Mật khẩu
-            </label>
+            <label className={labelCls}>Mật khẩu</label>
             <input
               type="password"
               required
@@ -109,16 +184,14 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className={inputCls}
             />
             <div className="mt-1 text-xs text-brand-700">
               Tối thiểu 8 ký tự, cần có cả chữ và số.
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-brand-900">
-              Nhập lại mật khẩu
-            </label>
+            <label className={labelCls}>Nhập lại mật khẩu</label>
             <input
               type="password"
               required
@@ -126,7 +199,7 @@ export default function RegisterPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className={inputCls}
             />
           </div>
 
@@ -139,9 +212,17 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-100 disabled:text-brand-700"
+            className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              isClient
+                ? "bg-indigo-600 hover:bg-indigo-700"
+                : "bg-brand-500 hover:bg-brand-600"
+            }`}
           >
-            {submitting ? "Đang tạo tài khoản…" : "Tạo tài khoản"}
+            {submitting
+              ? "Đang tạo tài khoản…"
+              : isClient
+              ? "Đăng ký khách hàng"
+              : "Đăng ký Sale"}
           </button>
         </form>
 

@@ -32,6 +32,8 @@ class ProfileUpdate(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=20)
     dob: Optional[str] = Field(default=None, max_length=20)
     region: Optional[str] = Field(default=None, max_length=60)
+    # Khách hàng: cập nhật danh sách dự án quan tâm.
+    projects_interested: Optional[list[str]] = Field(default=None)
 
 
 class ChangePassword(BaseModel):
@@ -66,10 +68,42 @@ def update_me(payload: ProfileUpdate, user: dict = Depends(get_current_user)) ->
         phone=payload.phone,
         dob=payload.dob,
         region=payload.region,
+        projects_interested=payload.projects_interested,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
     return user_store.public_view(updated)
+
+
+# ----- Căn yêu thích (favorites) — dành cho khách hàng (role=client) -----
+
+@router.get("/favorites")
+def list_favorites(user: dict = Depends(get_current_user)) -> dict:
+    """Trả danh sách unit_id yêu thích kèm dữ liệu căn (nếu còn trong kho)."""
+    from app.api.inventory import get_unit
+
+    fav_ids = user_store.get_favorites(user["id"])
+    units = [get_unit(uid) for uid in fav_ids]
+    return {
+        "unit_ids": fav_ids,
+        "units": [u for u in units if u is not None],
+    }
+
+
+@router.post("/favorites/{unit_id}", status_code=status.HTTP_201_CREATED)
+def add_favorite(unit_id: str, user: dict = Depends(get_current_user)) -> dict:
+    favs = user_store.add_favorite(user["id"], unit_id)
+    if favs is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
+    return {"ok": True, "unit_ids": favs}
+
+
+@router.delete("/favorites/{unit_id}")
+def remove_favorite(unit_id: str, user: dict = Depends(get_current_user)) -> dict:
+    favs = user_store.remove_favorite(user["id"], unit_id)
+    if favs is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
+    return {"ok": True, "unit_ids": favs}
 
 
 @router.post("/change-password")

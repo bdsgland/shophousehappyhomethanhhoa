@@ -65,6 +65,8 @@ data/customers/*
 data/raw/
 data/leads/
 data/_runtime/
+# Runtime data (users.json…) ở mọi vị trí, kể cả root dir deploy apps/agent-engine
+**/_runtime/
 
 # Knowledge base: commit chunks/manifest (text), bỏ qua BM25 index binary (rebuild được)
 data/knowledge_base/**/*.pkl

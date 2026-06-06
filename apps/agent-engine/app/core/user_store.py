@@ -108,7 +108,14 @@ def _migrate(data: dict) -> bool:
         if "upline_email" not in u:
             u["upline_email"] = None
             changed = True
-        if not u.get("referral_code"):
+        if "projects_interested" not in u:
+            u["projects_interested"] = []
+            changed = True
+        if "favorites" not in u:
+            u["favorites"] = []
+            changed = True
+        # Khách hàng (client) không có mã giới thiệu; chỉ sinh cho admin/sale.
+        if u.get("role") != "client" and not u.get("referral_code"):
             code = _gen_referral_code(u.get("full_name", ""), existing_codes)
             u["referral_code"] = code
             existing_codes.add(code)
@@ -172,6 +179,7 @@ def create_user(
     dob: Optional[str] = None,
     region: Optional[str] = None,
     upline_email: Optional[str] = None,
+    projects_interested: Optional[list[str]] = None,
 ) -> dict:
     with _LOCK:
         data = _load()
@@ -183,6 +191,12 @@ def create_user(
             if u["email"].lower() == email_l:
                 raise ValueError("Email đã được đăng ký")
         full_name_clean = full_name.strip()
+        # Khách hàng không có mã giới thiệu (không tham gia hệ thống hoa hồng).
+        referral_code = (
+            None
+            if role == "client"
+            else _gen_referral_code(full_name_clean, existing_codes)
+        )
         new_user = {
             "id": str(uuid.uuid4()),
             "email": email_l,
@@ -193,7 +207,9 @@ def create_user(
             "dob": (dob or "").strip() or None,
             "region": (region or "").strip() or None,
             "upline_email": (upline_email or "").strip().lower() or None,
-            "referral_code": _gen_referral_code(full_name_clean, existing_codes),
+            "referral_code": referral_code,
+            "projects_interested": list(projects_interested or []),
+            "favorites": [],
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
@@ -230,6 +246,7 @@ def update_profile(
     phone: Optional[str] = None,
     dob: Optional[str] = None,
     region: Optional[str] = None,
+    projects_interested: Optional[list[str]] = None,
 ) -> Optional[dict]:
     """Cập nhật hồ sơ cá nhân. Trả về user đã cập nhật, None nếu không tìm thấy."""
     with _LOCK:
@@ -244,9 +261,48 @@ def update_profile(
                     u["dob"] = dob.strip() or None
                 if region is not None:
                     u["region"] = region.strip() or None
+                if projects_interested is not None:
+                    u["projects_interested"] = list(projects_interested)
                 _save(data)
                 return u
     return None
+
+
+def add_favorite(user_id: str, unit_id: str) -> Optional[list[str]]:
+    """Thêm 1 căn vào danh sách yêu thích. Trả về list mới (đã khử trùng lặp)."""
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                favs = u.get("favorites") or []
+                if unit_id not in favs:
+                    favs.append(unit_id)
+                u["favorites"] = favs
+                _save(data)
+                return favs
+    return None
+
+
+def remove_favorite(user_id: str, unit_id: str) -> Optional[list[str]]:
+    """Xoá 1 căn khỏi danh sách yêu thích. Trả về list còn lại."""
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                favs = [x for x in (u.get("favorites") or []) if x != unit_id]
+                u["favorites"] = favs
+                _save(data)
+                return favs
+    return None
+
+
+def get_favorites(user_id: str) -> list[str]:
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                return list(u.get("favorites") or [])
+    return []
 
 
 def set_password(user_id: str, password_hash: str) -> Optional[dict]:
@@ -292,5 +348,7 @@ def public_view(user: dict) -> dict:
         "region": user.get("region"),
         "referral_code": user.get("referral_code"),
         "upline_email": user.get("upline_email"),
+        "projects_interested": user.get("projects_interested") or [],
+        "favorites": user.get("favorites") or [],
         "created_at": user["created_at"],
     }

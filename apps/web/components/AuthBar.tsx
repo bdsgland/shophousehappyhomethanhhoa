@@ -51,13 +51,22 @@ export function AuthBar() {
   }
 
   const isAdmin = user.role === "admin";
+  const isClient = user.role === "client";
+  const accountHref = isClient ? "/client/profile" : "/agent/profile";
+  const portalHref = isClient
+    ? "/client"
+    : "/dashboard/project/eurowindow-light-city";
+  const portalLabel = isClient ? "Khu khách hàng" : "Vào dashboard";
+  const roleLabel = isAdmin
+    ? "Quản trị viên"
+    : isClient
+    ? "Khách hàng"
+    : "Đăng nhập với tư cách";
 
   return (
     <div className="flex items-center gap-3">
       <div className="hidden text-right sm:block">
-        <div className="text-xs text-brand-700">
-          {isAdmin ? "Quản trị viên" : "Đăng nhập với tư cách"}
-        </div>
+        <div className="text-xs text-brand-700">{roleLabel}</div>
         <div className="text-sm font-semibold text-brand-900">
           {user.full_name}
         </div>
@@ -71,16 +80,16 @@ export function AuthBar() {
         </Link>
       )}
       <Link
-        href="/agent/profile"
+        href={accountHref}
         className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
       >
         Tài khoản
       </Link>
       <Link
-        href="/dashboard/project/eurowindow-light-city"
+        href={portalHref}
         className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
       >
-        Vào dashboard
+        {portalLabel}
       </Link>
       <button
         type="button"

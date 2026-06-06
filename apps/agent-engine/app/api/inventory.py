@@ -84,6 +84,18 @@ def _gen_units() -> List[dict]:
 _UNITS: List[dict] = _gen_units()
 
 
+def get_units() -> List[dict]:
+    """Trả về toàn bộ quỹ căn (dùng nội bộ cho các module khác như /client)."""
+    return _UNITS
+
+
+def get_unit(unit_id: str) -> Optional[dict]:
+    for u in _UNITS:
+        if u["id"] == unit_id:
+            return u
+    return None
+
+
 @router.get("/{slug}/units")
 def list_units(
     slug: str,
