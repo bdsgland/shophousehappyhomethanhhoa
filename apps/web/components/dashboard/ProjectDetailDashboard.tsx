@@ -1,9 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { ChatWidget } from "@/components/ChatWidget";
+import { readUserFromCookie } from "@/lib/auth";
+
+// Leaflet chỉ chạy ở client → tắt SSR.
+const MasterPlanMap = dynamic(
+  () => import("@/components/dashboard/MasterPlanMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[420px] w-full items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-sm text-brand-700 lg:h-[560px]">
+        Đang tải mặt bằng…
+      </div>
+    ),
+  },
+);
 import {
   BookOpen,
   Camera,
@@ -170,7 +185,9 @@ export function ProjectDetailDashboard() {
         {activeTab === "vi-tri" && <LocationTab />}
         {activeTab === "dao-tao" && <TrainingTab />}
         {activeTab === "phan-khu" && <SubzonesTab />}
-        {activeTab === "mat-bang" && <UnitsTab focusAvailable={false} />}
+        {activeTab === "mat-bang" && (
+          <UnitsTab focusAvailable={false} withMap />
+        )}
         {activeTab === "quy-can" && <UnitsTab focusAvailable />}
         {activeTab === "anh-360" && <Tours360Tab />}
         {activeTab === "chinh-sach" && <PolicyTab />}
@@ -478,6 +495,8 @@ type Row = {
   facade: number;
   status: string;
   price: string;
+  type?: string;
+  position?: { x: number; y: number };
 };
 
 function localFallback(zone: string, status: string): Row[] {
@@ -488,7 +507,13 @@ function localFallback(zone: string, status: string): Row[] {
   });
 }
 
-function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
+function UnitsTab({
+  focusAvailable,
+  withMap = false,
+}: {
+  focusAvailable: boolean;
+  withMap?: boolean;
+}) {
   const [zone, setZone] = useState<string>("Tất cả");
   const [status, setStatus] = useState<string>(
     focusAvailable ? "Còn hàng" : "Tất cả",
@@ -497,6 +522,12 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
   const [loading, setLoading] = useState(true);
   const [apiOk, setApiOk] = useState(true);
   const [stats, setStats] = useState<InventoryStats | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(readUserFromCookie()?.role === "admin");
+  }, []);
 
   // Thống kê — lấy 1 lần khi mount.
   useEffect(() => {
@@ -546,11 +577,108 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
   }, []);
   const shownStats = stats ?? fallbackStats;
 
+  const filtersBar = (
+    <div className="flex flex-wrap items-end gap-3">
+      <FilterSelect
+        label="Phân khu"
+        value={zone}
+        onChange={setZone}
+        options={[...ZONE_FILTERS]}
+      />
+      <FilterSelect
+        label="Trạng thái"
+        value={status}
+        onChange={setStatus}
+        options={[...STATUS_FILTERS]}
+      />
+      <span className="ml-auto text-sm text-brand-700">
+        {loading ? "Đang tải…" : `${rows.length} căn`}
+      </span>
+    </div>
+  );
+
+  const table = (
+    <div className="overflow-x-auto rounded-xl border border-brand-100 bg-white shadow-sm">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead>
+          <tr className="bg-brand-50 text-left text-xs font-bold uppercase tracking-wide text-brand-900">
+            <th className="px-4 py-3">Mã lô</th>
+            <th className="px-4 py-3">Phân khu</th>
+            <th className="px-4 py-3">Diện tích</th>
+            <th className="px-4 py-3">Mặt tiền</th>
+            <th className="px-4 py-3">Trạng thái</th>
+            <th className="px-4 py-3">Giá dự kiến</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading && (
+            <tr>
+              <td
+                colSpan={6}
+                className="px-4 py-10 text-center text-sm text-brand-700"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-100 border-t-brand-500" />
+                  Đang tải dữ liệu quỹ căn…
+                </span>
+              </td>
+            </tr>
+          )}
+          {!loading &&
+            rows.map((u, i) => (
+              <tr
+                key={u.code}
+                className={`border-t border-brand-100 ${
+                  i % 2 ? "bg-white" : "bg-brand-50/30"
+                }`}
+              >
+                <td className="px-4 py-3 font-semibold text-brand-900">
+                  {u.code}
+                </td>
+                <td className="px-4 py-3 text-brand-700">{u.zone}</td>
+                <td className="px-4 py-3 text-brand-700">{u.area} m²</td>
+                <td className="px-4 py-3 text-brand-700">{u.facade} m</td>
+                <td className="px-4 py-3">{statusBadge(u.status)}</td>
+                <td className="px-4 py-3 font-semibold text-brand-900">
+                  {u.price}
+                </td>
+              </tr>
+            ))}
+          {!loading && rows.length === 0 && (
+            <tr>
+              <td
+                colSpan={6}
+                className="px-4 py-8 text-center text-sm text-brand-700"
+              >
+                Không có căn phù hợp bộ lọc.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
-      <SectionTitle>
-        {focusAvailable ? "Danh sách quỹ căn" : "Mặt bằng quỹ căn"}
-      </SectionTitle>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionTitle>
+          {focusAvailable ? "Danh sách quỹ căn" : "Mặt bằng quỹ căn"}
+        </SectionTitle>
+        {withMap && isAdmin && (
+          <button
+            type="button"
+            onClick={() => setEditMode((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+              editMode
+                ? "border-transparent bg-emerald-500 text-white hover:bg-emerald-600"
+                : "border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-400"
+            }`}
+          >
+            {editMode ? "✓ Xong chỉnh sửa" : "✎ Chỉnh sửa mặt bằng"}
+          </button>
+        )}
+      </div>
 
       {!apiOk && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
@@ -570,11 +698,7 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
             value={String(shownStats.available)}
             tone="emerald"
           />
-          <StatCard
-            label="Đã bán"
-            value={String(shownStats.sold)}
-            tone="rose"
-          />
+          <StatCard label="Đã bán" value={String(shownStats.sold)} tone="rose" />
           <StatCard
             label="Đặt cọc"
             value={String(shownStats.reserved)}
@@ -583,90 +707,56 @@ function UnitsTab({ focusAvailable }: { focusAvailable: boolean }) {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
-        <FilterSelect
-          label="Phân khu"
-          value={zone}
-          onChange={setZone}
-          options={[...ZONE_FILTERS]}
-        />
-        <FilterSelect
-          label="Trạng thái"
-          value={status}
-          onChange={setStatus}
-          options={[...STATUS_FILTERS]}
-        />
-        <span className="ml-auto text-sm text-brand-700">
-          {loading ? "Đang tải…" : `${rows.length} căn`}
-        </span>
-      </div>
+      {withMap ? (
+        <div className="grid gap-5 lg:grid-cols-5">
+          {/* Cột trái: mặt bằng interactive (60%) */}
+          <div className="space-y-3 lg:col-span-3">
+            <MasterPlanMap units={rows} editable={editMode} />
+            <div className="flex flex-wrap items-center gap-4 text-xs text-brand-700">
+              <LegendDot color="#10b981" label="Còn hàng" />
+              <LegendDot color="#f59e0b" label="Đặt cọc" />
+              <LegendDot color="#ef4444" label="Đã bán" />
+              <span className="ml-auto italic">
+                Click marker để xem thông tin căn
+              </span>
+            </div>
+            {editMode && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Chế độ chỉnh sửa: kéo marker để gắn lại vị trí căn trên mặt bằng.
+                (Vị trí mới lưu tạm — chưa đồng bộ backend.)
+              </div>
+            )}
+          </div>
+          {/* Cột phải: filter + bảng (40%) */}
+          <div className="space-y-3 lg:col-span-2">
+            {filtersBar}
+            {table}
+          </div>
+        </div>
+      ) : (
+        <>
+          {filtersBar}
+          {table}
+        </>
+      )}
 
-      {/* Bảng */}
-      <div className="overflow-x-auto rounded-xl border border-brand-100 bg-white shadow-sm">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="bg-brand-50 text-left text-xs font-bold uppercase tracking-wide text-brand-900">
-              <th className="px-4 py-3">Mã lô</th>
-              <th className="px-4 py-3">Phân khu</th>
-              <th className="px-4 py-3">Diện tích</th>
-              <th className="px-4 py-3">Mặt tiền</th>
-              <th className="px-4 py-3">Trạng thái</th>
-              <th className="px-4 py-3">Giá dự kiến</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-10 text-center text-sm text-brand-700"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-100 border-t-brand-500" />
-                    Đang tải dữ liệu quỹ căn…
-                  </span>
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              rows.map((u, i) => (
-                <tr
-                  key={u.code}
-                  className={`border-t border-brand-100 ${
-                    i % 2 ? "bg-white" : "bg-brand-50/30"
-                  }`}
-                >
-                  <td className="px-4 py-3 font-semibold text-brand-900">
-                    {u.code}
-                  </td>
-                  <td className="px-4 py-3 text-brand-700">{u.zone}</td>
-                  <td className="px-4 py-3 text-brand-700">{u.area} m²</td>
-                  <td className="px-4 py-3 text-brand-700">{u.facade} m</td>
-                  <td className="px-4 py-3">{statusBadge(u.status)}</td>
-                  <td className="px-4 py-3 font-semibold text-brand-900">
-                    {u.price}
-                  </td>
-                </tr>
-              ))}
-            {!loading && rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-8 text-center text-sm text-brand-700"
-                >
-                  Không có căn phù hợp bộ lọc.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
       <p className="text-xs italic text-brand-700">
         * Dữ liệu quỹ căn cung cấp qua hệ thống Agent Engine — số liệu minh hoạ,
         chốt căn vui lòng xác nhận với chủ đầu tư.
       </p>
     </div>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="inline-block h-3 w-3 rounded-full border border-white shadow"
+        style={{ background: color }}
+      />
+      {label}
+    </span>
   );
 }
 

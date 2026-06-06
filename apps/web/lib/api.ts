@@ -226,6 +226,7 @@ export type InventoryUnit = {
   facade: number;
   status: string;
   price: string;
+  position?: { x: number; y: number };
 };
 
 export type InventoryStats = {
@@ -263,6 +264,7 @@ export async function fetchInventory(opts?: {
       mat_tien: number;
       trang_thai: string;
       gia: string;
+      position?: { x: number; y: number };
     }>;
     return data.map((u) => ({
       code: u.id,
@@ -272,6 +274,7 @@ export async function fetchInventory(opts?: {
       facade: u.mat_tien,
       status: u.trang_thai,
       price: u.gia,
+      position: u.position,
     }));
   } catch {
     return null;

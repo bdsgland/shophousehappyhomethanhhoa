@@ -166,6 +166,13 @@ export const SUBZONES: {
   },
 ];
 
+// ----- Mặt bằng tổng (Leaflet ImageOverlay) -----
+// Ảnh thật + kích thước px (khớp với toạ độ marker do inventory API trả về).
+export const MASTERPLAN_IMG =
+  "/elc-assets/eurowindowlightcity.vn/public/upload/ELC_ban%20do%20phan%20khu_tong-01.jpg";
+export const MASTERPLAN_W = 2001;
+export const MASTERPLAN_H = 1126;
+
 // ----- Mặt bằng quỹ căn (fallback demo khi API lỗi) -----
 export type UnitStatus = "Còn hàng" | "Đặt cọc" | "Đã bán";
 
@@ -176,20 +183,33 @@ export type Unit = {
   facade: number; // m
   status: UnitStatus;
   price: string; // tỷ
+  position: { x: number; y: number };
 };
 
 const ZONES = SUBZONES.map((z) => z.name);
 const STATUSES: UnitStatus[] = ["Còn hàng", "Đặt cọc", "Đã bán"];
 
+const MP_MARGIN = 110;
+const MP_BAND = (MASTERPLAN_W - 2 * MP_MARGIN) / ZONES.length;
+
 // Sinh ~36 dòng demo có quy luật (không random để build/SSR ổn định).
+// Kèm position để Leaflet map vẫn hoạt động khi API lỗi (fallback offline).
 export const UNITS: Unit[] = Array.from({ length: 36 }, (_, i) => {
-  const zone = ZONES[i % ZONES.length];
+  const zi = i % ZONES.length;
+  const zone = ZONES[zi];
   const prefix = zone.slice(0, 2).toUpperCase();
   const lot = String(i + 1).padStart(2, "0");
   const area = 75 + (i % 8) * 12; // 75 - 159
   const facade = 5 + (i % 4); // 5 - 8
   const status = STATUSES[i % 3];
   const price = (4.2 + (area - 75) * 0.035).toFixed(1);
+  const zoneCx = MP_MARGIN + (zi + 0.5) * MP_BAND;
+  const x = Math.min(
+    MASTERPLAN_W - MP_MARGIN,
+    Math.max(MP_MARGIN, zoneCx + ((i * 53) % Math.round(MP_BAND)) - MP_BAND / 2),
+  );
+  const y =
+    MP_MARGIN + (((i * 67) % 16) / 16) * (MASTERPLAN_H - 2 * MP_MARGIN);
   return {
     code: `${prefix}-${lot}`,
     zone,
@@ -197,6 +217,7 @@ export const UNITS: Unit[] = Array.from({ length: 36 }, (_, i) => {
     facade,
     status,
     price: `${price} tỷ`,
+    position: { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 },
   };
 });
 
