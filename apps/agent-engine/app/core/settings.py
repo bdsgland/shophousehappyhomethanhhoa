@@ -48,16 +48,19 @@ class Settings(BaseSettings):
     # Trống ở dev = không bắt buộc; production NÊN đặt env INTERNAL_WEBHOOK_TOKEN.
     internal_webhook_token: str = ""
 
+    def _n8n_base(self) -> str:
+        # platform_n8n_url do module platforms cấu hình; fallback nếu chưa có.
+        return getattr(
+            self, "platform_n8n_url", "https://n8n.eurowindowlightcity.net"
+        ).rstrip("/")
+
     def hot_lead_webhook_url(self) -> str:
-        return (
-            self.n8n_hot_lead_webhook_url
-            or f"{self.platform_n8n_url.rstrip('/')}/webhook/hot-lead-alert"
-        )
+        return self.n8n_hot_lead_webhook_url or f"{self._n8n_base()}/webhook/hot-lead-alert"
 
     def commission_webhook_url(self) -> str:
         return (
             self.n8n_commission_webhook_url
-            or f"{self.platform_n8n_url.rstrip('/')}/webhook/commission-calc"
+            or f"{self._n8n_base()}/webhook/commission-calc"
         )
 
     # Auth (MVP — JWT đơn giản, file-based user store)
