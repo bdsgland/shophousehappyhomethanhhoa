@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60 * 8  # 8 giờ
     users_file: str = "data/_runtime/users.json"
+    # Booking store tạm (JSON) — flow đặt lịch xem nhà. Sau Sprint 1.1 migrate
+    # PostgreSQL. Resolve giống users_file (DATA_DIR / agent-engine / CWD).
+    bookings_file: str = "data/_runtime/bookings.json"
 
     # Sale Learning Center — thư mục lưu tài liệu upload + index BM25 + phiếu báo
     # giá. Tương đối thì resolve theo $DATA_DIR (Railway volume) hoặc thư mục

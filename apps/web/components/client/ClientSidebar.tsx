@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import {
   Calculator,
+  Calendar,
   DollarSign,
   GitCompare,
   Heart,
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/client/pricing", label: "Phiếu tính giá", Icon: Calculator },
   { href: "/client/loan", label: "Tính lãi vay ngân hàng", Icon: DollarSign },
   { href: "/client/compare", label: "So sánh căn hộ", Icon: GitCompare },
+  { href: "/client/booking", label: "Đặt lịch xem nhà", Icon: Calendar },
   { href: "/client/favorites", label: "Căn yêu thích", Icon: Heart },
   { href: "/client/profile", label: "Thông tin cá nhân", Icon: User },
 ];

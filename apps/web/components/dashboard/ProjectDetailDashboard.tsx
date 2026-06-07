@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { BookingButton } from "@/components/BookingButton";
 import { ChatWidget } from "@/components/ChatWidget";
 import { readUserFromCookie } from "@/lib/auth";
 
@@ -608,13 +609,14 @@ function UnitsTab({
             <th className="px-4 py-3">Mặt tiền</th>
             <th className="px-4 py-3">Trạng thái</th>
             <th className="px-4 py-3">Giá dự kiến</th>
+            <th className="px-4 py-3 text-right">Đặt lịch</th>
           </tr>
         </thead>
         <tbody>
           {loading && (
             <tr>
               <td
-                colSpan={6}
+                colSpan={7}
                 className="px-4 py-10 text-center text-sm text-brand-700"
               >
                 <span className="inline-flex items-center gap-2">
@@ -642,12 +644,21 @@ function UnitsTab({
                 <td className="px-4 py-3 font-semibold text-brand-900">
                   {u.price}
                 </td>
+                <td className="px-4 py-3 text-right">
+                  {u.status !== "Đã bán" && (
+                    <BookingButton
+                      unitId={u.code}
+                      unitName={u.code}
+                      variant="compact"
+                    />
+                  )}
+                </td>
               </tr>
             ))}
           {!loading && rows.length === 0 && (
             <tr>
               <td
-                colSpan={6}
+                colSpan={7}
                 className="px-4 py-8 text-center text-sm text-brand-700"
               >
                 Không có căn phù hợp bộ lọc.
