@@ -146,6 +146,20 @@ def _save(data: dict) -> None:
     _write(_ensure_file(), data)
 
 
+def _mirror(user: dict) -> None:
+    """Dual-write best-effort sang Postgres (giai đoạn dual-write Sprint 1.1).
+
+    JSON vẫn là nguồn sự thật ở release này; Postgres được ghi song song để
+    sẵn sàng cho Phase 2. Mọi lỗi đều nuốt — KHÔNG được ảnh hưởng luồng JSON.
+    """
+    try:
+        from app.db.user_mirror import mirror_user
+
+        mirror_user(user)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def find_by_email(email: str) -> Optional[dict]:
     email_l = email.strip().lower()
     with _LOCK:
@@ -183,6 +197,8 @@ def create_user(
     region: Optional[str] = None,
     upline_email: Optional[str] = None,
     projects_interested: Optional[list[str]] = None,
+    source: Optional[str] = None,
+    facebook_url: Optional[str] = None,
 ) -> dict:
     with _LOCK:
         data = _load()
@@ -214,11 +230,14 @@ def create_user(
             "projects_interested": list(projects_interested or []),
             "favorites": [],
             "telegram_chat_id": None,
+            "source": (source or "").strip() or None,
+            "facebook_url": (facebook_url or "").strip() or None,
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
         data["users"].append(new_user)
         _save(data)
+        _mirror(new_user)
         return new_user
 
 
@@ -268,6 +287,7 @@ def update_profile(
                 if projects_interested is not None:
                     u["projects_interested"] = list(projects_interested)
                 _save(data)
+                _mirror(u)
                 return u
     return None
 
@@ -283,6 +303,7 @@ def add_favorite(user_id: str, unit_id: str) -> Optional[list[str]]:
                     favs.append(unit_id)
                 u["favorites"] = favs
                 _save(data)
+                _mirror(u)
                 return favs
     return None
 
@@ -296,6 +317,7 @@ def remove_favorite(user_id: str, unit_id: str) -> Optional[list[str]]:
                 favs = [x for x in (u.get("favorites") or []) if x != unit_id]
                 u["favorites"] = favs
                 _save(data)
+                _mirror(u)
                 return favs
     return None
 
@@ -323,6 +345,7 @@ def set_telegram_chat_id(user_id: str, chat_id: Optional[str]) -> Optional[dict]
             if u["id"] == user_id:
                 u["telegram_chat_id"] = chat_id_clean
                 _save(data)
+                _mirror(u)
                 return u
     return None
 
@@ -359,6 +382,7 @@ def set_password(user_id: str, password_hash: str) -> Optional[dict]:
             if u["id"] == user_id:
                 u["password_hash"] = password_hash
                 _save(data)
+                _mirror(u)
                 return u
     return None
 
@@ -379,6 +403,7 @@ def update_user(
                 if is_active is not None:
                     u["is_active"] = is_active
                 _save(data)
+                _mirror(u)
                 return u
     return None
 

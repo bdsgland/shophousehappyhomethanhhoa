@@ -15,6 +15,16 @@ PyJWT>=2.8.0,<3.0.0
 # HTTP client
 httpx>=0.27.0,<1.0.0
 
+# Persistence layer (Sprint 1.1) — Postgres + migrations.
+# psycopg2-binary: driver Postgres; SQLAlchemy: ORM; alembic: migrations.
+# Tất cả tuỳ chọn lúc runtime: thiếu DATABASE_URL → tự fallback JSON.
+sqlalchemy>=2.0.0,<3.0.0
+psycopg2-binary>=2.9.9,<3.0.0
+alembic>=1.13.0,<2.0.0
+
+# Backup DB → Cloudflare R2 (S3-compatible) — scripts/backup_db.py.
+boto3>=1.34.0,<2.0.0
+
 # LLM provider (sẽ dùng từ giai đoạn 1)
 anthropic>=0.40.0,<1.0.0
 

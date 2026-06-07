@@ -25,6 +25,7 @@ from app.api import (
     admin,
     automation,
     auth,
+    bookings,
     chat,
     client,
     health,
@@ -39,9 +40,33 @@ from app.core.settings import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Auto-seed tài khoản admin khi khởi động nếu chưa tồn tại."""
+    """Khởi tạo Postgres (nếu có) + auto-seed tài khoản admin khi khởi động.
+
+    Postgres là TUỲ CHỌN: thiếu/lỗi DATABASE_URL → app vẫn chạy trên JSON
+    (graceful degradation). Giai đoạn dual-write: ghi cả JSON lẫn Postgres.
+    """
     from app.core import user_store
     from app.core.security import hash_password
+
+    # --- Persistence: thử bật Postgres, không bao giờ để DB làm chết app ---
+    try:
+        from app.db import session as db
+        from app.db import user_mirror
+
+        if db.db_configured():
+            if db.init_db():
+                backfilled = user_mirror.backfill_users()
+                print(
+                    f"[DB] Postgres CONNECTED — schema ensured, "
+                    f"backfilled {backfilled} user(s). Dual-write BẬT."
+                )
+            else:
+                print("[DB] Postgres cấu hình nhưng KHÔNG kết nối được "
+                      "→ fallback JSON (dual-write TẮT).")
+        else:
+            print("[DB] Chưa cấu hình DATABASE_URL → chạy JSON thuần.")
+    except Exception as e:  # noqa: BLE001
+        print(f"[DB] Khởi tạo lỗi, fallback JSON: {type(e).__name__}: {e}")
 
     admin_email = os.getenv("ADMIN_EMAIL", "admin@eurowindowlightcity.net")
     admin_password = os.getenv("ADMIN_PASSWORD") or "".join(
@@ -93,6 +118,8 @@ app.include_router(inventory.router)
 app.include_router(admin.router)
 app.include_router(learning.router)
 app.include_router(automation.router)
+app.include_router(bookings.router)
+app.include_router(bookings.me_router)
 app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
 
 
