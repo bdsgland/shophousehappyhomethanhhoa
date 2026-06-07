@@ -96,6 +96,81 @@ def get_unit(unit_id: str) -> Optional[dict]:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Mutations cho admin (in-memory). LƯU Ý: quỹ căn hiện sinh mock mỗi lần khởi
+# động process nên thay đổi là TẠM THỜI (reset khi redeploy). Giai đoạn sau
+# thay bằng bảng PostgreSQL `units`. Đủ dùng để admin thao tác/QA Phase 2.
+# ---------------------------------------------------------------------------
+
+_ALLOWED_STATUS = set(_STATUSES)
+
+
+def _recompute_price_label(u: dict) -> None:
+    u["gia"] = f"{u['gia_tri']:.1f} tỷ"
+
+
+def admin_update_unit(unit_id: str, changes: dict) -> Optional[dict]:
+    """Cập nhật 1 căn. Cho phép đổi giá/trạng thái/diện tích/vị trí/phân khu/loại."""
+    u = get_unit(unit_id)
+    if not u:
+        return None
+    if "trang_thai" in changes and changes["trang_thai"]:
+        if changes["trang_thai"] not in _ALLOWED_STATUS:
+            raise ValueError(f"Trạng thái không hợp lệ: {changes['trang_thai']}")
+        u["trang_thai"] = changes["trang_thai"]
+    if changes.get("gia_tri") is not None:
+        u["gia_tri"] = round(float(changes["gia_tri"]), 2)
+        _recompute_price_label(u)
+    for fld in ("phan_khu", "loai"):
+        if changes.get(fld):
+            u[fld] = changes[fld]
+    for fld in ("dien_tich", "mat_tien"):
+        if changes.get(fld) is not None:
+            u[fld] = float(changes[fld])
+    if changes.get("position") and isinstance(changes["position"], dict):
+        u["position"] = {
+            "x": round(float(changes["position"].get("x", u["position"]["x"])), 1),
+            "y": round(float(changes["position"].get("y", u["position"]["y"])), 1),
+        }
+    return u
+
+
+def admin_create_unit(data: dict) -> dict:
+    """Tạo căn mới. id phải duy nhất; tự sinh giá-label."""
+    unit_id = (data.get("id") or "").strip()
+    if not unit_id:
+        raise ValueError("Thiếu mã căn (id)")
+    if get_unit(unit_id):
+        raise ValueError(f"Mã căn đã tồn tại: {unit_id}")
+    status = data.get("trang_thai") or "Còn hàng"
+    if status not in _ALLOWED_STATUS:
+        raise ValueError(f"Trạng thái không hợp lệ: {status}")
+    gia_tri = round(float(data.get("gia_tri") or 0), 2)
+    unit = {
+        "id": unit_id,
+        "lo": data.get("lo") or unit_id.split("-")[-1],
+        "phan_khu": data.get("phan_khu") or "Khác",
+        "loai": data.get("loai") or "Liền kề",
+        "dien_tich": float(data.get("dien_tich") or 0),
+        "mat_tien": float(data.get("mat_tien") or 0),
+        "trang_thai": status,
+        "gia_tri": gia_tri,
+        "gia": f"{gia_tri:.1f} tỷ",
+        "position": data.get("position") or {"x": _MAP_W / 2, "y": _MAP_H / 2},
+    }
+    _UNITS.append(unit)
+    return unit
+
+
+def admin_delete_unit(unit_id: str) -> bool:
+    """Xoá căn khỏi quỹ (in-memory). Trả về True nếu xoá được."""
+    for i, u in enumerate(_UNITS):
+        if u["id"] == unit_id:
+            del _UNITS[i]
+            return True
+    return False
+
+
 @router.get("/{slug}/units")
 def list_units(
     slug: str,

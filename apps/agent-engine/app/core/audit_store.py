@@ -41,14 +41,50 @@ def record(
     return entry
 
 
+def record_admin(
+    action: str,
+    actor: dict[str, Any],
+    *,
+    target: str = "",
+    old_value: Any = None,
+    new_value: Any = None,
+    detail: str = "",
+) -> dict:
+    """Ghi nhật ký 1 thao tác quản trị (who / what / when / old / new).
+
+    `action` ví dụ: "user.create", "user.disable", "commission.approve".
+    Lưu dưới event_type "admin.<action>" để lọc qua prefix="admin.".
+    """
+    return record(
+        f"admin.{action}",
+        {
+            "actor_id": actor.get("id"),
+            "actor_email": actor.get("email"),
+            "actor_name": actor.get("full_name"),
+            "target": target,
+            "old_value": old_value,
+            "new_value": new_value,
+        },
+        detail=detail,
+    )
+
+
 def list_events(
-    event_type: Optional[str] = None, limit: int = 100
+    event_type: Optional[str] = None,
+    limit: int = 100,
+    prefix: Optional[str] = None,
 ) -> list[dict]:
-    """Trả về sự kiện gần nhất (mới nhất trước), lọc theo event_type nếu có."""
+    """Trả về sự kiện gần nhất (mới nhất trước).
+
+    - `event_type`: lọc khớp tuyệt đối loại sự kiện.
+    - `prefix`: lọc theo tiền tố (vd "admin." để lấy nhật ký thao tác quản trị).
+    """
     with _LOCK:
         items = list(reversed(_EVENTS))
     if event_type:
         items = [e for e in items if e["event_type"] == event_type]
+    if prefix:
+        items = [e for e in items if e["event_type"].startswith(prefix)]
     return items[:limit]
 
 

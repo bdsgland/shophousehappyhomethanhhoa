@@ -1,0 +1,216 @@
+"use client";
+
+import { useState } from "react";
+
+import {
+  ApiError,
+  createUnit,
+  updateUnit,
+  type UpdateUnitPayload,
+} from "@/lib/api";
+import type { InventoryUnit } from "@/lib/types";
+import {
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+
+export const PHAN_KHU_OPTIONS = [
+  "Bình Minh",
+  "Mặt Trời",
+  "Cầu Vồng",
+  "Ánh Sao",
+  "Ánh Trăng",
+  "Ánh Sáng",
+  "Hừng Đông",
+] as const;
+
+export const LOAI_OPTIONS = ["Liền kề", "Shophouse", "Biệt thự"] as const;
+
+export const TRANG_THAI_OPTIONS = ["Còn hàng", "Đặt cọc", "Đã bán"] as const;
+
+export function UnitEditModal({
+  open,
+  onClose,
+  onSaved,
+  editing,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  editing?: InventoryUnit | null;
+}) {
+  const isEdit = Boolean(editing);
+  const [id, setId] = useState(editing?.id ?? "");
+  const [phanKhu, setPhanKhu] = useState<string>(
+    editing?.phan_khu ?? PHAN_KHU_OPTIONS[0],
+  );
+  const [loai, setLoai] = useState<string>(editing?.loai ?? LOAI_OPTIONS[0]);
+  const [dienTich, setDienTich] = useState(
+    editing ? String(editing.dien_tich) : "",
+  );
+  const [matTien, setMatTien] = useState(
+    editing ? String(editing.mat_tien) : "",
+  );
+  const [giaTri, setGiaTri] = useState(
+    editing ? String(editing.gia_tri) : "",
+  );
+  const [trangThai, setTrangThai] = useState<string>(
+    editing?.trang_thai ?? TRANG_THAI_OPTIONS[0],
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset form mỗi khi mở với căn khác (pattern giống UserForm).
+  const formKey = editing?.id ?? "new";
+  const [activeKey, setActiveKey] = useState(formKey);
+  if (activeKey !== formKey) {
+    setActiveKey(formKey);
+    setId(editing?.id ?? "");
+    setPhanKhu(editing?.phan_khu ?? PHAN_KHU_OPTIONS[0]);
+    setLoai(editing?.loai ?? LOAI_OPTIONS[0]);
+    setDienTich(editing ? String(editing.dien_tich) : "");
+    setMatTien(editing ? String(editing.mat_tien) : "");
+    setGiaTri(editing ? String(editing.gia_tri) : "");
+    setTrangThai(editing?.trang_thai ?? TRANG_THAI_OPTIONS[0]);
+    setError(null);
+  }
+
+  async function handleSubmit() {
+    setError(null);
+    if (!isEdit && !id.trim()) {
+      setError("Mã căn là bắt buộc.");
+      return;
+    }
+    const payload: UpdateUnitPayload = {
+      phan_khu: phanKhu,
+      loai,
+      dien_tich: dienTich.trim() ? Number(dienTich) : undefined,
+      mat_tien: matTien.trim() ? Number(matTien) : undefined,
+      gia_tri: giaTri.trim() ? Number(giaTri) : undefined,
+      trang_thai: trangThai,
+    };
+    setSaving(true);
+    try {
+      if (isEdit && editing) {
+        await updateUnit(editing.id, payload);
+      } else {
+        await createUnit({ id: id.trim(), ...payload });
+      }
+      onSaved();
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Lưu thất bại.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogHeader
+        title={isEdit ? "Sửa căn" : "Thêm căn"}
+        description={
+          isEdit
+            ? "Cập nhật thông tin, giá trị & trạng thái căn."
+            : "Tạo căn mới trong quỹ căn."
+        }
+        onClose={onClose}
+      />
+      <DialogBody>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Mã căn {isEdit ? "" : "*"}</Label>
+            <Input
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              disabled={isEdit}
+              placeholder="VD: BM-LK-01"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phân khu</Label>
+            <Select
+              value={phanKhu}
+              onChange={(e) => setPhanKhu(e.target.value)}
+            >
+              {PHAN_KHU_OPTIONS.map((pk) => (
+                <option key={pk} value={pk}>
+                  {pk}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Loại</Label>
+            <Select value={loai} onChange={(e) => setLoai(e.target.value)}>
+              {LOAI_OPTIONS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Diện tích (m²)</Label>
+            <Input
+              type="number"
+              value={dienTich}
+              onChange={(e) => setDienTich(e.target.value)}
+              placeholder="VD: 90"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mặt tiền (m)</Label>
+            <Input
+              type="number"
+              value={matTien}
+              onChange={(e) => setMatTien(e.target.value)}
+              placeholder="VD: 6"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Giá trị (tỷ)</Label>
+            <Input
+              type="number"
+              value={giaTri}
+              onChange={(e) => setGiaTri(e.target.value)}
+              placeholder="VD: 2.5"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Trạng thái</Label>
+            <Select
+              value={trangThai}
+              onChange={(e) => setTrangThai(e.target.value)}
+            >
+              {TRANG_THAI_OPTIONS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        {error && (
+          <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
+          Huỷ
+        </Button>
+        <Button onClick={handleSubmit} disabled={saving}>
+          {saving ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Tạo căn"}
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
+}

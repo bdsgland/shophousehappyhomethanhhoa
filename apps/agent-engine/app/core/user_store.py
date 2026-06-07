@@ -392,20 +392,51 @@ def update_user(
     *,
     role: Optional[str] = None,
     is_active: Optional[bool] = None,
+    full_name: Optional[str] = None,
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+    region: Optional[str] = None,
+    upline_email: Optional[str] = None,
 ) -> Optional[dict]:
-    """Cập nhật role/is_active. Trả về user đã cập nhật, None nếu không tìm thấy."""
+    """Cập nhật thông tin user (admin). Trả về user đã cập nhật, None nếu không thấy.
+
+    Đổi email kiểm tra trùng với user khác trước khi ghi.
+    """
     with _LOCK:
         data = _load()
+        if email is not None:
+            email_l = email.strip().lower()
+            for other in data["users"]:
+                if other["id"] != user_id and other["email"].lower() == email_l:
+                    raise ValueError("Email đã được dùng bởi tài khoản khác")
         for u in data["users"]:
             if u["id"] == user_id:
                 if role is not None:
                     u["role"] = role
                 if is_active is not None:
                     u["is_active"] = is_active
+                if full_name is not None and full_name.strip():
+                    u["full_name"] = full_name.strip()
+                if phone is not None:
+                    u["phone"] = phone.strip() or None
+                if email is not None and email.strip():
+                    u["email"] = email.strip().lower()
+                if region is not None:
+                    u["region"] = region.strip() or None
+                if upline_email is not None:
+                    u["upline_email"] = upline_email.strip().lower() or None
                 _save(data)
                 _mirror(u)
                 return u
     return None
+
+
+def soft_delete(user_id: str) -> Optional[dict]:
+    """Khoá mềm tài khoản (is_active=False) — KHÔNG xoá khỏi store.
+
+    Tuân thủ ràng buộc: không bao giờ hard-delete để tránh mất dữ liệu KH/sale.
+    """
+    return update_user(user_id, is_active=False)
 
 
 def public_view(user: dict) -> dict:

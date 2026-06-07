@@ -223,6 +223,44 @@ def list_documents(category: Optional[str] = None) -> list[dict]:
     return sorted(docs, key=lambda d: d.get("created_at", ""), reverse=True)
 
 
+def reindex_all() -> dict:
+    """Build lại toàn bộ chỉ mục BM25 từ tài liệu hiện có. Trả về thống kê."""
+    with _LOCK:
+        meta = _load_meta()
+        docs = meta["documents"]
+        _rebuild_index(docs)
+        _save_meta(meta)
+    total_chunks = sum(d.get("chunks", 0) for d in docs)
+    return {
+        "documents": len(docs),
+        "chunks": total_chunks,
+        "reindexed_at": _now_iso(),
+    }
+
+
+def index_stats() -> dict:
+    """Tổng quan tình trạng index cho dashboard KB."""
+    with _LOCK:
+        meta = _load_meta()
+        docs = meta["documents"]
+    indexed = sum(1 for d in docs if d.get("indexed"))
+    total_chunks = sum(d.get("chunks", 0) for d in docs)
+    last_indexed = max(
+        (d.get("indexed_at") or "" for d in docs), default=""
+    )
+    by_category: dict[str, int] = {}
+    for d in docs:
+        c = d.get("category", "khác")
+        by_category[c] = by_category.get(c, 0) + 1
+    return {
+        "total_documents": len(docs),
+        "indexed_documents": indexed,
+        "total_chunks": total_chunks,
+        "last_indexed_at": last_indexed or None,
+        "by_category": by_category,
+    }
+
+
 def get_document(doc_id: str) -> Optional[dict]:
     with _LOCK:
         for d in _load_meta()["documents"]:

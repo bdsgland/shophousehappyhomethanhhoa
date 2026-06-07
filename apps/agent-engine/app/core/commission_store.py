@@ -21,9 +21,36 @@ def upsert(record: dict) -> dict:
     """Lưu / cập nhật bản ghi hoa hồng theo deal_id."""
     deal_id = record["deal_id"]
     with _LOCK:
+        prev = _RECORDS.get(deal_id, {})
         record = {**record, "saved_at": datetime.utcnow().isoformat() + "Z"}
+        # Giữ trạng thái duyệt / chi trả khi n8n retry ghi đè (idempotent).
+        record.setdefault("status", prev.get("status", "pending"))
+        record.setdefault("approved_at", prev.get("approved_at"))
+        record.setdefault("paid_at", prev.get("paid_at"))
         _RECORDS[deal_id] = record
         return record
+
+
+def set_status(
+    deal_id: str,
+    *,
+    status: Optional[str] = None,
+    approved_at: Optional[str] = None,
+    paid_at: Optional[str] = None,
+) -> Optional[dict]:
+    """Cập nhật trạng thái duyệt / chi trả hoa hồng. None nếu không tìm thấy."""
+    with _LOCK:
+        rec = _RECORDS.get(deal_id)
+        if not rec:
+            return None
+        if status is not None:
+            rec["status"] = status
+        if approved_at is not None:
+            rec["approved_at"] = approved_at
+        if paid_at is not None:
+            rec["paid_at"] = paid_at
+        _RECORDS[deal_id] = rec
+        return rec
 
 
 def get(deal_id: str) -> Optional[dict]:

@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api import (
     admin,
+    admin_conversations,
     automation,
     auth,
     bookings,
@@ -116,6 +117,7 @@ app.include_router(chat.router)
 app.include_router(leads.router)
 app.include_router(inventory.router)
 app.include_router(admin.router)
+app.include_router(admin_conversations.router)
 app.include_router(learning.router)
 app.include_router(automation.router)
 app.include_router(bookings.router)
