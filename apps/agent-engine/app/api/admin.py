@@ -1,22 +1,30 @@
 """Endpoint quản trị (yêu cầu role=admin).
 
-- GET   /admin/overview      → tổng số user theo role, tổng lead
-- GET   /admin/users         → list user (không kèm password_hash)
-- PATCH /admin/users/{id}    → đổi role / is_active
+- GET   /admin/overview          → tổng số user theo role, tổng lead
+- GET   /admin/users             → list user (không kèm password_hash)
+- PATCH /admin/users/{id}        → đổi role / is_active
+- GET   /admin/dashboard/kpi     → KPI tổng quan cho admin dashboard (cards + charts)
+- GET   /admin/platforms/health  → ping sức khoẻ 5 nền tảng (server-side, tránh CORS)
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api import inventory as inventory_module
 from app.api import leads as leads_module
 from app.api.deps import require_admin, require_admin_or_service
 from app.core import user_store
+from app.core.settings import settings
 from app.schemas.user import UserOut, UserUpdate
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Hoa hồng ước tính trên giá trị căn đã chốt — dùng cho "doanh thu dự kiến".
+_COMMISSION_RATE = 0.03
 
 
 @router.get("/overview")
@@ -74,6 +82,83 @@ def patch_user(
         raise HTTPException(status_code=404, detail="User không tồn tại")
     return UserOut(**user_store.public_view(updated))
 
+
+def _lead_date(lead) -> datetime | None:
+    """Lấy ngày tạo lead (an toàn với cả object/dict)."""
+    val = getattr(lead, "created_at", None)
+    if val is None and isinstance(lead, dict):
+        val = lead.get("created_at")
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val.replace("Z", ""))
+        except ValueError:
+            return None
+    return val
+
+
+@router.get("/dashboard/kpi")
+def dashboard_kpi(_admin: dict = Depends(require_admin)) -> dict:
+    """KPI tổng quan cho admin dashboard.
+
+    Trả số liệu THỰC từ các store hiện có (user/lead/inventory). Khi hệ thống
+    còn mới (chưa nhiều hoạt động) các mảng chart có thể bằng 0 — frontend tự
+    hiển thị trạng thái "chưa có dữ liệu" thay vì vẽ đường phẳng gây hiểu nhầm.
+    """
+    now = datetime.utcnow()
+    today = now.date()
+
+    # --- Leads ---
+    leads = list(leads_module._LEADS.values())
+    lead_today = 0
+    for l in leads:
+        d = _lead_date(l)
+        if d and d.date() == today:
+            lead_today += 1
+
+    # Chuỗi 30 ngày gần nhất (cho line chart)
+    lead_trend = []
+    for i in range(29, -1, -1):
+        day = (now - timedelta(days=i)).date()
+        cnt = sum(1 for l in leads if (_lead_date(l) or datetime.min).date() == day)
+        lead_trend.append({"date": day.isoformat(), "count": cnt})
+
+    # --- Users ---
+    users = user_store.list_users()
+    by_role: dict[str, int] = {}
+    for u in users:
+        r = u.get("role", "sale")
+        by_role[r] = by_role.get(r, 0) + 1
+
+    # --- Inventory ---
+    units = inventory_module.get_units()
+    reserved = sum(1 for u in units if u["trang_thai"] == "Đặt cọc")
+    sold = sum(1 for u in units if u["trang_thai"] == "Đã bán")
+    available = sum(1 for u in units if u["trang_thai"] == "Còn hàng")
+    booked_value = sum(
+        u["gia_tri"] for u in units if u["trang_thai"] in ("Đặt cọc", "Đã bán")
+    )
+    revenue_projection = round(booked_value * _COMMISSION_RATE, 2)
+
+    # --- Top sale theo hoa hồng (MVP: chưa có giao dịch thật → để trống) ---
+    top_sales: list[dict] = []
+
+    return {
+        "lead_today": lead_today,
+        "lead_total": len(leads),
+        "users_total": len(users),
+        "users_by_role": by_role,
+        "orders_this_month": reserved,  # đơn đặt cọc đang giữ chỗ
+        "revenue_projection_ty": revenue_projection,  # tỷ đồng (hoa hồng ước tính)
+        "inventory": {
+            "total": len(units),
+            "available": available,
+            "sold": sold,
+            "reserved": reserved,
+        },
+        "lead_trend": lead_trend,
+        "top_sales": top_sales,
+        "generated_at": now.isoformat() + "Z",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -169,4 +254,57 @@ def leads_needs_followup(
             "upcoming_bookings_24h": len(upcoming_bookings),
             "dormant_3days": len(dormant),
         },
+    }
+
+
+def _platforms_config() -> list[dict]:
+    """Danh sách nền tảng cần health-check. URL có thể override qua env."""
+    return [
+        {"key": "api", "name": "Agent Engine (API)", "url": "self"},
+        {"key": "n8n", "name": "n8n Automation", "url": settings.platform_n8n_url},
+        {"key": "note", "name": "Open Notebook", "url": settings.platform_note_url},
+        {
+            "key": "bot",
+            "name": "OpenClaw",
+            "url": settings.platform_bot_url,
+            "note": "Login UI lỗi — chờ fix",
+        },
+        {"key": "chat", "name": "Chatwoot", "url": settings.platform_chat_url},
+    ]
+
+
+@router.get("/platforms/health")
+async def platforms_health(_admin: dict = Depends(require_admin)) -> dict:
+    """Ping sức khoẻ 5 nền tảng từ phía server (tránh giới hạn CORS của trình duyệt).
+
+    Coi là "up" nếu nhận được HTTP < 500 (kể cả 401/302 — tức là dịch vụ sống,
+    chỉ là cần auth). "down" nếu timeout / lỗi kết nối / 5xx.
+    """
+    results: list[dict] = []
+    async with httpx.AsyncClient(
+        timeout=6.0, follow_redirects=False, verify=True
+    ) as client:
+        for p in _platforms_config():
+            entry = {k: v for k, v in p.items() if k != "url"}
+            entry["url"] = p["url"]
+            if p["url"] == "self":
+                entry["url"] = "https://api.eurowindowlightcity.net"
+                entry["status"] = "up"
+                entry["code"] = 200
+                results.append(entry)
+                continue
+            try:
+                r = await client.get(
+                    p["url"], headers={"User-Agent": "ELC-Admin-HealthCheck/1.0"}
+                )
+                entry["code"] = r.status_code
+                entry["status"] = "up" if r.status_code < 500 else "down"
+            except Exception as e:  # noqa: BLE001 — mọi lỗi mạng coi là down
+                entry["code"] = None
+                entry["status"] = "down"
+                entry["error"] = type(e).__name__
+            results.append(entry)
+    return {
+        "platforms": results,
+        "checked_at": datetime.utcnow().isoformat() + "Z",
     }

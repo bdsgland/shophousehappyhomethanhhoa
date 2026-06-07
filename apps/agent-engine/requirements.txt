@@ -29,5 +29,9 @@ pdfplumber>=0.10.0,<1.0.0
 python-docx>=1.1.0,<2.0.0
 rank-bm25>=0.2.2,<1.0.0
 
-# Test
+# Sale Learning Center: upload tài liệu (multipart) + sinh phiếu báo giá PDF
+python-multipart>=0.0.9,<1.0.0
+reportlab>=4.0.0,<5.0.0
+
+# Test (TestClient của Starlette dùng httpx — đã khai báo ở phần HTTP client)
 pytest>=8.0.0,<9.0.0
