@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
+  BookOpen,
   Calculator,
+  ChevronRight,
   DollarSign,
   GitCompare,
   Heart,
   MessageCircle,
-  User,
 } from "@/components/dashboard/icons";
 import {
   addFavorite,
@@ -19,6 +20,7 @@ import {
   type RawUnit,
 } from "@/lib/api";
 import { readToken, readUserFromCookie } from "@/lib/auth";
+import { LiveMatchBanner } from "@/components/client/LiveMatchBanner";
 
 const FEATURES = [
   {
@@ -139,6 +141,28 @@ export default function ClientDashboard() {
         ))}
       </div>
 
+      {/* Tìm hiểu dự án — page chi tiết 11 tab */}
+      <Link
+        href="/dashboard/project/eurowindow-light-city"
+        className="flex items-center gap-4 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white">
+          <BookOpen size={24} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-bold text-brand-900">
+            Tìm hiểu dự án Eurowindow Light City
+          </span>
+          <span className="block text-sm text-brand-600">
+            Tổng quan, vị trí, phân khu, mặt bằng, ảnh 360° và chính sách bán hàng
+          </span>
+        </span>
+        <span className="hidden shrink-0 items-center gap-1 text-sm font-semibold text-indigo-600 sm:flex">
+          Xem chi tiết
+          <ChevronRight size={16} />
+        </span>
+      </Link>
+
       {/* Căn gợi ý */}
       <section>
         <h2 className="mb-3 text-lg font-bold text-brand-900">
@@ -212,23 +236,10 @@ export default function ClientDashboard() {
         )}
       </section>
 
-      {/* Sale phụ trách */}
+      {/* Sale phụ trách — Live Match realtime */}
       <section>
         <h2 className="mb-3 text-lg font-bold text-brand-900">Sale phụ trách bạn</h2>
-        <div className="flex items-center gap-4 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-400">
-            <User size={24} />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-brand-900">
-              Đang phân công chuyên viên
-            </div>
-            <div className="text-xs text-brand-600">
-              Chuyên viên kinh doanh ELC sẽ sớm liên hệ hỗ trợ bạn. Trong lúc chờ, bạn
-              có thể hỏi trợ lý AI bất cứ điều gì.
-            </div>
-          </div>
-        </div>
+        <LiveMatchBanner />
       </section>
     </div>
   );

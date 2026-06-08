@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { fetchMe } from "@/lib/api";
-import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
+import { isExternalUrl, redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
 
 // Bản đồ mã lỗi từ backend → thông báo tiếng Việt cho người dùng.
 const ERROR_MESSAGES: Record<string, string> = {
@@ -50,6 +50,10 @@ export default function AuthCallbackPage() {
       setAuthCookie(token, maxAge);
       setUserCookie(user, maxAge);
       const dest = next || redirectByRole(user.role);
+      if (isExternalUrl(dest)) {
+        window.location.href = dest;
+        return;
+      }
       router.replace(dest);
       router.refresh();
     })();

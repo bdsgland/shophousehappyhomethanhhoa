@@ -6,7 +6,7 @@ import { FormEvent, Suspense, useState } from "react";
 
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { authLogin } from "@/lib/api";
-import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
+import { isExternalUrl, redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
 
 export default function LoginPage() {
   return (
@@ -35,7 +35,12 @@ function LoginForm() {
       setAuthCookie(data.access_token, data.expires_in);
       setUserCookie(data.user, data.expires_in);
       // Ưu tiên ?next= (deep-link bị chặn), nếu không thì điều hướng theo vai trò.
-      router.replace(next || redirectByRole(data.user.role));
+      const dest = next || redirectByRole(data.user.role);
+      if (isExternalUrl(dest)) {
+        window.location.href = dest;
+        return;
+      }
+      router.replace(dest);
       router.refresh();
     } catch (err) {
       setError((err as Error).message || "Đăng nhập thất bại");

@@ -9,11 +9,25 @@ const CLIENT_PREFIX = "/client";
 // Khu vực nội bộ (sale/admin) — khách hàng (client) không được vào.
 const STAFF_PREFIXES = ["/leads", "/dashboard", "/agent", "/admin"];
 
-/** Portal mặc định theo role — đồng bộ với redirectByRole bên client. */
-function portalFor(role: string | undefined): string {
-  if (role === "admin") return "/dashboard/project/eurowindow-light-city";
-  if (role === "client") return "/client";
-  return "/agent/profile";
+// App Admin riêng (đồng bộ với ADMIN_APP_URL bên lib/auth.ts).
+const ADMIN_APP_URL =
+  process.env.NEXT_PUBLIC_ADMIN_APP_URL ??
+  "https://admin.eurowindowlightcity.net";
+
+/**
+ * Redirect "về portal của tôi" khi bị chặn vào khu không thuộc quyền.
+ * - admin → app Admin riêng (external)
+ * - sale  → CRM
+ * - client→ khu khách hàng
+ */
+function redirectToPortal(req: NextRequest, role: string | undefined) {
+  if (role === "admin") {
+    return NextResponse.redirect(ADMIN_APP_URL);
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = role === "client" ? "/client" : "/agent/crm";
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
 function startsWithPrefix(pathname: string, prefix: string): boolean {
@@ -43,30 +57,20 @@ export function middleware(req: NextRequest) {
   const payload = decodeJwtPayload(token);
   const role = payload?.role;
 
-  // Khu admin: chỉ admin.
+  // Khu admin: chỉ admin. Sale/client bị đẩy về portal của họ.
   if (startsWithPrefix(pathname, ADMIN_PREFIX) && role !== "admin") {
-    const denyUrl = req.nextUrl.clone();
-    denyUrl.pathname = portalFor(role);
-    denyUrl.search = "";
-    denyUrl.searchParams.set("denied", "admin");
-    return NextResponse.redirect(denyUrl);
+    return redirectToPortal(req, role);
   }
 
   // Khu /client: chỉ khách hàng. Sale/admin bị đẩy về portal của họ.
   if (startsWithPrefix(pathname, CLIENT_PREFIX) && role !== "client") {
-    const denyUrl = req.nextUrl.clone();
-    denyUrl.pathname = portalFor(role);
-    denyUrl.search = "";
-    return NextResponse.redirect(denyUrl);
+    return redirectToPortal(req, role);
   }
 
   // Khu nội bộ (sale/admin): khách hàng không được vào → đẩy về /client.
   const inStaffArea = STAFF_PREFIXES.some((p) => startsWithPrefix(pathname, p));
   if (inStaffArea && role === "client") {
-    const denyUrl = req.nextUrl.clone();
-    denyUrl.pathname = "/client";
-    denyUrl.search = "";
-    return NextResponse.redirect(denyUrl);
+    return redirectToPortal(req, "client");
   }
 
   return NextResponse.next();

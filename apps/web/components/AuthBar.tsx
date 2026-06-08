@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { AuthUser } from "@/lib/api";
-import { clearAuthCookies, readUserFromCookie } from "@/lib/auth";
+import {
+  clearAuthCookies,
+  getDashboardUrl,
+  isExternalUrl,
+  readUserFromCookie,
+} from "@/lib/auth";
 
 export function AuthBar() {
   const router = useRouter();
@@ -53,9 +58,9 @@ export function AuthBar() {
   const isAdmin = user.role === "admin";
   const isClient = user.role === "client";
   const accountHref = isClient ? "/client/profile" : "/agent/profile";
-  const portalHref = isClient
-    ? "/client"
-    : "/dashboard/project/eurowindow-light-city";
+  // "Vào dashboard": sale → CRM, client → khu khách hàng, admin → app Admin riêng.
+  const portalHref = getDashboardUrl(user.role);
+  const portalExternal = isExternalUrl(portalHref);
   const portalLabel = isClient ? "Khu khách hàng" : "Vào dashboard";
   const roleLabel = isAdmin
     ? "Quản trị viên"
@@ -72,12 +77,12 @@ export function AuthBar() {
         </div>
       </div>
       {isAdmin && (
-        <Link
-          href="/admin"
+        <a
+          href={portalHref}
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:border-amber-400"
         >
           Admin
-        </Link>
+        </a>
       )}
       <Link
         href={accountHref}
@@ -85,12 +90,21 @@ export function AuthBar() {
       >
         Tài khoản
       </Link>
-      <Link
-        href={portalHref}
-        className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
-      >
-        {portalLabel}
-      </Link>
+      {portalExternal ? (
+        <a
+          href={portalHref}
+          className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
+        >
+          {portalLabel}
+        </a>
+      ) : (
+        <Link
+          href={portalHref}
+          className="rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600"
+        >
+          {portalLabel}
+        </Link>
+      )}
       <button
         type="button"
         onClick={logout}

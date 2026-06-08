@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+  BookOpen,
   Calculator,
   Calendar,
   DollarSign,
@@ -32,6 +33,11 @@ const NAV: NavItem[] = [
   { href: "/client/booking", label: "Đặt lịch xem nhà", Icon: Calendar },
   { href: "/client/favorites", label: "Căn yêu thích", Icon: Heart },
   { href: "/client/profile", label: "Thông tin cá nhân", Icon: User },
+  {
+    href: "/dashboard/project/eurowindow-light-city",
+    label: "Tìm hiểu dự án ELC",
+    Icon: BookOpen,
+  },
 ];
 
 function initials(name: string): string {

@@ -6,7 +6,7 @@ import { FormEvent, Suspense, useState } from "react";
 
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { authRegister } from "@/lib/api";
-import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
+import { isExternalUrl, redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
 
 type Tab = "sale" | "client";
 
@@ -56,7 +56,12 @@ function RegisterForm() {
       });
       setAuthCookie(data.access_token, data.expires_in);
       setUserCookie(data.user, data.expires_in);
-      router.replace(redirectByRole(data.user.role));
+      const dest = redirectByRole(data.user.role);
+      if (isExternalUrl(dest)) {
+        window.location.href = dest;
+        return;
+      }
+      router.replace(dest);
       router.refresh();
     } catch (err) {
       setError((err as Error).message || "Đăng ký thất bại");

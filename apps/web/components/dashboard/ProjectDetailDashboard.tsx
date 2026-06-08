@@ -6,7 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BookingButton } from "@/components/BookingButton";
 import { ChatWidget } from "@/components/ChatWidget";
-import { readUserFromCookie } from "@/lib/auth";
+import {
+  getDashboardUrl,
+  isExternalUrl,
+  readUserFromCookie,
+} from "@/lib/auth";
 
 // Leaflet chỉ chạy ở client → tắt SSR.
 const MasterPlanMap = dynamic(
@@ -22,11 +26,13 @@ const MasterPlanMap = dynamic(
 );
 import {
   BookOpen,
+  Calendar,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   ChevronRightSmall,
+  ClipboardList,
   Database,
   Download,
   Eye,
@@ -91,6 +97,23 @@ const ACCENT = "#F59E0B"; // cam SalePro
 export function ProjectDetailDashboard() {
   const [activeTab, setActiveTab] = useState("tong-quan");
   const [shareMsg, setShareMsg] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRole(readUserFromCookie()?.role ?? null);
+  }, []);
+
+  // "Về dashboard" theo vai trò (admin → app Admin external).
+  const dashboardUrl = getDashboardUrl(role);
+  const dashboardExternal = isExternalUrl(dashboardUrl);
+
+  // Nút hành động nổi theo vai trò.
+  const fab =
+    role === "sale"
+      ? { href: "/agent/crm", label: "Mở CRM", Icon: ClipboardList }
+      : role === "client"
+      ? { href: "/client/booking/new", label: "Đặt lịch xem nhà", Icon: Calendar }
+      : null;
 
   function onShare() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -105,6 +128,25 @@ export function ProjectDetailDashboard() {
   return (
     <>
     <div className="space-y-6">
+      {/* Về dashboard theo vai trò */}
+      {dashboardExternal ? (
+        <a
+          href={dashboardUrl}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-900"
+        >
+          <ChevronLeft size={16} />
+          Về dashboard
+        </a>
+      ) : (
+        <Link
+          href={dashboardUrl}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-900"
+        >
+          <ChevronLeft size={16} />
+          Về dashboard
+        </Link>
+      )}
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-brand-700">
         <Link href="/" className="hover:text-brand-600">
@@ -197,6 +239,16 @@ export function ProjectDetailDashboard() {
         {activeTab === "tin-tuc" && <NewsTab />}
       </div>
     </div>
+    {/* Nút hành động nổi theo vai trò (góc dưới-trái, tránh ChatWidget bên phải) */}
+    {fab && (
+      <Link
+        href={fab.href}
+        className="fixed bottom-5 left-5 z-30 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:shadow-xl"
+      >
+        <fab.Icon size={18} />
+        <span className="hidden sm:inline">{fab.label}</span>
+      </Link>
+    )}
     {/* Chatbot tư vấn nổi — giúp sale hỏi nhanh ngay trong dashboard */}
     <ChatWidget />
     </>

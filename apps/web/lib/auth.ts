@@ -53,15 +53,39 @@ export function readToken(): string | null {
   return readCookie(AUTH_COOKIE);
 }
 
-/** Đường dẫn portal mặc định theo vai trò sau khi đăng nhập/đăng ký. */
-export function redirectByRole(role: string | undefined | null): string {
+/**
+ * URL của app Admin (Next app riêng, deploy domain riêng).
+ * Có thể override bằng env NEXT_PUBLIC_ADMIN_APP_URL khi đổi domain.
+ */
+export const ADMIN_APP_URL =
+  process.env.NEXT_PUBLIC_ADMIN_APP_URL ??
+  "https://admin.eurowindowlightcity.net";
+
+/** true nếu href là URL tuyệt đối (http/https) → cần điều hướng bằng window.location. */
+export function isExternalUrl(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+
+/**
+ * "Vào dashboard" theo vai trò:
+ * - admin → app Admin riêng (external)
+ * - sale  → CRM + giao dịch
+ * - client→ khu khách hàng
+ */
+export function getDashboardUrl(role: string | undefined | null): string {
   switch (role) {
     case "admin":
-      return "/dashboard/project/eurowindow-light-city";
+      return ADMIN_APP_URL;
     case "client":
       return "/client";
     case "sale":
+      return "/agent/crm";
     default:
-      return "/agent/profile";
+      return "/login";
   }
+}
+
+/** Đường dẫn portal mặc định theo vai trò sau khi đăng nhập/đăng ký. */
+export function redirectByRole(role: string | undefined | null): string {
+  return getDashboardUrl(role);
 }

@@ -5,10 +5,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+  BookOpen,
   Calendar,
   DollarSign,
+  GraduationCap,
   Heart,
+  Radio,
   ShoppingBag,
+  Target,
+  Trophy,
   User,
   Users,
 } from "@/components/dashboard/icons";
@@ -19,15 +24,26 @@ type NavItem = {
   href: string;
   label: string;
   Icon: typeof User;
+  live?: boolean; // hiển thị chấm "live" nhấp nháy
 };
 
 const NAV: NavItem[] = [
   { href: "/agent/profile", label: "Thông tin cá nhân", Icon: User },
+  { href: "/agent/live", label: "Khách live", Icon: Radio, live: true },
+  { href: "/agent/crm", label: "CRM khách hàng", Icon: Users },
+  { href: "/agent/crm?tab=today", label: "Nhiệm vụ hôm nay", Icon: Target },
+  { href: "/agent/crm?tab=leaderboard", label: "Xếp hạng", Icon: Trophy },
   { href: "/agent/commission", label: "Hoa hồng của tôi", Icon: DollarSign },
   { href: "/agent/referrals", label: "Cây giới thiệu", Icon: Users },
   { href: "/agent/orders", label: "Đơn hàng của tôi", Icon: ShoppingBag },
   { href: "/agent/bookings", label: "Lịch booking", Icon: Calendar },
   { href: "/agent/favorites", label: "Căn hộ quan tâm", Icon: Heart },
+  { href: "/agent/learning", label: "Kho học tập", Icon: GraduationCap },
+  {
+    href: "/dashboard/project/eurowindow-light-city",
+    label: "Thông tin dự án ELC",
+    Icon: BookOpen,
+  },
 ];
 
 function initials(name: string): string {
@@ -63,7 +79,7 @@ export function AgentSidebar() {
         </div>
 
         <nav className="mt-3 space-y-1">
-          {NAV.map(({ href, label, Icon }) => {
+          {NAV.map(({ href, label, Icon, live }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
@@ -79,7 +95,13 @@ export function AgentSidebar() {
                   size={18}
                   className={active ? "text-orange-500" : "text-brand-400"}
                 />
-                {label}
+                <span className="flex-1">{label}</span>
+                {live && (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+                  </span>
+                )}
               </Link>
             );
           })}
