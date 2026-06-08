@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { authLogin } from "@/lib/api";
 import { redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
 
@@ -100,6 +101,14 @@ function LoginForm() {
             {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
         </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs text-brand-500">
+          <span className="h-px flex-1 bg-brand-100" />
+          hoặc
+          <span className="h-px flex-1 bg-brand-100" />
+        </div>
+
+        <GoogleSignInButton role="client" />
 
         <div className="mt-6 text-center text-sm text-brand-700">
           Chưa có tài khoản?{" "}

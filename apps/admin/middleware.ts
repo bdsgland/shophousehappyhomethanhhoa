@@ -6,7 +6,9 @@ import { TOKEN_COOKIE } from "@/lib/auth";
 // Chặn ở tầng edge: route admin yêu cầu có cookie token. Việc kiểm tra
 // role=admin thực sự do AdminGuard (client) + backend require_admin đảm nhiệm —
 // middleware chỉ chặn người chưa đăng nhập để khỏi nháy UI.
-const PUBLIC_PATHS = ["/login"];
+// /auth/callback nhận token Google qua URL fragment (không gửi lên server) rồi
+// set cookie ở client → phải công khai, nếu không middleware sẽ đẩy về /login.
+const PUBLIC_PATHS = ["/login", "/auth"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

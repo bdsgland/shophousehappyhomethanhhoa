@@ -43,6 +43,16 @@ def _jwt_secret() -> str:
 _RUNTIME_SECRET = secrets.token_urlsafe(48)
 
 
+def get_jwt_secret() -> str:
+    """Secret dùng ký/verify JWT — chia sẻ cho cả access token lẫn state OAuth.
+
+    Phơi ra public để module google_oauth ký `state` bằng cùng một secret,
+    bảo đảm verify nhất quán trong cùng tiến trình (kể cả khi JWT_SECRET trống
+    ở dev → dùng `_RUNTIME_SECRET`).
+    """
+    return _jwt_secret()
+
+
 def create_access_token(
     subject: str, extra_claims: Optional[dict[str, Any]] = None
 ) -> tuple[str, int]:

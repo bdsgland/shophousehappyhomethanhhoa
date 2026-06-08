@@ -58,6 +58,7 @@ class UserOut(BaseModel):
     projects_interested: list[str] = Field(default_factory=list)
     favorites: list[str] = Field(default_factory=list)
     telegram_chat_id: Optional[str] = None
+    picture: Optional[str] = None
     created_at: datetime
 
 
@@ -73,3 +74,16 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserOut
+
+
+# ----- Google Sign-in -----
+
+GoogleRole = Literal["client", "sale", "admin"]
+
+
+class GoogleCallbackResponse(BaseModel):
+    """Trả về cho endpoint POST /auth/google/verify (frontend gọi để lấy user)."""
+
+    access_token: str
+    user: UserOut
+    is_new_user: bool = False

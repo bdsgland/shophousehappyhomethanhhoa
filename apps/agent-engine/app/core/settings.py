@@ -84,6 +84,19 @@ class Settings(BaseSettings):
             or f"{self._n8n_base()}/webhook/commission-calc"
         )
 
+    # ----- Google Sign-in (OAuth2) -----
+    # Tạo OAuth client type "External" RIÊNG cho Sign-in (KHÔNG dùng client
+    # Internal hiện có) — xem docs/google-signin-setup.md. Để trống → tính năng
+    # đăng nhập Google tự TẮT (endpoint trả 503), email+password vẫn hoạt động.
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    google_oauth_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    # Base URL các portal để callback redirect về (đọc token từ URL fragment).
+    frontend_url: str = "http://localhost:3000"  # web (client + sale)
+    admin_url: str = "http://localhost:3001"  # cổng quản trị admin
+    # Domain workspace: chỉ email thuộc domain này mới được đăng nhập role=admin.
+    google_workspace_domain: str = "eurowindowlightcity.net"
+
     # Auth (MVP — JWT đơn giản, file-based user store)
     jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
     jwt_algorithm: str = "HS256"

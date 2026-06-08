@@ -117,6 +117,12 @@ def _migrate(data: dict) -> bool:
         if "telegram_chat_id" not in u:
             u["telegram_chat_id"] = None
             changed = True
+        if "google_id" not in u:
+            u["google_id"] = None
+            changed = True
+        if "picture" not in u:
+            u["picture"] = None
+            changed = True
         # Khách hàng (client) không có mã giới thiệu; chỉ sinh cho admin/sale.
         if u.get("role") != "client" and not u.get("referral_code"):
             code = _gen_referral_code(u.get("full_name", ""), existing_codes)
@@ -170,6 +176,67 @@ def find_by_email(email: str) -> Optional[dict]:
     return None
 
 
+def find_by_google_id(google_id: str) -> Optional[dict]:
+    gid = (google_id or "").strip()
+    if not gid:
+        return None
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if (u.get("google_id") or "") == gid:
+                return u
+    return None
+
+
+def create_user_from_google(
+    *,
+    email: str,
+    full_name: str,
+    google_id: str,
+    picture: Optional[str] = None,
+    role: str = "client",
+    upline_email: Optional[str] = None,
+    projects_interested: Optional[list[str]] = None,
+) -> dict:
+    """Tạo user từ thông tin Google.
+
+    Mật khẩu được sinh ngẫu nhiên 32 ký tự rồi hash — KHÔNG dùng để đăng nhập
+    (user chỉ vào bằng Google), nhưng vẫn có hash hợp lệ để pattern thống nhất.
+    """
+    from app.core.security import hash_password
+
+    random_password = secrets.token_urlsafe(32)
+    return create_user(
+        email=email,
+        full_name=full_name,
+        password_hash=hash_password(random_password),
+        role=role,
+        upline_email=upline_email,
+        projects_interested=projects_interested,
+        source="google",
+        google_id=google_id,
+        picture=picture,
+    )
+
+
+def link_google_account(
+    user_id: str, *, google_id: str, picture: Optional[str] = None
+) -> Optional[dict]:
+    """Gắn google_id + cập nhật avatar cho user đã tồn tại (login lại)."""
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                if google_id and not u.get("google_id"):
+                    u["google_id"] = google_id
+                if picture:
+                    u["picture"] = picture
+                _save(data)
+                _mirror(u)
+                return u
+    return None
+
+
 def find_by_id(user_id: str) -> Optional[dict]:
     with _LOCK:
         data = _load()
@@ -199,6 +266,8 @@ def create_user(
     projects_interested: Optional[list[str]] = None,
     source: Optional[str] = None,
     facebook_url: Optional[str] = None,
+    google_id: Optional[str] = None,
+    picture: Optional[str] = None,
 ) -> dict:
     with _LOCK:
         data = _load()
@@ -232,6 +301,8 @@ def create_user(
             "telegram_chat_id": None,
             "source": (source or "").strip() or None,
             "facebook_url": (facebook_url or "").strip() or None,
+            "google_id": (google_id or "").strip() or None,
+            "picture": (picture or "").strip() or None,
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
@@ -454,5 +525,6 @@ def public_view(user: dict) -> dict:
         "projects_interested": user.get("projects_interested") or [],
         "favorites": user.get("favorites") or [],
         "telegram_chat_id": user.get("telegram_chat_id"),
+        "picture": user.get("picture"),
         "created_at": user["created_at"],
     }
