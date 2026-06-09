@@ -561,6 +561,7 @@ type Row = {
   status: string;
   price: string;
   type?: string;
+  has_price?: boolean; // false = chưa có giá chi tiết → hiện "Báo giá"
   position?: { x: number; y: number };
 };
 
@@ -721,7 +722,13 @@ function UnitsTab({
                 <td className="px-4 py-3 text-brand-700">{u.facade} m</td>
                 <td className="px-4 py-3">{statusBadge(u.status)}</td>
                 <td className="px-4 py-3 font-semibold text-brand-900">
-                  {u.price}
+                  {u.has_price === false ? (
+                    <span className="rounded bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600">
+                      Báo giá
+                    </span>
+                  ) : (
+                    u.price
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {u.status !== "Đã bán" && (

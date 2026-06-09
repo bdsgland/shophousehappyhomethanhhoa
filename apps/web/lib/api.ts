@@ -412,6 +412,8 @@ export type InventoryUnit = {
   status: string;
   price: string;
   fund?: string; // quỹ (key: exclusive|bonus|agency_f1|mid|not_open)
+  gia_ny_gom_vat_kpbt?: number; // N — giá niêm yết chi tiết (0/None = chưa có)
+  has_price?: boolean; // true khi có giá chi tiết → cho lập phiếu tính giá
   position?: { x: number; y: number };
 };
 
@@ -453,19 +455,25 @@ export async function fetchInventory(opts?: {
       trang_thai: string;
       gia: string;
       quy?: string;
+      gia_ny_gom_vat_kpbt?: number;
       position?: { x: number; y: number };
     }>;
-    return data.map((u) => ({
-      code: u.id,
-      zone: u.phan_khu,
-      type: u.loai,
-      area: u.dien_tich,
-      facade: u.mat_tien,
-      status: u.trang_thai,
-      price: u.gia,
-      fund: u.quy,
-      position: u.position,
-    }));
+    return data.map((u) => {
+      const ny = Number(u.gia_ny_gom_vat_kpbt) || 0;
+      return {
+        code: u.id,
+        zone: u.phan_khu,
+        type: u.loai,
+        area: u.dien_tich,
+        facade: u.mat_tien,
+        status: u.trang_thai,
+        price: u.gia,
+        fund: u.quy,
+        gia_ny_gom_vat_kpbt: ny,
+        has_price: ny > 0,
+        position: u.position,
+      };
+    });
   } catch {
     return null;
   }
@@ -501,11 +509,13 @@ export type RawUnit = {
   gia_tri: number;
   gia: string;
   quy?: string;
+  gia_ny_gom_vat_kpbt?: number;
   position?: { x: number; y: number };
 };
 
 /** Chuẩn hoá RawUnit → InventoryUnit (field tiếng Anh) dùng chung cho UI. */
 export function normalizeUnit(u: RawUnit): InventoryUnit {
+  const ny = Number(u.gia_ny_gom_vat_kpbt) || 0;
   return {
     code: u.id,
     zone: u.phan_khu,
@@ -515,6 +525,8 @@ export function normalizeUnit(u: RawUnit): InventoryUnit {
     status: u.trang_thai,
     price: u.gia,
     fund: u.quy,
+    gia_ny_gom_vat_kpbt: ny,
+    has_price: ny > 0,
     position: u.position,
   };
 }

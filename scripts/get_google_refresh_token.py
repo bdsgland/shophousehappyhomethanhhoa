@@ -151,6 +151,15 @@ def _port_is_free(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) != 0
 
 
+def _mask(secret: str) -> str:
+    """Che bớt chuỗi nhạy cảm: giữ đầu/cuối, thay giữa bằng '…' (để đối chiếu)."""
+    if not secret:
+        return "(rỗng)"
+    if len(secret) <= 12:
+        return secret[:2] + "…" + secret[-2:]
+    return f"{secret[:8]}…{secret[-12:]} (len={len(secret)})"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Mint Google Workspace refresh token (Calendar + Drive).",
@@ -171,10 +180,28 @@ def main() -> None:
                         help="Không tự mở trình duyệt.")
     args = parser.parse_args()
 
+    # .strip(): chống dư khoảng trắng / ký tự xuống dòng khi export env hoặc copy
+    # (nguyên nhân phổ biến gây "invalid_client — OAuth client was not found").
+    args.client_id = (args.client_id or "").strip()
+    args.client_secret = (args.client_secret or "").strip()
+
     if not args.client_id or not args.client_secret:
         raise SystemExit(
-            "❌ Thiếu Client ID/Secret. Đặt env GOOGLE_OAUTH_CLIENT_ID + "
-            "GOOGLE_OAUTH_CLIENT_SECRET, hoặc dùng --client-id/--client-secret."
+            "❌ Thiếu Client ID/Secret (đang RỖNG sau khi đọc env/args).\n"
+            "   client_id  = " + _mask(args.client_id) + "\n"
+            "   client_secret = " + _mask(args.client_secret) + "\n"
+            "   → Đặt env GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET "
+            "(nhớ `export`), hoặc dùng --client-id/--client-secret."
+        )
+
+    # In client_id (che bớt) để user tự đối chiếu với Google Cloud Console.
+    print("\n🔑 Client ID đang dùng:", _mask(args.client_id))
+    print("   (đọc từ env GOOGLE_OAUTH_CLIENT_ID hoặc tham số --client-id)")
+    if not args.client_id.endswith(".apps.googleusercontent.com"):
+        print(
+            "⚠️  CẢNH BÁO: client_id KHÔNG kết thúc bằng "
+            "'.apps.googleusercontent.com' — gần như chắc chắn sai giá trị "
+            "→ Google sẽ báo invalid_client. Hãy kiểm tra lại."
         )
 
     if not _port_is_free(args.port):

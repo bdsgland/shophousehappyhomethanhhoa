@@ -671,6 +671,11 @@ function PolicyQuoteTab({
       setError("Vui lòng chọn căn, phương án và nhập tên khách hàng.");
       return;
     }
+    const u = units.find((x) => x.code === form.unit_id);
+    if (u && !u.has_price) {
+      setError("Căn chưa có giá chi tiết, vui lòng liên hệ báo giá.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -697,6 +702,8 @@ function PolicyQuoteTab({
 
   const plans = (policy?.base_plans ?? []).filter((b) => b.enabled);
   const addons = (policy?.addons ?? []).filter((a) => a.enabled);
+  const selectedUnit = units.find((u) => u.code === form.unit_id);
+  const noPrice = Boolean(selectedUnit && !selectedUnit.has_price);
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -808,12 +815,19 @@ function PolicyQuoteTab({
           />
         </Field>
 
+        {noPrice && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Căn này chưa có giá chi tiết — vui lòng liên hệ báo giá. Chưa thể lập
+            phiếu tính giá.
+          </div>
+        )}
+
         {error && <ErrorBox message={error} />}
 
         <button
           type="button"
           onClick={submit}
-          disabled={busy}
+          disabled={busy || noPrice}
           className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
         >
           <Calculator size={16} /> {busy ? "Đang tính giá…" : "Lập phiếu tính giá"}

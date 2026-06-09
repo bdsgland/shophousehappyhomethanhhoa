@@ -11,6 +11,18 @@ const FUND_LABEL: Record<string, string> = Object.fromEntries(
   FUND_FILTERS.filter((f) => f.value).map((f) => [f.value, f.label]),
 );
 
+function fmtTy(n: number): string {
+  if (!n) return "—";
+  return `${(n / 1_000_000_000).toFixed(2).replace(/\.?0+$/, "")} tỷ`;
+}
+
+/** Giá hiển thị: có giá chi tiết → nhãn giá hoặc quy đổi tỷ; chưa có → "Báo giá". */
+function priceText(u: InventoryUnit): string {
+  if (!u.has_price) return "Báo giá";
+  if (u.price && u.price !== "Liên hệ") return u.price;
+  return fmtTy(u.gia_ny_gom_vat_kpbt ?? 0);
+}
+
 function statusColor(s: string): string {
   if (s === "Còn hàng") return "bg-emerald-50 text-emerald-700";
   if (s === "Đặt cọc") return "bg-amber-50 text-amber-700";
@@ -126,7 +138,15 @@ export default function SaleInventoryPage() {
                   <td className="px-4 py-3 text-brand-700">{u.zone}</td>
                   <td className="px-4 py-3 text-brand-700">{u.type}</td>
                   <td className="px-4 py-3 text-brand-700">{u.area} m²</td>
-                  <td className="px-4 py-3 text-brand-700">{u.price}</td>
+                  <td className="px-4 py-3">
+                    {u.has_price ? (
+                      <span className="text-brand-700">{priceText(u)}</span>
+                    ) : (
+                      <span className="rounded bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600">
+                        Báo giá
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-brand-700">
                     {u.fund ? FUND_LABEL[u.fund] ?? u.fund : "—"}
                   </td>
@@ -140,14 +160,23 @@ export default function SaleInventoryPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/agent/learning?tab=policy&unit=${encodeURIComponent(
-                        u.code,
-                      )}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50"
-                    >
-                      <Calculator size={14} /> Lập phiếu
-                    </Link>
+                    {u.has_price ? (
+                      <Link
+                        href={`/agent/learning?tab=policy&unit=${encodeURIComponent(
+                          u.code,
+                        )}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50"
+                      >
+                        <Calculator size={14} /> Lập phiếu
+                      </Link>
+                    ) : (
+                      <span
+                        title="Chưa có giá — liên hệ báo giá"
+                        className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-brand-100 px-3 py-1.5 text-xs font-medium text-brand-400"
+                      >
+                        <Calculator size={14} /> Lập phiếu
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))
