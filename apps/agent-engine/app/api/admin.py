@@ -647,6 +647,7 @@ def admin_list_inventory(
     phan_khu: Optional[str] = Query(default=None),
     loai: Optional[str] = Query(default=None),
     trang_thai: Optional[str] = Query(default=None),
+    quy: Optional[str] = Query(default=None),
     _admin: dict = Depends(require_admin),
 ) -> dict:
     rows = inventory_module.get_units()
@@ -656,6 +657,8 @@ def admin_list_inventory(
         rows = [u for u in rows if u["loai"] == loai]
     if trang_thai and trang_thai not in ("", "Tất cả"):
         rows = [u for u in rows if u["trang_thai"] == trang_thai]
+    if quy and quy not in ("", "Tất cả"):
+        rows = [u for u in rows if u.get("quy") == quy]
     return {"units": rows, "count": len(rows)}
 
 

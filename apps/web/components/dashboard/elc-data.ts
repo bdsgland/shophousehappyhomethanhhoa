@@ -224,6 +224,16 @@ export const UNITS: Unit[] = Array.from({ length: 36 }, (_, i) => {
 export const STATUS_FILTERS = ["Tất cả", ...STATUSES] as const;
 export const ZONE_FILTERS = ["Tất cả", ...ZONES] as const;
 
+// Bộ lọc quỹ (value = key gửi backend, "" = Tất cả).
+export const FUND_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "Tất cả" },
+  { value: "exclusive", label: "Quỹ độc quyền" },
+  { value: "bonus", label: "Quỹ thưởng" },
+  { value: "agency_f1", label: "Quỹ liên kết đại lý F1" },
+  { value: "mid", label: "Quỹ trung" },
+  { value: "not_open", label: "Quỹ chưa mở bán" },
+];
+
 // ----- Ảnh 360° -----
 // `ready=false` → chưa có URL viewer thật → nút "Đang cập nhật" (disabled).
 export const TOURS_360: { title: string; img: string; ready: boolean }[] =

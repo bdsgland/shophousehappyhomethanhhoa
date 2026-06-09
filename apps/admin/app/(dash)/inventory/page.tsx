@@ -13,6 +13,7 @@ import { InventoryTable } from "@/components/inventory/InventoryTable";
 import {
   LOAI_OPTIONS,
   PHAN_KHU_OPTIONS,
+  QUY_OPTIONS,
   TRANG_THAI_OPTIONS,
   UnitEditModal,
 } from "@/components/inventory/UnitEditModal";
@@ -34,9 +35,15 @@ interface Filters {
   phan_khu: string;
   loai: string;
   trang_thai: string;
+  quy: string;
 }
 
-const EMPTY_FILTERS: Filters = { phan_khu: "", loai: "", trang_thai: "" };
+const EMPTY_FILTERS: Filters = {
+  phan_khu: "",
+  loai: "",
+  trang_thai: "",
+  quy: "",
+};
 
 export default function InventoryPage() {
   const qc = useQueryClient();
@@ -140,7 +147,7 @@ export default function InventoryPage() {
         <StatCard label="Đã bán" value={stats.daBan} accent="muted" />
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <Label>Phân khu</Label>
           <Select
@@ -185,6 +192,20 @@ export default function InventoryPage() {
             {TRANG_THAI_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Quỹ</Label>
+          <Select
+            value={filters.quy}
+            onChange={(e) => setFilters((f) => ({ ...f, quy: e.target.value }))}
+          >
+            <option value="">Tất cả</option>
+            {QUY_OPTIONS.map((q) => (
+              <option key={q.value} value={q.value}>
+                {q.label}
               </option>
             ))}
           </Select>

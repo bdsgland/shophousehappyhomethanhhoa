@@ -33,6 +33,10 @@ _ZONES = [
 
 _STATUSES = ["Còn hàng", "Đặt cọc", "Đã bán"]
 
+# Phân loại quỹ (lưu key; label tiếng Việt hiển thị ở FE).
+_QUY_OPTIONS = ["exclusive", "bonus", "agency_f1", "mid", "not_open"]
+_DEFAULT_QUY = "not_open"
+
 # Giá khởi điểm theo loại sản phẩm (tỷ đồng) — tham khảo thị trường.
 _BASE_PRICE = {"Liền kề": 1.9, "Shophouse": 4.2, "Biệt thự": 5.5}
 
@@ -158,6 +162,10 @@ def admin_update_unit(unit_id: str, changes: dict) -> Optional[dict]:
     for fld in ("phan_khu", "loai", "huong", "view", "notes"):
         if changes.get(fld) is not None:
             patch[fld] = changes[fld]
+    if changes.get("quy") is not None:
+        if changes["quy"] not in _QUY_OPTIONS:
+            raise ValueError(f"Quỹ không hợp lệ: {changes['quy']}")
+        patch["quy"] = changes["quy"]
     for fld in ("dien_tich", "mat_tien"):
         if changes.get(fld) is not None:
             patch[fld] = float(changes[fld])
@@ -187,6 +195,9 @@ def admin_create_unit(data: dict) -> dict:
     gia_min = int(round(float(data.get("gia_min") or 0)))
     gia_max = int(round(float(data.get("gia_max") or 0)))
     gia_tri = round(float(data.get("gia_tri") or 0), 2)
+    quy = data.get("quy") or _DEFAULT_QUY
+    if quy not in _QUY_OPTIONS:
+        raise ValueError(f"Quỹ không hợp lệ: {quy}")
     unit = {
         "id": unit_id,
         "lo": data.get("lo") or unit_id.split("-")[-1],
@@ -198,6 +209,7 @@ def admin_create_unit(data: dict) -> dict:
         "gia_tri": gia_tri,
         "gia_min": gia_min,
         "gia_max": gia_max,
+        "quy": quy,
         "huong": data.get("huong") or "",
         "view": data.get("view") or "",
         "notes": data.get("notes") or "",
@@ -219,8 +231,9 @@ def list_units(
     slug: str,
     phankhu: Optional[str] = Query(default=None, description="Lọc theo tên phân khu"),
     status: Optional[str] = Query(default=None, description="Lọc theo trạng thái"),
+    quy: Optional[str] = Query(default=None, description="Lọc theo quỹ (key)"),
 ) -> List[dict]:
-    """Danh sách căn của dự án, có lọc theo ?phankhu= và ?status=."""
+    """Danh sách căn của dự án, có lọc theo ?phankhu=, ?status= và ?quy=."""
     if slug != SLUG:
         raise HTTPException(status_code=404, detail="Dự án không tồn tại")
     rows = get_units()
@@ -228,6 +241,8 @@ def list_units(
         rows = [u for u in rows if u["phan_khu"] == phankhu]
     if status and status not in ("", "Tất cả"):
         rows = [u for u in rows if u["trang_thai"] == status]
+    if quy and quy not in ("", "Tất cả"):
+        rows = [u for u in rows if u.get("quy") == quy]
     return rows
 
 

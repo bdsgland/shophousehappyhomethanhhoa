@@ -34,6 +34,15 @@ export const LOAI_OPTIONS = ["Liền kề", "Shophouse", "Biệt thự"] as cons
 
 export const TRANG_THAI_OPTIONS = ["Còn hàng", "Đặt cọc", "Đã bán"] as const;
 
+// Phân loại quỹ (key gửi backend, label hiển thị).
+export const QUY_OPTIONS: { value: string; label: string }[] = [
+  { value: "exclusive", label: "Quỹ độc quyền" },
+  { value: "bonus", label: "Quỹ thưởng" },
+  { value: "agency_f1", label: "Quỹ liên kết đại lý F1" },
+  { value: "mid", label: "Quỹ trung" },
+  { value: "not_open", label: "Quỹ chưa mở bán" },
+];
+
 export function UnitEditModal({
   open,
   onClose,
@@ -63,6 +72,7 @@ export function UnitEditModal({
   const [trangThai, setTrangThai] = useState<string>(
     editing?.trang_thai ?? TRANG_THAI_OPTIONS[0],
   );
+  const [quy, setQuy] = useState<string>(editing?.quy ?? QUY_OPTIONS[4].value);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +88,7 @@ export function UnitEditModal({
     setMatTien(editing ? String(editing.mat_tien) : "");
     setGiaTri(editing ? String(editing.gia_tri) : "");
     setTrangThai(editing?.trang_thai ?? TRANG_THAI_OPTIONS[0]);
+    setQuy(editing?.quy ?? QUY_OPTIONS[4].value);
     setError(null);
   }
 
@@ -94,6 +105,7 @@ export function UnitEditModal({
       mat_tien: matTien.trim() ? Number(matTien) : undefined,
       gia_tri: giaTri.trim() ? Number(giaTri) : undefined,
       trang_thai: trangThai,
+      quy,
     };
     setSaving(true);
     try {
@@ -192,6 +204,16 @@ export function UnitEditModal({
               {TRANG_THAI_OPTIONS.map((t) => (
                 <option key={t} value={t}>
                   {t}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Quỹ</Label>
+            <Select value={quy} onChange={(e) => setQuy(e.target.value)}>
+              {QUY_OPTIONS.map((q) => (
+                <option key={q.value} value={q.value}>
+                  {q.label}
                 </option>
               ))}
             </Select>

@@ -411,6 +411,7 @@ export type InventoryUnit = {
   facade: number;
   status: string;
   price: string;
+  fund?: string; // quỹ (key: exclusive|bonus|agency_f1|mid|not_open)
   position?: { x: number; y: number };
 };
 
@@ -427,6 +428,7 @@ const INVENTORY_SLUG = "eurowindow-light-city";
 export async function fetchInventory(opts?: {
   phankhu?: string;
   status?: string;
+  quy?: string;
   signal?: AbortSignal;
 }): Promise<InventoryUnit[] | null> {
   try {
@@ -435,6 +437,7 @@ export async function fetchInventory(opts?: {
       params.set("phankhu", opts.phankhu);
     if (opts?.status && opts.status !== "Tất cả")
       params.set("status", opts.status);
+    if (opts?.quy && opts.quy !== "Tất cả") params.set("quy", opts.quy);
     const qs = params.toString() ? `?${params.toString()}` : "";
     const res = await fetch(
       `${AGENT_ENGINE_URL}/inventory/${INVENTORY_SLUG}/units${qs}`,
@@ -449,6 +452,7 @@ export async function fetchInventory(opts?: {
       mat_tien: number;
       trang_thai: string;
       gia: string;
+      quy?: string;
       position?: { x: number; y: number };
     }>;
     return data.map((u) => ({
@@ -459,6 +463,7 @@ export async function fetchInventory(opts?: {
       facade: u.mat_tien,
       status: u.trang_thai,
       price: u.gia,
+      fund: u.quy,
       position: u.position,
     }));
   } catch {
@@ -495,6 +500,7 @@ export type RawUnit = {
   trang_thai: string;
   gia_tri: number;
   gia: string;
+  quy?: string;
   position?: { x: number; y: number };
 };
 
@@ -508,6 +514,7 @@ export function normalizeUnit(u: RawUnit): InventoryUnit {
     facade: u.mat_tien,
     status: u.trang_thai,
     price: u.gia,
+    fund: u.quy,
     position: u.position,
   };
 }

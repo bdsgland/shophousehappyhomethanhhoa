@@ -66,6 +66,7 @@ class InventoryUnitCreate(BaseModel):
     mat_tien: Optional[float] = Field(default=None, ge=0)
     trang_thai: Optional[str] = None
     gia_tri: Optional[float] = Field(default=None, ge=0)
+    quy: Optional[str] = None  # phân loại quỹ (xem _QUY_OPTIONS)
     position: Optional[UnitPosition] = None
 
 
@@ -76,6 +77,7 @@ class InventoryUnitUpdate(BaseModel):
     mat_tien: Optional[float] = Field(default=None, ge=0)
     trang_thai: Optional[str] = None
     gia_tri: Optional[float] = Field(default=None, ge=0)
+    quy: Optional[str] = None  # phân loại quỹ (xem _QUY_OPTIONS)
     position: Optional[UnitPosition] = None
 
 

@@ -57,6 +57,7 @@ import {
   OVERVIEW_ROWS,
   POLICIES,
   PRICE_TABLE,
+  FUND_FILTERS,
   STATUS_FILTERS,
   SUBZONES,
   TIMELINE,
@@ -582,6 +583,7 @@ function UnitsTab({
   const [status, setStatus] = useState<string>(
     focusAvailable ? "Còn hàng" : "Tất cả",
   );
+  const [fund, setFund] = useState<string>("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiOk, setApiOk] = useState(true);
@@ -609,7 +611,7 @@ function UnitsTab({
     let alive = true;
     const controller = new AbortController();
     setLoading(true);
-    fetchInventory({ phankhu: zone, status, signal: controller.signal })
+    fetchInventory({ phankhu: zone, status, quy: fund, signal: controller.signal })
       .then((data) => {
         if (!alive) return;
         if (data) {
@@ -627,7 +629,7 @@ function UnitsTab({
       alive = false;
       controller.abort();
     };
-  }, [zone, status]);
+  }, [zone, status, fund]);
 
   // Số liệu thẻ thống kê: ưu tiên API, nếu không có thì tính từ fallback.
   const fallbackStats = useMemo(() => {
@@ -655,6 +657,20 @@ function UnitsTab({
         onChange={setStatus}
         options={[...STATUS_FILTERS]}
       />
+      <label className="flex flex-col gap-1 text-xs font-medium text-brand-700">
+        Quỹ
+        <select
+          value={fund}
+          onChange={(e) => setFund(e.target.value)}
+          className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-500 focus:outline-none"
+        >
+          {FUND_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <span className="ml-auto text-sm text-brand-700">
         {loading ? "Đang tải…" : `${rows.length} căn`}
       </span>

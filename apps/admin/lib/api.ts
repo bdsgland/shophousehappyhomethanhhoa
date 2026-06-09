@@ -245,11 +245,13 @@ export function listInventory(params?: {
   phan_khu?: string;
   loai?: string;
   trang_thai?: string;
+  quy?: string;
 }) {
   const q = new URLSearchParams();
   if (params?.phan_khu) q.set("phan_khu", params.phan_khu);
   if (params?.loai) q.set("loai", params.loai);
   if (params?.trang_thai) q.set("trang_thai", params.trang_thai);
+  if (params?.quy) q.set("quy", params.quy);
   const qs = q.toString();
   return apiFetch<{ units: InventoryUnit[]; count: number }>(
     `/admin/inventory${qs ? `?${qs}` : ""}`,
@@ -265,6 +267,7 @@ export interface UpdateUnitPayload {
   gia_tri?: number;
   gia_min?: number;
   gia_max?: number;
+  quy?: string;
   huong?: string;
   view?: string;
   notes?: string;

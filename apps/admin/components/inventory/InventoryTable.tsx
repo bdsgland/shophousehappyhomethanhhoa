@@ -16,6 +16,14 @@ function statusVariant(
   return "muted";
 }
 
+const QUY_LABELS: Record<string, string> = {
+  exclusive: "Quỹ độc quyền",
+  bonus: "Quỹ thưởng",
+  agency_f1: "Quỹ liên kết đại lý F1",
+  mid: "Quỹ trung",
+  not_open: "Quỹ chưa mở bán",
+};
+
 export function InventoryTable({
   units,
   isLoading,
@@ -39,6 +47,7 @@ export function InventoryTable({
               <th className="px-4 py-3 font-medium">Diện tích (m²)</th>
               <th className="px-4 py-3 font-medium">Mặt tiền (m)</th>
               <th className="px-4 py-3 font-medium">Giá</th>
+              <th className="px-4 py-3 font-medium">Quỹ</th>
               <th className="px-4 py-3 font-medium">Trạng thái</th>
               <th className="px-4 py-3 text-right font-medium">Thao tác</th>
             </tr>
@@ -56,7 +65,7 @@ export function InventoryTable({
               <tr>
                 <td
                   className="px-4 py-10 text-center text-muted-foreground"
-                  colSpan={8}
+                  colSpan={9}
                 >
                   Không có căn phù hợp.
                 </td>
@@ -79,6 +88,15 @@ export function InventoryTable({
                     {u.mat_tien}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{u.gia}</td>
+                  <td className="px-4 py-3">
+                    {u.quy ? (
+                      <Badge variant="default">
+                        {QUY_LABELS[u.quy] ?? u.quy}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(u.trang_thai)}>
                       {u.trang_thai}

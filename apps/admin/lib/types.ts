@@ -121,6 +121,7 @@ export interface InventoryUnit {
   trang_thai: string;
   gia_tri: number;
   gia: string;
+  quy?: string; // phân loại quỹ (key: exclusive|bonus|agency_f1|mid|not_open)
   position: { x: number; y: number };
   // ---- Mở rộng từ đồng bộ Google Sheets (optional, tương thích ngược) ----
   gia_min?: number; // VNĐ
