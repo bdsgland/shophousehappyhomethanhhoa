@@ -70,6 +70,7 @@ import {
   fetchInventoryStats,
   fetchProjectDocuments,
   downloadProjectDocument,
+  viewProjectDocument,
   type InventoryStats,
   type ProjectDocument,
 } from "@/lib/api";
@@ -1103,6 +1104,7 @@ function DocumentsTab({ slug }: { slug: string }) {
   const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1130,6 +1132,18 @@ function DocumentsTab({ slug }: { slug: string }) {
       setErr("Tải tài liệu thất bại — thử lại sau.");
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const handleView = async (doc: ProjectDocument) => {
+    setErr(null);
+    setViewing(doc.id);
+    try {
+      await viewProjectDocument(doc, readToken() ?? undefined);
+    } catch {
+      setErr("Mở tài liệu thất bại — thử lại sau.");
+    } finally {
+      setViewing(null);
     }
   };
 
@@ -1162,7 +1176,7 @@ function DocumentsTab({ slug }: { slug: string }) {
                 <th className="px-4 py-3">Loại</th>
                 <th className="px-4 py-3">Kích thước</th>
                 <th className="px-4 py-3">Ngày cập nhật</th>
-                <th className="px-4 py-3 text-right">Tải xuống</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -1191,17 +1205,28 @@ function DocumentsTab({ slug }: { slug: string }) {
                       <td className="px-4 py-3 text-brand-700">
                         {fmtDocDate(d.updated)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDownload(d)}
-                          disabled={downloading === d.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-                          style={{ backgroundColor: ACCENT }}
-                        >
-                          <Download size={15} />{" "}
-                          {downloading === d.id ? "Đang tải…" : "Tải xuống"}
-                        </button>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleView(d)}
+                            disabled={viewing === d.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-900 hover:border-brand-500 hover:text-brand-600 disabled:opacity-60"
+                          >
+                            <Eye size={15} />{" "}
+                            {viewing === d.id ? "Đang mở…" : "Xem"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(d)}
+                            disabled={downloading === d.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                            style={{ backgroundColor: ACCENT }}
+                          >
+                            <Download size={15} />{" "}
+                            {downloading === d.id ? "Đang tải…" : "Tải xuống"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

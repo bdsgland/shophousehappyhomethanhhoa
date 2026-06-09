@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Database,
   Download,
+  Eye,
   FileText,
   RefreshCw,
   Trash2,
@@ -16,6 +17,7 @@ import {
   getKbStats,
   listLearningDocuments,
   reindexKb,
+  viewLearningDocument,
 } from "@/lib/api";
 import type { LearningDocument } from "@/lib/types";
 import { formatNumber, shortDate } from "@/lib/utils";
@@ -110,6 +112,14 @@ export default function KbPage() {
       await downloadLearningDocument(d);
     } catch {
       setBanner("Tải tài liệu thất bại — thử lại sau.");
+    }
+  };
+
+  const handleView = async (d: LearningDocument) => {
+    try {
+      await viewLearningDocument(d);
+    } catch {
+      setBanner("Mở tài liệu thất bại — thử lại sau.");
     }
   };
 
@@ -321,6 +331,14 @@ export default function KbPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleView(d)}
+                              title="Xem"
+                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleDownload(d)}

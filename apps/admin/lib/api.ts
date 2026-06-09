@@ -362,6 +362,27 @@ export async function downloadLearningDocument(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Xem (preview) tài liệu: fetch kèm Bearer → blob → mở tab mới bằng blob URL.
+ * Không điều hướng thẳng tới API nên không dính lỗi "Thiếu token Bearer";
+ * PDF/ảnh hiển thị inline trong trình xem của trình duyệt.
+ */
+export async function viewLearningDocument(
+  doc: Pick<LearningDocument, "download_url">,
+): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${doc.download_url}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    throw new ApiError(`Mở tài liệu lỗi ${res.status}`, res.status);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function uploadLearningDocument(
   file: File,
   title: string,

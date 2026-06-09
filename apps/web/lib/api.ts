@@ -594,6 +594,27 @@ export async function downloadProjectDocument(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Xem (preview) 1 tài liệu dự án: fetch kèm Bearer → blob → mở tab mới bằng
+ * blob URL (KHÔNG điều hướng thẳng tới API nên không dính lỗi thiếu token).
+ * PDF/ảnh sẽ hiển thị inline trong trình xem của trình duyệt.
+ */
+export async function viewProjectDocument(
+  doc: ProjectDocument,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${AGENT_ENGINE_URL}${doc.download_url}`, {
+    cache: "no-store",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`Mở tài liệu lỗi ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  // Thu hồi sau 1 phút để tab mới kịp tải nội dung.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function postChat(args: {
   messages: ChatTurn[];
   projectSlug?: string;
