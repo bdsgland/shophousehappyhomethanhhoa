@@ -117,8 +117,13 @@ async def list_drive_folder(
     oauth_token: str,
     recursive: bool = True,
     depth: int = 0,
+    parent_name: Optional[str] = None,
 ) -> list[dict]:
-    """List tất cả file trong folder (đệ quy, phân trang). Trả list metadata file."""
+    """List tất cả file trong folder (đệ quy, phân trang). Trả list metadata file.
+
+    Mỗi file được gắn thêm khóa `_group` = tên thư mục con TRỰC TIẾP chứa nó
+    (None nếu file nằm ở folder gốc) — dùng để phân nhóm tài liệu khi sync.
+    """
     files: list[dict] = []
     page_token: Optional[str] = None
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -142,12 +147,15 @@ async def list_drive_folder(
             for f in data.get("files", []):
                 if f.get("mimeType") == _FOLDER_MIME:
                     if recursive and depth < _MAX_DEPTH:
+                        # Đệ quy: tên folder con này trở thành "nhóm" cho file bên trong.
                         files.extend(
                             await list_drive_folder(
-                                f["id"], oauth_token, True, depth + 1
+                                f["id"], oauth_token, True, depth + 1,
+                                parent_name=f.get("name"),
                             )
                         )
                 else:
+                    f["_group"] = parent_name
                     files.append(f)
             page_token = data.get("nextPageToken")
             if not page_token:
@@ -344,6 +352,9 @@ async def run_sync_job(
                 ))
             else:
                 eff_name = _effective_name(name, suffix)
+                group = f.get("_group")  # tên subfolder Drive trực tiếp chứa file
+                # Giữ category cũ (suy từ tên file); group là trường phân nhóm mới
+                # theo thư mục Drive, song song với category.
                 category = classify_category(name)
                 doc = learning_store.add_document(
                     content=content,
@@ -357,6 +368,8 @@ async def run_sync_job(
                         "modified": f.get("modifiedTime"),
                         "mime_type": f.get("mimeType"),
                     },
+                    group=group,
+                    project_slug=request.project_slug,
                     content_hash=content_hash,
                     reindex=False,  # reindex 1 lần ở cuối
                 )

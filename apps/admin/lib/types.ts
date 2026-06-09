@@ -174,6 +174,9 @@ export interface LearningDocument {
   uploaded_by?: string | null;
   indexed_at?: string | null;
   download_url: string;
+  group?: string | null;
+  source?: string;
+  project_slug?: string | null;
 }
 
 export interface KbStats {

@@ -542,6 +542,58 @@ export function removeFavorite(
   });
 }
 
+// ----- Tài liệu dự án (đồng bộ từ Google Drive, hiển thị ở Chi tiết dự án) -----
+
+export type ProjectDocument = {
+  id: string;
+  title: string;
+  type: string;
+  size: number;
+  group: string | null;
+  category: string;
+  source: string;
+  updated: string | null;
+  download_url: string;
+};
+
+/** Danh sách tài liệu của 1 dự án (mọi user đăng nhập). Lỗi → trả [] để UI fallback. */
+export async function fetchProjectDocuments(
+  slug: string,
+  token?: string,
+): Promise<ProjectDocument[]> {
+  try {
+    const res = await fetch(
+      `${AGENT_ENGINE_URL}/projects/${encodeURIComponent(slug)}/documents`,
+      { cache: "no-store", headers: authHeaders(token) },
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as ProjectDocument[];
+  } catch {
+    return [];
+  }
+}
+
+/** Tải 1 tài liệu dự án kèm Bearer rồi tạo blob URL để trigger download. */
+export async function downloadProjectDocument(
+  doc: ProjectDocument,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${AGENT_ENGINE_URL}${doc.download_url}`, {
+    cache: "no-store",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`Tải tài liệu lỗi ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = doc.type ? `${doc.title}.${doc.type}` : doc.title;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function postChat(args: {
   messages: ChatTurn[];
   projectSlug?: string;

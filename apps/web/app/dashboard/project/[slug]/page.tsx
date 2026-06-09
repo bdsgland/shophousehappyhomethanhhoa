@@ -15,5 +15,5 @@ export default function ProjectDetailPage({
     redirect(`/login?next=/dashboard/project/${params.slug}`);
   }
 
-  return <ProjectDetailDashboard />;
+  return <ProjectDetailDashboard slug={params.slug} />;
 }

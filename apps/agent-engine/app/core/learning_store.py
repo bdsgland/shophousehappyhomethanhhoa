@@ -216,11 +216,19 @@ def _now_iso() -> str:
 # API public — tài liệu
 # ============================================================
 
-def list_documents(category: Optional[str] = None) -> list[dict]:
+def list_documents(
+    category: Optional[str] = None,
+    group: Optional[str] = None,
+    project_slug: Optional[str] = None,
+) -> list[dict]:
     with _LOCK:
         docs = _load_meta()["documents"]
     if category:
         docs = [d for d in docs if d.get("category") == category]
+    if group:
+        docs = [d for d in docs if d.get("group") == group]
+    if project_slug:
+        docs = [d for d in docs if d.get("project_slug") == project_slug]
     return sorted(docs, key=lambda d: d.get("created_at", ""), reverse=True)
 
 
@@ -299,6 +307,8 @@ def add_document(
     source: str = "upload",
     source_metadata: Optional[dict] = None,
     content_hash: Optional[str] = None,
+    group: Optional[str] = None,
+    project_slug: Optional[str] = None,
     reindex: bool = True,
 ) -> dict:
     """Lưu file, ghi metadata, (tuỳ chọn) build lại index BM25.
@@ -333,6 +343,8 @@ def add_document(
             "uploaded_by": uploaded_by,
             "source": source,
             "source_metadata": source_metadata or {},
+            "group": group,
+            "project_slug": project_slug,
             "content_hash": chash,
             "created_at": _now_iso(),
         }

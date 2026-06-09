@@ -9,6 +9,7 @@ import { ChatWidget } from "@/components/ChatWidget";
 import {
   getDashboardUrl,
   isExternalUrl,
+  readToken,
   readUserFromCookie,
 } from "@/lib/auth";
 
@@ -67,8 +68,13 @@ import {
 import {
   fetchInventory,
   fetchInventoryStats,
+  fetchProjectDocuments,
+  downloadProjectDocument,
   type InventoryStats,
+  type ProjectDocument,
 } from "@/lib/api";
+
+const DEFAULT_PROJECT_SLUG = "eurowindow-light-city";
 
 type ComponentType<P> = (props: P) => JSX.Element;
 
@@ -94,7 +100,11 @@ const TABS: Tab[] = [
 
 const ACCENT = "#F59E0B"; // cam SalePro
 
-export function ProjectDetailDashboard() {
+export function ProjectDetailDashboard({
+  slug = DEFAULT_PROJECT_SLUG,
+}: {
+  slug?: string;
+} = {}) {
   const [activeTab, setActiveTab] = useState("tong-quan");
   const [shareMsg, setShareMsg] = useState(false);
   const [role, setRole] = useState<string | null>(null);
@@ -235,7 +245,7 @@ export function ProjectDetailDashboard() {
         {activeTab === "anh-360" && <Tours360Tab />}
         {activeTab === "chinh-sach" && <PolicyTab />}
         {activeTab === "tien-do" && <TimelineTab />}
-        {activeTab === "tai-lieu" && <DocumentsTab />}
+        {activeTab === "tai-lieu" && <DocumentsTab slug={slug} />}
         {activeTab === "tin-tuc" && <NewsTab />}
       </div>
     </div>
@@ -1071,63 +1081,172 @@ function TimelineTab() {
 
 // ---------- 10. Tài liệu ----------
 
-function DocumentsTab() {
+function fmtDocSize(bytes: number): string {
+  if (!bytes) return "—";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function fmtDocDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+}
+
+function DocumentsTab({ slug }: { slug: string }) {
+  const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    const token = readToken() ?? undefined;
+    fetchProjectDocuments(slug, token)
+      .then((res) => {
+        if (alive) setDocs(res);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  const handleDownload = async (doc: ProjectDocument) => {
+    setErr(null);
+    setDownloading(doc.id);
+    try {
+      await downloadProjectDocument(doc, readToken() ?? undefined);
+    } catch {
+      setErr("Tải tài liệu thất bại — thử lại sau.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  // Tài liệu đồng bộ từ Drive (nếu có) → hiển thị; nếu chưa có/đang lỗi → fallback
+  // danh sách tĩnh DOCUMENTS để trang không bị trống.
+  const synced = docs ?? [];
+  const useSynced = synced.length > 0;
+
   return (
     <div className="space-y-4">
       <SectionTitle>Tài liệu dự án</SectionTitle>
-      <div className="overflow-x-auto rounded-xl border border-brand-100 bg-white shadow-sm">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="bg-brand-50 text-left text-xs font-bold uppercase tracking-wide text-brand-900">
-              <th className="px-4 py-3">Tên tài liệu</th>
-              <th className="px-4 py-3">Loại</th>
-              <th className="px-4 py-3">Kích thước</th>
-              <th className="px-4 py-3">Ngày cập nhật</th>
-              <th className="px-4 py-3 text-right">Tải xuống</th>
-            </tr>
-          </thead>
-          <tbody>
-            {DOCUMENTS.map((d, i) => (
-              <tr
-                key={d.name}
-                className={`border-t border-brand-100 ${
-                  i % 2 ? "bg-white" : "bg-brand-50/30"
-                }`}
-              >
-                <td className="px-4 py-3 font-medium text-brand-900">
-                  <span className="flex items-center gap-2">
-                    <FileText size={16} /> {d.name}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-brand-700">{d.type}</td>
-                <td className="px-4 py-3 text-brand-700">{d.size}</td>
-                <td className="px-4 py-3 text-brand-700">{d.date}</td>
-                <td className="px-4 py-3 text-right">
-                  {d.ready ? (
-                    <a
-                      href={d.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
-                      style={{ backgroundColor: ACCENT }}
-                    >
-                      <Download size={15} /> Tải xuống
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700"
-                    >
-                      Đang cập nhật
-                    </button>
-                  )}
-                </td>
+
+      {err && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {err}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-xl border border-brand-100 bg-white px-4 py-10 text-center text-sm text-brand-700 shadow-sm">
+          Đang tải tài liệu…
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-brand-100 bg-white shadow-sm">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="bg-brand-50 text-left text-xs font-bold uppercase tracking-wide text-brand-900">
+                <th className="px-4 py-3">Tên tài liệu</th>
+                {useSynced && <th className="px-4 py-3">Nhóm</th>}
+                <th className="px-4 py-3">Loại</th>
+                <th className="px-4 py-3">Kích thước</th>
+                <th className="px-4 py-3">Ngày cập nhật</th>
+                <th className="px-4 py-3 text-right">Tải xuống</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {useSynced
+                ? synced.map((d, i) => (
+                    <tr
+                      key={d.id}
+                      className={`border-t border-brand-100 ${
+                        i % 2 ? "bg-white" : "bg-brand-50/30"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-brand-900">
+                        <span className="flex items-center gap-2">
+                          <FileText size={16} /> {d.title}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-brand-700">
+                        {d.group ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 uppercase text-brand-700">
+                        {d.type}
+                      </td>
+                      <td className="px-4 py-3 text-brand-700">
+                        {fmtDocSize(d.size)}
+                      </td>
+                      <td className="px-4 py-3 text-brand-700">
+                        {fmtDocDate(d.updated)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(d)}
+                          disabled={downloading === d.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                          style={{ backgroundColor: ACCENT }}
+                        >
+                          <Download size={15} />{" "}
+                          {downloading === d.id ? "Đang tải…" : "Tải xuống"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                : DOCUMENTS.map((d, i) => (
+                    <tr
+                      key={d.name}
+                      className={`border-t border-brand-100 ${
+                        i % 2 ? "bg-white" : "bg-brand-50/30"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-brand-900">
+                        <span className="flex items-center gap-2">
+                          <FileText size={16} /> {d.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-brand-700">{d.type}</td>
+                      <td className="px-4 py-3 text-brand-700">{d.size}</td>
+                      <td className="px-4 py-3 text-brand-700">{d.date}</td>
+                      <td className="px-4 py-3 text-right">
+                        {d.ready ? (
+                          <a
+                            href={d.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                            style={{ backgroundColor: ACCENT }}
+                          >
+                            <Download size={15} /> Tải xuống
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700"
+                          >
+                            Đang cập nhật
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -93,6 +93,9 @@ def _to_document_model(doc: dict) -> LearningDocument:
         uploaded_by=doc.get("uploaded_by"),
         indexed_at=indexed_at,
         download_url=f"/learning/documents/{doc['id']}/download",
+        group=doc.get("group"),
+        source=doc.get("source", "upload"),
+        project_slug=doc.get("project_slug"),
     )
 
 
@@ -142,11 +145,16 @@ async def upload_document(
 @router.get("/documents", response_model=list[LearningDocument])
 def list_documents(
     category: Optional[str] = None,
+    group: Optional[str] = None,
+    project_slug: Optional[str] = None,
     _user: dict = Depends(require_sale_or_admin),
 ) -> list[LearningDocument]:
     if category and category not in CATEGORIES:
         raise HTTPException(400, "Nhóm không hợp lệ")
-    return [_to_document_model(d) for d in learning_store.list_documents(category)]
+    docs = learning_store.list_documents(
+        category=category, group=group, project_slug=project_slug
+    )
+    return [_to_document_model(d) for d in docs]
 
 
 @router.get("/documents/{doc_id}", response_model=LearningDocument)

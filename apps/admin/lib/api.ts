@@ -328,9 +328,38 @@ export function deleteUnit(id: string) {
 
 // ---- Phase 2: KB ----
 
-export function listLearningDocuments(category?: string) {
-  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+export function listLearningDocuments(category?: string, group?: string) {
+  const q = new URLSearchParams();
+  if (category) q.set("category", category);
+  if (group) q.set("group", group);
+  const qs = q.toString() ? `?${q.toString()}` : "";
   return apiFetch<LearningDocument[]>(`/learning/documents${qs}`);
+}
+
+/**
+ * Tải tài liệu kèm Authorization Bearer rồi tạo blob URL để trigger download.
+ * Dùng thay cho <a href> trực tiếp (link trực tiếp không gắn được header → 401
+ * "Thiếu token Bearer"). Token KHÔNG bị đưa lên URL.
+ */
+export async function downloadLearningDocument(
+  doc: Pick<LearningDocument, "download_url" | "title" | "type">,
+): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${doc.download_url}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    throw new ApiError(`Tải tài liệu lỗi ${res.status}`, res.status);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = doc.type ? `${doc.title}.${doc.type}` : doc.title;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function uploadLearningDocument(

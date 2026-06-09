@@ -11,8 +11,8 @@ import {
 import { useState } from "react";
 
 import {
-  API_URL,
   deleteLearningDocument,
+  downloadLearningDocument,
   getKbStats,
   listLearningDocuments,
   reindexKb,
@@ -71,6 +71,7 @@ export default function KbPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<string>("docs");
   const [category, setCategory] = useState<string>("");
+  const [group, setGroup] = useState<string>("");
   const [confirmDoc, setConfirmDoc] = useState<LearningDocument | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
@@ -80,13 +81,36 @@ export default function KbPage() {
   });
 
   const docsQuery = useQuery({
-    queryKey: ["kb-docs", category],
-    queryFn: () => listLearningDocuments(category || undefined),
+    queryKey: ["kb-docs", category, group],
+    queryFn: () =>
+      listLearningDocuments(category || undefined, group || undefined),
   });
+
+  // Query phụ (không lọc) để liệt kê các nhóm Drive sẵn có cho dropdown filter.
+  const allDocsQuery = useQuery({
+    queryKey: ["kb-docs-all"],
+    queryFn: () => listLearningDocuments(),
+  });
+  const groupOptions = Array.from(
+    new Set(
+      (allDocsQuery.data ?? [])
+        .map((d) => d.group)
+        .filter((g): g is string => Boolean(g)),
+    ),
+  ).sort();
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["kb-docs"] });
+    qc.invalidateQueries({ queryKey: ["kb-docs-all"] });
     qc.invalidateQueries({ queryKey: ["kb-stats"] });
+  };
+
+  const handleDownload = async (d: LearningDocument) => {
+    try {
+      await downloadLearningDocument(d);
+    } catch {
+      setBanner("Tải tài liệu thất bại — thử lại sau.");
+    }
   };
 
   const reindexMut = useMutation({
@@ -196,8 +220,8 @@ export default function KbPage() {
           <DriveSyncCard onSynced={invalidateAll} />
           <UploadZone onUploaded={invalidateAll} />
 
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="sm:w-72">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="sm:w-64">
               <Select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -205,6 +229,16 @@ export default function KbPage() {
                 {CATEGORY_FILTERS.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="sm:w-64">
+              <Select value={group} onChange={(e) => setGroup(e.target.value)}>
+                <option value="">Tất cả nhóm (thư mục Drive)</option>
+                {groupOptions.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
                   </option>
                 ))}
               </Select>
@@ -218,6 +252,7 @@ export default function KbPage() {
                   <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                     <th className="px-4 py-3 font-medium">Tiêu đề</th>
                     <th className="px-4 py-3 font-medium">Nhóm</th>
+                    <th className="px-4 py-3 font-medium">Nhóm Drive</th>
                     <th className="px-4 py-3 font-medium">Định dạng</th>
                     <th className="px-4 py-3 font-medium">Kích thước</th>
                     <th className="px-4 py-3 font-medium">Số đoạn</th>
@@ -232,7 +267,7 @@ export default function KbPage() {
                   {docsQuery.isLoading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i} className="border-b border-border">
-                        <td className="px-4 py-3" colSpan={8}>
+                        <td className="px-4 py-3" colSpan={9}>
                           <Skeleton className="h-5 w-full" />
                         </td>
                       </tr>
@@ -241,7 +276,7 @@ export default function KbPage() {
                     <tr>
                       <td
                         className="px-4 py-10 text-center text-muted-foreground"
-                        colSpan={8}
+                        colSpan={9}
                       >
                         Chưa có tài liệu. Hãy tải lên tài liệu đầu tiên.
                       </td>
@@ -257,6 +292,13 @@ export default function KbPage() {
                           <Badge variant="muted">
                             {CATEGORY_LABEL[d.category] ?? d.category}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {d.group ? (
+                            <Badge variant="default">{d.group}</Badge>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3 uppercase text-muted-foreground">
                           {d.type}
@@ -279,15 +321,14 @@ export default function KbPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <a
-                              href={`${API_URL}${d.download_url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(d)}
                               title="Tải xuống"
                               className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
                               <Download className="h-4 w-4" />
-                            </a>
+                            </button>
                             <button
                               title="Xoá"
                               onClick={() => setConfirmDoc(d)}

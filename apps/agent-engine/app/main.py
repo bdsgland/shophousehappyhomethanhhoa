@@ -41,6 +41,7 @@ from app.api import (
     me,
     n8n_stubs,
     openclaw_bridge,
+    projects,
     webhook,
     workspace_oauth,
     ws_admin,
@@ -196,6 +197,7 @@ app.include_router(n8n_stubs.router)
 app.include_router(admin_conversations.router)
 app.include_router(admin_drive_sync.router)
 app.include_router(learning.router)
+app.include_router(projects.router)
 app.include_router(automation.router)
 app.include_router(bookings.router)
 app.include_router(bookings.me_router)

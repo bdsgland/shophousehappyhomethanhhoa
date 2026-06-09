@@ -58,6 +58,27 @@ class LearningDocument(BaseModel):
     uploaded_by: Optional[str] = Field(default=None, description="Email người upload")
     indexed_at: Optional[datetime] = Field(default=None, description="Thời điểm index")
     download_url: str = Field(default="", description="URL tải file")
+    # Nhóm theo thư mục Drive (subfolder trực tiếp chứa file) khi đồng bộ; None
+    # nếu tải tay hoặc file ở folder gốc.
+    group: Optional[str] = Field(default=None, description="Nhóm theo thư mục Drive")
+    source: str = Field(default="upload", description="Nguồn: upload | google_drive")
+    project_slug: Optional[str] = Field(
+        default=None, description="Slug dự án gắn tài liệu (để lọc theo dự án)"
+    )
+
+
+class ProjectDocumentOut(BaseModel):
+    """Tài liệu hiển thị ở mục Tài liệu trang Chi tiết dự án (portal khách)."""
+
+    id: str
+    title: str
+    type: str
+    size: int
+    group: Optional[str] = None
+    category: str = "other"
+    source: str = "upload"
+    updated: Optional[str] = None
+    download_url: str = ""
 
 
 class UploadResponse(BaseModel):
