@@ -40,7 +40,7 @@ type Tab = "library" | "ask" | "quote" | "policy";
 const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: "library", label: "Thư viện", Icon: BookOpen },
   { id: "ask", label: "Hỏi AI", Icon: Sparkles },
-  { id: "quote", label: "Phiếu báo giá", Icon: Calculator },
+  // Tab "Phiếu báo giá" (QuoteTab cũ) đã ẩn — thay bằng "Phiếu tính giá".
   { id: "policy", label: "Phiếu tính giá", Icon: Calculator },
 ];
 
@@ -608,6 +608,25 @@ function QuoteTab({ token, user }: { token: string; user: AuthUser | null }) {
 // Tab 4 — Phiếu tính giá theo chính sách bán hàng
 // ============================================================
 
+// Chính sách MẶC ĐỊNH tích hợp sẵn — dùng khi API /learning/sales-policy lỗi
+// (Failed to fetch / chưa deploy), để form vẫn chọn được phương án + ưu đãi.
+// Key khớp backend (thuong/som95/htls, early_bird/qua_he/dau_tu).
+const DEFAULT_POLICY: SalesPolicyConfig = {
+  base_plans: [
+    { key: "thuong", label: "Thanh toán thường", payment_discount_pct: 5, enabled: true },
+    { key: "som95", label: "Thanh toán sớm 95%", payment_discount_pct: 12, enabled: true },
+    { key: "htls", label: "Hỗ trợ lãi suất ngân hàng", payment_discount_pct: 0, enabled: true },
+  ],
+  addons: [
+    { key: "early_bird", label: "Early Bird", pct: 2, enabled: true },
+    { key: "qua_he", label: "Chào Hè", pct: 1.5, enabled: true },
+    { key: "dau_tu", label: "Ưu đãi đầu tư", pct: 2, enabled: true },
+  ],
+  deposit_amount: 200_000_000,
+  note: "",
+  version: 0,
+};
+
 function PolicyQuoteTab({
   token,
   user,
@@ -619,6 +638,7 @@ function PolicyQuoteTab({
 }) {
   const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [policy, setPolicy] = useState<SalesPolicyConfig | null>(null);
+  const [policyWarn, setPolicyWarn] = useState<string | null>(null);
   const [form, setForm] = useState({
     unit_id: initialUnit ?? "",
     customer_name: "",
@@ -640,16 +660,27 @@ function PolicyQuoteTab({
         setForm((f) => (f.unit_id ? f : { ...f, unit_id: u[0]?.code ?? "" }));
       }
     });
+    const applyPolicy = (p: SalesPolicyConfig) => {
+      setPolicy(p);
+      setForm((f) =>
+        f.base_plan
+          ? f
+          : { ...f, base_plan: p.base_plans.find((b) => b.enabled)?.key ?? "" },
+      );
+    };
     fetchSalesPolicy(token)
       .then((p) => {
-        setPolicy(p);
-        setForm((f) =>
-          f.base_plan
-            ? f
-            : { ...f, base_plan: p.base_plans.find((b) => b.enabled)?.key ?? "" },
-        );
+        applyPolicy(p);
+        setPolicyWarn(null);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch(() => {
+        // API lỗi → dùng chính sách mặc định để form vẫn hoạt động.
+        applyPolicy(DEFAULT_POLICY);
+        setPolicyWarn(
+          "Không tải được chính sách từ máy chủ — đang dùng cấu hình mặc định. " +
+            "Phiếu vẫn lập được; % có thể khác bản chính thức.",
+        );
+      });
   }, [token]);
 
   useEffect(() => {
@@ -711,6 +742,12 @@ function PolicyQuoteTab({
         <h2 className="text-sm font-semibold text-brand-900">
           Thông tin phiếu tính giá
         </h2>
+
+        {policyWarn && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {policyWarn}
+          </div>
+        )}
 
         <Field label="Căn hộ">
           <select
