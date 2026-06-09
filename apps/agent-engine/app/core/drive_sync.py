@@ -31,7 +31,10 @@ from typing import Callable, Optional
 import httpx
 
 from app.core import learning_store
-from app.core.google_meet import get_workspace_access_token
+from app.core.google_meet import (
+    get_workspace_access_token,
+    is_configured as workspace_is_configured,
+)
 from app.core.settings import settings
 from app.schemas.drive_sync import (
     DriveSyncFileResult,
@@ -297,11 +300,19 @@ async def run_sync_job(
     if not folder_id:
         return _fail("Không tách được folder_id từ link Drive đã nhập.")
 
+    # Drive sync tái dùng credential Workspace của Google Meet, nhưng thông báo
+    # lỗi phải theo ngữ cảnh Drive (không nhắc "Google Meet" gây nhầm cho admin).
+    if not workspace_is_configured():
+        return _fail(
+            "Chưa cấu hình Google Workspace (thiếu GOOGLE_WORKSPACE_REFRESH_TOKEN "
+            "hoặc client id/secret) — không đồng bộ được tài liệu từ Google Drive."
+        )
+
     try:
         update_job(job_id, status="listing")
         oauth_token = await get_workspace_access_token()
     except RuntimeError as e:
-        return _fail(f"Chưa cấu hình Google Workspace: {e}")
+        return _fail(f"Không lấy được access token Google Workspace cho Drive: {e}")
 
     try:
         files = await list_drive_folder(folder_id, oauth_token, recursive=True)

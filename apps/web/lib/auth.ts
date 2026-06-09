@@ -85,7 +85,19 @@ export function getDashboardUrl(role: string | undefined | null): string {
   }
 }
 
-/** Đường dẫn portal mặc định theo vai trò sau khi đăng nhập/đăng ký. */
+/**
+ * Đích điều hướng NGAY SAU khi đăng nhập/đăng ký TRÊN WEB www.
+ *
+ * Khác với getDashboardUrl (nút "vào dashboard" cho admin đang lướt www, có thể
+ * sang app Admin riêng): sau khi đăng nhập ở www, user phải LUÔN ở lại domain
+ * www, không bị bounce sang ADMIN_APP_URL. App Admin (apps/admin) có cổng login
+ * Google riêng nên admin không bị khoá khỏi admin.
+ *
+ * - admin  → trang chủ www "/" (KHÔNG dùng URL admin tuyệt đối)
+ * - client → khu khách hàng
+ * - sale   → CRM
+ */
 export function redirectByRole(role: string | undefined | null): string {
+  if (role === "admin") return "/";
   return getDashboardUrl(role);
 }
