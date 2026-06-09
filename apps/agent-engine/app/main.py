@@ -101,6 +101,15 @@ async def lifespan(app: FastAPI):
         print(f"[SEED] Error: {type(e).__name__}: {e}")
         traceback.print_exc()
 
+    # --- Seed TẠM 5 căn độc quyền có giá chi tiết (sẽ thay bằng sync sheet) ---
+    try:
+        from app.core.seed_exclusive import seed_exclusive_units
+
+        res = seed_exclusive_units()
+        print(f"[SEED] Exclusive units: {res}")
+    except Exception as e:  # noqa: BLE001 — seed không bao giờ làm chết app
+        print(f"[SEED] Exclusive units error: {type(e).__name__}: {e}")
+
     # --- Live Match: dọn presence "ma" (sale mất kết nối không heartbeat) ---
     import asyncio
 
