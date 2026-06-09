@@ -179,6 +179,12 @@ class Settings(BaseSettings):
     google_workspace_refresh_token: str = ""
     # Email lịch Workspace tạo sự kiện Meet (thường = tài khoản đã cấp refresh token).
     google_workspace_calendar_email: str = "info@eurowindowlightcity.net"
+    # Store bền refresh token Workspace lấy qua luồng "Connect" trên admin (ưu tiên
+    # hơn env google_workspace_refresh_token). Resolve giống users_file.
+    google_workspace_token_file: str = "data/_runtime/google_workspace.json"
+    # Redirect URI cho luồng Connect Workspace. Trống → tự suy ra từ host của
+    # google_oauth_redirect_uri (đổi path → /auth/workspace/callback).
+    google_workspace_redirect_uri: str = ""
 
 
 settings = Settings()

@@ -42,6 +42,7 @@ from app.api import (
     n8n_stubs,
     openclaw_bridge,
     webhook,
+    workspace_oauth,
     ws_admin,
     ws_match,
     ws_presence,
@@ -205,6 +206,7 @@ app.include_router(match.router)
 app.include_router(ws_presence.router)
 app.include_router(ws_match.router)
 app.include_router(ws_admin.router)
+app.include_router(workspace_oauth.router)
 app.include_router(openclaw_bridge.router)
 app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
 

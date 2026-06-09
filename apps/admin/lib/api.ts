@@ -599,3 +599,29 @@ export function getMatchPresence() {
 export function getMatchHistory(limit = 50) {
   return apiFetch<MatchRecord[]>(`/admin/match/history?limit=${limit}`);
 }
+
+// ----- Google Workspace (Connect: refresh token cho Meet + Drive) -----
+
+export interface WorkspaceStatus {
+  connected: boolean;
+  scopes: string[];
+  email: string | null;
+  connected_at: string | null;
+  updated_at: string | null;
+  redirect_uri: string;
+}
+
+export function getWorkspaceStatus() {
+  return apiFetch<WorkspaceStatus>("/admin/google-workspace/status");
+}
+
+/**
+ * URL điều hướng trình duyệt tới luồng Connect. Auth qua `?token=` (đúng
+ * convention các endpoint cần admin trong ngữ cảnh trình duyệt, vd WS).
+ */
+export function workspaceConnectUrl(): string {
+  const token = getToken();
+  return `${API_URL}/admin/google-workspace/connect?token=${encodeURIComponent(
+    token ?? "",
+  )}`;
+}

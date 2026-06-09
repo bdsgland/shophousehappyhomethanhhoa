@@ -34,6 +34,16 @@ _STATE_PURPOSE = "google_oauth_state"
 _STATE_TTL_SECONDS = 5 * 60  # chống replay: state chỉ sống 5 phút
 _ALGORITHM = "HS256"
 
+# ----- Luồng "Connect Google Workspace" (Calendar + Drive, lấy refresh token) -----
+# Tái dùng đúng OAuth client của Sign-in (client_id/secret), chỉ khác scope +
+# access_type=offline + prompt=consent để Google trả refresh_token.
+_WORKSPACE_SCOPES = (
+    "https://www.googleapis.com/auth/calendar.events "
+    "https://www.googleapis.com/auth/drive.readonly"
+)
+_WORKSPACE_STATE_PURPOSE = "google_workspace_connect"
+_WORKSPACE_STATE_TTL_SECONDS = 10 * 60  # 10 phút (đủ thời gian admin đăng nhập + allow)
+
 
 def is_configured() -> bool:
     """True khi đã set đủ Client ID + Secret để chạy luồng Google."""
@@ -90,6 +100,87 @@ def get_authorization_url(state: str) -> str:
         "include_granted_scopes": "true",
     }
     return f"{_AUTH_ENDPOINT}?{urlencode(params)}"
+
+
+# ----- Workspace Connect: redirect uri + state + auth url + token exchange -----
+
+def workspace_redirect_uri() -> str:
+    """Redirect URI cho callback Connect Workspace (production-stable).
+
+    Ưu tiên settings.google_workspace_redirect_uri; nếu trống thì suy ra từ host
+    của google_oauth_redirect_uri (luồng Sign-in đã chạy) → đổi path callback.
+    """
+    if settings.google_workspace_redirect_uri:
+        return settings.google_workspace_redirect_uri
+    base = settings.google_oauth_redirect_uri.rsplit("/auth/google/callback", 1)[0]
+    return f"{base}/auth/workspace/callback"
+
+
+def make_workspace_state(*, admin_id: str, admin_email: Optional[str] = None) -> str:
+    """State JWT cho luồng Connect (purpose riêng, mang admin id/email + nonce)."""
+    now = datetime.now(tz=timezone.utc)
+    payload: dict[str, Any] = {
+        "purpose": _WORKSPACE_STATE_PURPOSE,
+        "role": "admin",
+        "admin_id": admin_id,
+        "admin_email": admin_email,
+        "nonce": secrets.token_urlsafe(16),
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(seconds=_WORKSPACE_STATE_TTL_SECONDS)).timestamp()),
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=_ALGORITHM)
+
+
+def verify_workspace_state(state: str) -> dict[str, Any]:
+    """Giải mã + kiểm tra state Connect. Raise jwt.InvalidTokenError nếu sai/hết hạn."""
+    payload = jwt.decode(
+        state,
+        get_jwt_secret(),
+        algorithms=[_ALGORITHM],
+        options={"require": ["exp", "iat"]},
+    )
+    if payload.get("purpose") != _WORKSPACE_STATE_PURPOSE:
+        raise jwt.InvalidTokenError("workspace state purpose không hợp lệ")
+    return payload
+
+
+def get_workspace_authorization_url(state: str) -> str:
+    params = {
+        "client_id": settings.google_oauth_client_id,
+        "redirect_uri": workspace_redirect_uri(),
+        "response_type": "code",
+        "scope": _WORKSPACE_SCOPES,
+        "state": state,
+        "access_type": "offline",   # bắt buộc để Google trả refresh_token
+        "prompt": "consent",        # ép màn hình đồng ý → luôn có refresh_token
+        "include_granted_scopes": "true",
+    }
+    return f"{_AUTH_ENDPOINT}?{urlencode(params)}"
+
+
+def exchange_code_for_workspace_tokens(code: str) -> dict[str, Any]:
+    """Đổi authorization code lấy token Workspace (gồm refresh_token).
+
+    Trả nguyên dict token của Google: {access_token, refresh_token, scope, ...}.
+    Raise RuntimeError nếu Google trả lỗi. KHÔNG log token.
+    """
+    with httpx.Client(timeout=15.0) as http:
+        res = http.post(
+            _TOKEN_ENDPOINT,
+            data={
+                "code": code,
+                "client_id": settings.google_oauth_client_id,
+                "client_secret": settings.google_oauth_client_secret,
+                "redirect_uri": workspace_redirect_uri(),
+                "grant_type": "authorization_code",
+            },
+            headers={"Accept": "application/json"},
+        )
+    if res.status_code != 200:
+        raise RuntimeError(
+            f"Google token endpoint lỗi {res.status_code}: {res.text}"
+        )
+    return res.json()
 
 
 # ----- exchange code → userinfo -----

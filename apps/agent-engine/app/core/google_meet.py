@@ -27,12 +27,27 @@ _CALENDAR_EVENTS_ENDPOINT = (
 )
 
 
+def _resolve_refresh_token() -> str:
+    """Refresh token Workspace: ưu tiên store (luồng Connect), fallback env.
+
+    Nhờ vậy admin chỉ cần bấm "Kết nối Google Workspace" 1 lần là chạy được,
+    KHÔNG cần set GOOGLE_WORKSPACE_REFRESH_TOKEN trên Railway nữa.
+    """
+    from app.core import workspace_token_store
+
+    return (
+        workspace_token_store.get_refresh_token()
+        or settings.google_workspace_refresh_token
+        or ""
+    )
+
+
 def is_configured() -> bool:
-    """True khi đủ client id/secret + refresh token để gọi Calendar API."""
+    """True khi đủ client id/secret + refresh token (store hoặc env) để gọi Calendar API."""
     return bool(
         settings.google_oauth_client_id
         and settings.google_oauth_client_secret
-        and settings.google_workspace_refresh_token
+        and _resolve_refresh_token()
     )
 
 
@@ -52,7 +67,7 @@ async def get_workspace_access_token() -> str:
             data={
                 "client_id": settings.google_oauth_client_id,
                 "client_secret": settings.google_oauth_client_secret,
-                "refresh_token": settings.google_workspace_refresh_token,
+                "refresh_token": _resolve_refresh_token(),
                 "grant_type": "refresh_token",
             },
             headers={"Accept": "application/json"},

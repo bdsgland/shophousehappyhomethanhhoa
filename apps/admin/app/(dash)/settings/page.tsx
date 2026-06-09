@@ -33,6 +33,7 @@ import type {
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { AuditLogTable } from "@/components/settings/AuditLogTable";
+import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
 import { IntegrationsList } from "@/components/settings/IntegrationsList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,7 +104,8 @@ export default function SettingsPage() {
       {tab === "commission" && <CommissionTab />}
 
       {tab === "integrations" && (
-        <div>
+        <div className="space-y-4">
+          <GoogleWorkspaceCard />
           {isLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : (
