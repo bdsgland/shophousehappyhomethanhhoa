@@ -14,12 +14,19 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 # Các nhóm tài liệu hiển thị/lọc ở UI. Đồng bộ với label tiếng Việt bên frontend.
+# Bổ sung các nhóm sinh ra từ đồng bộ Google Drive (master_plan, units, legal,
+# media, other) — xem app/core/drive_sync.classify_category.
 DocumentCategory = Literal[
     "policy",  # Chính sách bán hàng / hoa hồng
     "pricing",  # Bảng giá / phiếu tính giá
     "contract",  # Hợp đồng / pháp lý
     "brochure",  # Tài liệu giới thiệu / marketing
     "training",  # Đào tạo sale
+    "master_plan",  # Bản đồ / mặt bằng / phân khu
+    "units",  # Thiết kế căn / loại căn
+    "legal",  # Pháp lý / giấy phép
+    "media",  # Video / hình ảnh / review
+    "other",  # Khác
 ]
 
 CATEGORIES: tuple[str, ...] = (
@@ -28,6 +35,11 @@ CATEGORIES: tuple[str, ...] = (
     "contract",
     "brochure",
     "training",
+    "master_plan",
+    "units",
+    "legal",
+    "media",
+    "other",
 )
 
 

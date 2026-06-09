@@ -1,0 +1,222 @@
+{
+  "name": "📈 Sale Weekly Report",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📈 Sale Weekly Report\n\nMon 8h sáng, gen report performance tuần cho từng sale.\n\n**Endpoint:** `GET /admin/sales/active` rồi `GET /admin/sales/{id}/weekly-stats`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/sales/active",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h11a",
+      "name": "GET sales active",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "sales",
+        "options": {}
+      },
+      "id": "sp11",
+      "name": "Tách sales",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/sales/{{ $json.id }}/weekly-stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h11b",
+      "name": "GET weekly stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 HR ELC. T\\u00f3m t\\u1eaft performance tu\\u1ea7n c\\u1ee7a sale theo format: leads m\\u1edbi / bookings / deals closed / commission. T\\u1ed1i \\u0111a 150 ch\\u1eef. C\\u00f3 1 l\\u1eddi khuy\\u00ean c\\u1ea3i thi\\u1ec7n.\", messages: [ { role: 'user', content: 'Stats: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl11",
+      "name": "Claude — gen report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Tách sales').item.json.email }}",
+        "subject": "=📈 Báo cáo tuần {{ $('Tách sales').item.json.full_name }}",
+        "emailFormat": "text",
+        "text": "={{ $json.content[0].text }}",
+        "options": {}
+      },
+      "id": "em11",
+      "name": "Email report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        200
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET sales active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET sales active": {
+      "main": [
+        [
+          {
+            "node": "Tách sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách sales": {
+      "main": [
+        [
+          {
+            "node": "GET weekly stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET weekly stats": {
+      "main": [
+        [
+          {
+            "node": "Claude — gen report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — gen report": {
+      "main": [
+        [
+          {
+            "node": "Email report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

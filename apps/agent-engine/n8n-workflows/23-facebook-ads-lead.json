@@ -1,0 +1,109 @@
+{
+  "name": "📱 Facebook Ads Lead",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📱 Facebook Ads Lead\n\nFB Lead Ads webhook → POST /leads với source=fb_ads.\n\n**Setup FB:** Meta Business Suite → Instant Forms → Webhook → URL = /webhook/fb-lead. App secret verify trong header.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fb-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "fb-lead"
+    },
+    {
+      "parameters": {
+        "jsCode": "// FB Lead Ads gửi nested format\nconst entry = $input.first().json.body.entry?.[0];\nconst change = entry?.changes?.[0];\nconst lead = change?.value;\nif (!lead) return [{ json: { error: 'invalid_payload' } }];\nconst fields = {};\n(lead.field_data || []).forEach(f => { fields[f.name] = f.values?.[0]; });\nreturn [{ json: {\n  fb_lead_id: lead.leadgen_id,\n  form_id: lead.form_id,\n  full_name: fields.full_name || fields.name,\n  phone: fields.phone_number || fields.phone,\n  email: fields.email,\n  budget: fields.budget,\n  raw: fields\n} }];"
+      },
+      "id": "cd23",
+      "name": "Parse FB payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $json.full_name, phone: $json.phone, email: $json.email, source: 'fb_ads', external_id: $json.fb_lead_id, custom: { budget: $json.budget, form_id: $json.form_id } }) }}"
+      },
+      "id": "h23",
+      "name": "POST lead ELC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse FB payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse FB payload": {
+      "main": [
+        [
+          {
+            "node": "POST lead ELC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

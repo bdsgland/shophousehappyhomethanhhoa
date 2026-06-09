@@ -6,10 +6,22 @@ import type {
   BackupEntry,
   BulkImportResult,
   ChatwootConversation,
+  CommissionBreakdown,
+  CommissionConfig,
+  CommissionConfigVersion,
   CommissionRow,
   ConversationDetail,
   ConversationSummary,
+  CrmLead,
+  DriveSyncConfig,
+  DriveSyncJob,
+  DriveSyncResult,
+  CrmLeadDetail,
+  CrmLeadPage,
+  CrmStats,
   DashboardKpi,
+  InventoryBackupInfo,
+  InventorySyncResult,
   InventoryUnit,
   KbStats,
   LearningDocument,
@@ -17,6 +29,7 @@ import type {
   ReferralNode,
   ResetPasswordResult,
   SaleRow,
+  SalePerformance,
   SettingsResponse,
   TokenResponse,
   User,
@@ -249,7 +262,50 @@ export interface UpdateUnitPayload {
   mat_tien?: number;
   trang_thai?: string;
   gia_tri?: number;
+  gia_min?: number;
+  gia_max?: number;
+  huong?: string;
+  view?: string;
+  notes?: string;
   position?: { x: number; y: number };
+}
+
+// ---- Đồng bộ quỹ căn từ Google Sheets ----
+
+export function syncInventory(payload: {
+  sheet_url: string;
+  sheet_gid?: number;
+  replace_all?: boolean;
+}) {
+  return apiFetch<InventorySyncResult>("/admin/inventory/sync", {
+    method: "POST",
+    body: {
+      sheet_url: payload.sheet_url,
+      sheet_gid: payload.sheet_gid ?? 0,
+      replace_all: payload.replace_all ?? true,
+    },
+  });
+}
+
+export function getInventorySyncHistory(limit = 20) {
+  return apiFetch<{ history: InventorySyncResult[] }>(
+    `/admin/inventory/sync/history?limit=${limit}`,
+  );
+}
+
+export function listInventoryBackups() {
+  return apiFetch<{ backups: InventoryBackupInfo[] }>("/admin/inventory/backups");
+}
+
+export function restoreInventory(backupTimestamp: string) {
+  return apiFetch<{
+    success: boolean;
+    restored_units: number;
+    from_backup: string;
+    by?: string;
+  }>(`/admin/inventory/restore/${encodeURIComponent(backupTimestamp)}`, {
+    method: "POST",
+  });
 }
 
 export function updateUnit(id: string, payload: UpdateUnitPayload) {
@@ -309,6 +365,33 @@ export function reindexKb() {
   );
 }
 
+// ---- Đồng bộ Google Drive ----
+
+export function getDriveSyncConfig() {
+  return apiFetch<DriveSyncConfig>("/admin/documents/sync-drive/config");
+}
+
+export function startDriveSync(input: {
+  folder_url: string;
+  skip_existing: boolean;
+  reindex_rag: boolean;
+}) {
+  return apiFetch<{ job_id: string; status: string }>(
+    "/admin/documents/sync-drive",
+    { method: "POST", body: input },
+  );
+}
+
+export function getDriveSyncJob(jobId: string) {
+  return apiFetch<DriveSyncJob>(
+    `/admin/documents/sync-drive/jobs/${jobId}`,
+  );
+}
+
+export function getDriveSyncHistory() {
+  return apiFetch<DriveSyncResult[]>("/admin/documents/sync-drive/history");
+}
+
 // ---- Phase 2: Conversations ----
 
 export function listConversations() {
@@ -359,4 +442,160 @@ export function triggerBackup() {
 
 export function listBackups() {
   return apiFetch<{ backups: BackupEntry[] }>("/admin/backup/list");
+}
+
+// ---- Cơ chế hoa hồng (config + KPI tier) ----
+
+export function getCommissionConfig() {
+  return apiFetch<CommissionConfig>("/admin/commission/config");
+}
+
+export function updateCommissionConfig(config: CommissionConfig) {
+  return apiFetch<CommissionConfig>("/admin/commission/config", {
+    method: "PATCH",
+    body: config,
+  });
+}
+
+export function getCommissionConfigHistory() {
+  return apiFetch<{ versions: CommissionConfigVersion[] }>(
+    "/admin/commission/config/history",
+  );
+}
+
+export function restoreCommissionConfig(version: number) {
+  return apiFetch<CommissionConfig>(
+    `/admin/commission/config/restore/${version}`,
+    { method: "POST" },
+  );
+}
+
+export function resetCommissionConfig() {
+  return apiFetch<CommissionConfig>("/admin/commission/config/reset", {
+    method: "POST",
+  });
+}
+
+export function previewCommission(payload: {
+  deal_amount: number;
+  sale_monthly_volume_before_deal?: number;
+  with_referrer?: boolean;
+  config?: CommissionConfig;
+}) {
+  return apiFetch<CommissionBreakdown>("/admin/commission/preview", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CRM khách hàng — master view + reassign + hot lead + hiệu suất sale
+// ---------------------------------------------------------------------------
+
+export function listCrmLeads(params: {
+  status?: string;
+  sale_id?: string;
+  source?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+} = {}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.sale_id) qs.set("sale_id", params.sale_id);
+  if (params.source) qs.set("source", params.source);
+  if (params.search) qs.set("search", params.search);
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 50));
+  return apiFetch<CrmLeadPage>(`/admin/crm/leads?${qs.toString()}`);
+}
+
+export function getCrmLead(id: string) {
+  return apiFetch<CrmLeadDetail>(`/admin/crm/leads/${id}`);
+}
+
+export function assignCrmLead(id: string, saleId: string) {
+  return apiFetch<CrmLead>(`/admin/crm/leads/${id}/assign`, {
+    method: "PATCH",
+    body: { sale_id: saleId },
+  });
+}
+
+export function softDeleteCrmLead(id: string) {
+  return apiFetch<CrmLead>(`/admin/crm/leads/${id}`, { method: "DELETE" });
+}
+
+export function markCrmLeadHot(id: string) {
+  return apiFetch<CrmLead>(`/admin/crm/leads/${id}/mark-hot`, { method: "POST" });
+}
+
+export function autoDistributeHotLeads() {
+  return apiFetch<{ distributed: number; leads: { lead_id: string; sale_id: string }[] }>(
+    "/admin/crm/hot-leads/auto-distribute",
+    { method: "POST" },
+  );
+}
+
+export function getCrmStats() {
+  return apiFetch<CrmStats>("/admin/crm/stats");
+}
+
+export function getCrmSalesPerformance() {
+  return apiFetch<SalePerformance[]>("/admin/crm/sales/performance");
+}
+
+// ----- Live Match (Uber-style khách ↔ sale realtime) -----
+
+export interface MatchStats {
+  period: string;
+  total: number;
+  accepted: number;
+  declined: number;
+  expired: number;
+  cancelled: number;
+  live: number;
+  completed: number;
+  avg_duration_seconds: number;
+  avg_accept_seconds: number;
+  conversion_rate: number;
+  online_sales: number;
+  online_customers: number;
+  active_calls: number;
+}
+
+export interface MatchPresenceRow {
+  sale_id: string;
+  sale_name: string;
+  availability: "online" | "busy" | "away" | "dnd";
+  active_calls: number;
+  last_heartbeat_at?: string | null;
+  last_match_at?: string | null;
+}
+
+export interface MatchRecord {
+  id: string;
+  customer_name: string;
+  sale_id: string | null;
+  sale_name: string | null;
+  status: string;
+  meet_link: string | null;
+  created_at: string;
+  accepted_at: string | null;
+  completed_at: string | null;
+  duration_seconds: number | null;
+  outcome: string | null;
+}
+
+export function getMatchStats(period: "today" | "week" | "all" = "today") {
+  return apiFetch<MatchStats>(`/admin/match/stats?period=${period}`);
+}
+
+export function getMatchPresence() {
+  return apiFetch<{ counts: Record<string, number>; sales: MatchPresenceRow[] }>(
+    "/admin/match/presence",
+  );
+}
+
+export function getMatchHistory(limit = 50) {
+  return apiFetch<MatchRecord[]>(`/admin/match/history?limit=${limit}`);
 }

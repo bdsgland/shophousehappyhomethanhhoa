@@ -1,0 +1,115 @@
+{
+  "name": "🚨 Sale Escalation",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🚨 Sale Escalation\n\nWebhook khi system phát hiện sale không phản hồi hot lead > 5'. Push manager + log.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sale-escalation",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "sale-escalation"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MANAGER_TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 *ESCALATE:* Sale {{ $json.body.sale_name }} không phản hồi lead {{ $json.body.lead_name }} sau {{ $json.body.elapsed_minutes }} phút.\nLead phone: {{ $json.body.lead_phone }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg13",
+      "name": "Telegram manager",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/escalations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ lead_id: $('Webhook').item.json.body.lead_id, sale_id: $('Webhook').item.json.body.sale_id, reason: 'no_response', elapsed_minutes: $('Webhook').item.json.body.elapsed_minutes }) }}"
+      },
+      "id": "h13",
+      "name": "Log escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Telegram manager",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

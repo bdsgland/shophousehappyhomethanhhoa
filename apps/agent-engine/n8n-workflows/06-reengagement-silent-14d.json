@@ -1,0 +1,200 @@
+{
+  "name": "💤 Re-engagement Silent 14d",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💤 Re-engagement Silent 14d\n\nMỗi ngày 9h, tìm lead không activity 14 ngày → Claude generate message → Chatwoot reply.\n\n**Cần:** `ELC_API_URL`, `ANTHROPIC_API_KEY`, `CHATWOOT_API_URL`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/leads/silent-14d",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h6",
+      "name": "GET silent leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "leads",
+        "options": {}
+      },
+      "id": "sp6",
+      "name": "Tách leads",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 sale ELC. Vi\\u1ebft 1 tin nh\\u1eafn re-engage cho kh\\u00e1ch kh\\u00f4ng t\\u01b0\\u01a1ng t\\u00e1c 14 ng\\u00e0y. T\\u1ed1i \\u0111a 80 ch\\u1eef. Gi\\u1ecdng th\\u00e2n thi\\u1ec7n, g\\u1ee3i \\u00fd 1 c\\u0103n m\\u1edbi ho\\u1eb7c khuy\\u1ebfn m\\u00e3i. Ti\\u1ebfng Vi\\u1ec7t.\", messages: [ { role: 'user', content: 'Khách: ' + ($json.full_name || 'khách') + ', đã xem ' + ($json.last_unit_id || 'chưa rõ') + '. Nguồn: ' + ($json.source || 'web') } ] }) }}",
+        "options": {}
+      },
+      "id": "cl6",
+      "name": "Claude — gen message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CHATWOOT_API_URL }}/api/v1/accounts/1/conversations/{{ $('Tách leads').item.json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $json.content[0].text, message_type: 'outgoing', private: false }) }}",
+        "options": {}
+      },
+      "id": "cw6",
+      "name": "Chatwoot reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET silent leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET silent leads": {
+      "main": [
+        [
+          {
+            "node": "Tách leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách leads": {
+      "main": [
+        [
+          {
+            "node": "Claude — gen message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — gen message": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

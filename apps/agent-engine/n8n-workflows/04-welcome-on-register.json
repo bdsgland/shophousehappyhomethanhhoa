@@ -1,0 +1,114 @@
+{
+  "name": "🎁 Welcome on Register",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎁 Welcome on Register\n\nFastAPI POST khi user đăng ký mới.\n\n**Cần:**\n- `ELC_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `CHATWOOT_API_URL`, `CHATWOOT_API_TOKEN`\n- SMTP credential\n\n**Payload:** `{ user_id, full_name, email, phone, source }`",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "welcome-register",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "welcome-register"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "=🏠 Chào mừng {{ $('Webhook').item.json.body.full_name }} đến với Eurowindow Light City",
+        "emailFormat": "text",
+        "text": "=Xin chào {{ $('Webhook').item.json.body.full_name }},\n\nCảm ơn bạn đã đăng ký Eurowindow Light City. Đội sale sẽ liên hệ trong 24h.\n\nXem dự án: https://eurowindowlightcity.net",
+        "options": {}
+      },
+      "id": "email1",
+      "name": "Email chào mừng",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        120
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CHATWOOT_API_URL }}/api/v1/accounts/1/contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Webhook').item.json.body.full_name, email: $('Webhook').item.json.body.email, phone_number: $('Webhook').item.json.body.phone, custom_attributes: { source: $('Webhook').item.json.body.source, elc_user_id: $('Webhook').item.json.body.user_id } }) }}",
+        "options": {}
+      },
+      "id": "cw1",
+      "name": "Tạo contact Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        320
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Email chào mừng",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tạo contact Chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

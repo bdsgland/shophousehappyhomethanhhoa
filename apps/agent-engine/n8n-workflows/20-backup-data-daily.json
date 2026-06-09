@@ -1,0 +1,167 @@
+{
+  "name": "💾 Backup Data Daily",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💾 Backup Data Daily\n\nCron 2h sáng, trigger backup → R2 upload.\n\n**Cần:** ELC `/admin/backup/trigger` trả về URL backup file, sau đó workflow up lên R2 qua S3-compatible API.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/backup/trigger",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ scope: 'all', format: 'sql.gz' }) }}"
+      },
+      "id": "h20a",
+      "name": "Trigger backup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $env.R2_ENDPOINT }}/{{ $env.R2_BUCKET }}/backups/{{ $json.filename }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.R2_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.backup_url }}"
+      },
+      "id": "h20b",
+      "name": "Upload to R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "=💾 Backup {{ new Date().toLocaleDateString('vi-VN') }} hoàn tất.\n📦 File: {{ $('Trigger backup').item.json.filename }} ({{ $('Trigger backup').item.json.size_mb }}MB)",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg20",
+      "name": "Telegram báo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "Trigger backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger backup": {
+      "main": [
+        [
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Telegram báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

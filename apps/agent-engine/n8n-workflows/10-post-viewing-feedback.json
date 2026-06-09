@@ -1,0 +1,140 @@
+{
+  "name": "📊 Post-viewing Feedback",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📊 Post-viewing Feedback\n\nDaily 9h, gửi NPS survey cho khách đã xem căn hôm qua.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/bookings/completed-yesterday",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h10",
+      "name": "GET completed yesterday",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "bookings",
+        "options": {}
+      },
+      "id": "sp10",
+      "name": "Tách bookings",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $json.lead_email }}",
+        "subject": "=📊 Cảm ơn bạn đã xem căn — chia sẻ trải nghiệm 30s nhé?",
+        "emailFormat": "text",
+        "text": "=Xin chào {{ $json.lead_name }},\n\nBạn đã xem căn {{ $json.unit_id }} hôm qua. Vui lòng đánh giá trải nghiệm (1-10):\n\nhttps://eurowindowlightcity.net/survey?booking_id={{ $json.booking_id }}\n\nCảm ơn bạn!",
+        "options": {}
+      },
+      "id": "em10",
+      "name": "Survey NPS",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET completed yesterday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET completed yesterday": {
+      "main": [
+        [
+          {
+            "node": "Tách bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách bookings": {
+      "main": [
+        [
+          {
+            "node": "Survey NPS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

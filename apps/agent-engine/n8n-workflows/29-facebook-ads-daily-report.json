@@ -1,0 +1,163 @@
+{
+  "name": "🎯 Facebook Ads Daily Report",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎯 Facebook Ads Daily Report\n\nDaily 8h. Fetch Ads Manager API → AI insight → Telegram admin.\n\n**Env:** `FB_ADS_ACCOUNT_ID`, `FB_PAGE_ACCESS_TOKEN`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://graph.facebook.com/v19.0/act_{{ $env.FB_ADS_ACCOUNT_ID }}/insights?fields=spend,impressions,clicks,ctr,actions&date_preset=yesterday&access_token={{ $env.FB_PAGE_ACCESS_TOKEN }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "options": {}
+      },
+      "id": "h29",
+      "name": "FB Ads Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Ph\\u00e2n t\\u00edch k\\u1ebft qu\\u1ea3 FB Ads h\\u00f4m qua. Highlight b\\u1ea5t th\\u01b0\\u1eddng (CPM t\\u0103ng / CTR gi\\u1ea3m). \\u0110\\u01b0a 2 \\u0111\\u1ec1 xu\\u1ea5t. T\\u1ed1i \\u0111a 150 ch\\u1eef ti\\u1ebfng Vi\\u1ec7t.\", messages: [ { role: 'user', content: 'FB Ads data: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl29",
+      "name": "Claude — insight FB Ads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ADMIN_TELEGRAM_CHAT_ID }}",
+        "text": "=🎯 *FB Ads Report {{ new Date(Date.now()-86400000).toLocaleDateString('vi-VN') }}*\n\n{{ $json.content[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg29",
+      "name": "Telegram admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "FB Ads Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Ads Insights": {
+      "main": [
+        [
+          {
+            "node": "Claude — insight FB Ads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — insight FB Ads": {
+      "main": [
+        [
+          {
+            "node": "Telegram admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

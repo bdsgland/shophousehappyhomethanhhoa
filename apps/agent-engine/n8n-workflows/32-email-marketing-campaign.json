@@ -1,0 +1,192 @@
+{
+  "name": "📧 Email Marketing Campaign",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📧 Email Marketing Campaign\n\nWebhook khi admin tạo campaign → render template → segment → batch send qua SendGrid.\n\n**Env:** `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`.\n\n**Payload:** `{ campaign_id, template_id, segment_query }`",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "marketing-campaign",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "marketing-campaign"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/segments/preview",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $('Webhook').item.json.body.segment_query }) }}"
+      },
+      "id": "h32a",
+      "name": "GET segment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "contacts",
+        "options": {}
+      },
+      "id": "sp32",
+      "name": "Tách contacts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SENDGRID_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $json.email, name: $json.full_name }] }], from: { email: $env.SENDGRID_FROM_EMAIL, name: 'ELC' }, template_id: $('Webhook').item.json.body.template_id, dynamic_template_data: { full_name: $json.full_name, voucher_code: 'ELC-' + $json.user_id } }) }}"
+      },
+      "id": "h32b",
+      "name": "SendGrid send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/campaigns/{{ $('Webhook').item.json.body.campaign_id }}/log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $('Tách contacts').item.json.email, status: 'sent' }) }}"
+      },
+      "id": "h32c",
+      "name": "Log send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "GET segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET segment": {
+      "main": [
+        [
+          {
+            "node": "Tách contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách contacts": {
+      "main": [
+        [
+          {
+            "node": "SendGrid send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendGrid send": {
+      "main": [
+        [
+          {
+            "node": "Log send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

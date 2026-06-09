@@ -1,0 +1,162 @@
+{
+  "name": "📊 Google Ads Performance",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📊 Google Ads Performance\n\nDaily 8h. Fetch Google Ads API → email admin.\n\n**Lưu ý:** Google Ads API yêu cầu OAuth complex — workflow tạm gọi proxy endpoint của agent-engine.\n\n**Env:** `GOOGLE_ADS_CUSTOMER_ID` (FastAPI lo OAuth).",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/google-ads/yesterday",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h30",
+      "name": "GET Google Ads stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Ph\\u00e2n t\\u00edch k\\u1ebft qu\\u1ea3 Google Ads h\\u00f4m qua. Highlight keyword performance + cost-per-lead. \\u0110\\u1ec1 xu\\u1ea5t t\\u1ed1i \\u01b0u. T\\u1ed1i \\u0111a 150 ch\\u1eef.\", messages: [ { role: 'user', content: 'Stats: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl30",
+      "name": "Claude — insight GA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $env.ADMIN_EMAIL }}",
+        "subject": "=📊 Google Ads Report {{ new Date(Date.now()-86400000).toLocaleDateString('vi-VN') }}",
+        "emailFormat": "text",
+        "text": "={{ $json.content[0].text }}",
+        "options": {}
+      },
+      "id": "em30",
+      "name": "Email admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET Google Ads stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Google Ads stats": {
+      "main": [
+        [
+          {
+            "node": "Claude — insight GA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — insight GA": {
+      "main": [
+        [
+          {
+            "node": "Email admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

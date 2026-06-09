@@ -1,0 +1,175 @@
+{
+  "name": "📱 Auto-publish Zalo OA",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📱 Auto-publish Zalo OA\n\n2 lần/ngày 8h + 18h. AI generate text Zalo-friendly (max 200 chữ, emoji).\n\n**Env:** `ZALO_OA_ACCESS_TOKEN`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8,18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/units/hot-pick",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h26a",
+      "name": "Pick unit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft tin nh\\u1eafn broadcast Zalo OA 200 ch\\u1eef v\\u1ec1 c\\u0103n B\\u0110S ELC. Gi\\u1ecdng th\\u00e2n thi\\u1ec7n, nhi\\u1ec1u emoji. C\\u00f3 link \\u0111\\u1eb7t l\\u1ecbch xem.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl26",
+      "name": "Claude — viết post Zalo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openapi.zalo.me/v3.0/oa/message/transaction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $env.ZALO_OA_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ recipient: { user_id: 'all' }, message: { text: $json.content[0].text } }) }}"
+      },
+      "id": "h26b",
+      "name": "Send Zalo broadcast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "Pick unit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick unit": {
+      "main": [
+        [
+          {
+            "node": "Claude — viết post Zalo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — viết post Zalo": {
+      "main": [
+        [
+          {
+            "node": "Send Zalo broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

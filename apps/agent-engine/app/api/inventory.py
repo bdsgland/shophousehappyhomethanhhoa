@@ -1,15 +1,20 @@
 """Endpoint quỹ căn (inventory) — public read, không cần auth.
 
-Trả dữ liệu mock cho dự án Eurowindow Light City để dashboard hiển thị
-mặt bằng quỹ căn, bộ lọc và thống kê. Dữ liệu sinh theo quy luật (không
-random) để ổn định giữa các lần gọi.
+Nguồn dữ liệu: `inventory_store` (JSON persist trên Railway Volume), đồng bộ từ
+Google Sheets chủ đầu tư qua `/admin/inventory/sync`. Khi store còn TRỐNG (chưa
+sync lần nào) thì FALLBACK về bộ mock 112 căn sinh theo quy luật để dashboard
+không trống.
 
-Giai đoạn sau sẽ thay bằng nguồn dữ liệu thật từ chủ đầu tư / CRM.
+Các hàm get_units()/get_unit() + admin_* được nhiều module khác dùng
+(client.py, admin.py, bookings.py, n8n_stubs.py, learning.py) → giữ nguyên
+chữ ký + shape dict tiếng Việt để tương thích ngược.
 """
 
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+
+from app.core import inventory_store
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -80,71 +85,107 @@ def _gen_units() -> List[dict]:
     return units
 
 
-# Sinh 1 lần khi import — coi như "kho" cố định trong vòng đời process.
-_UNITS: List[dict] = _gen_units()
+# Mock fallback — sinh 1 lần khi import. CHỈ dùng khi store còn trống (chưa sync).
+_FALLBACK_UNITS: List[dict] = _gen_units()
 
 
 def get_units() -> List[dict]:
-    """Trả về toàn bộ quỹ căn (dùng nội bộ cho các module khác như /client)."""
-    return _UNITS
+    """Toàn bộ quỹ căn đang hiển thị (đã loại căn soft-deleted).
+
+    Ưu tiên dữ liệu THẬT trong store; nếu store trống → mock fallback.
+    """
+    if inventory_store.is_empty():
+        return _FALLBACK_UNITS
+    return inventory_store.get_all(include_deleted=False)
 
 
 def get_unit(unit_id: str) -> Optional[dict]:
-    for u in _UNITS:
-        if u["id"] == unit_id:
-            return u
-    return None
+    if inventory_store.is_empty():
+        for u in _FALLBACK_UNITS:
+            if u["id"] == unit_id:
+                return u
+        return None
+    return inventory_store.get_by_id(unit_id)
 
 
 # ---------------------------------------------------------------------------
-# Mutations cho admin (in-memory). LƯU Ý: quỹ căn hiện sinh mock mỗi lần khởi
-# động process nên thay đổi là TẠM THỜI (reset khi redeploy). Giai đoạn sau
-# thay bằng bảng PostgreSQL `units`. Đủ dùng để admin thao tác/QA Phase 2.
+# Mutations cho admin — ghi xuống inventory_store (persist trên Volume).
+# Nếu store còn trống thì seed bằng mock trước khi sửa để admin QA được ngay cả
+# khi chưa sync từ sheet.
 # ---------------------------------------------------------------------------
 
 _ALLOWED_STATUS = set(_STATUSES)
 
 
+def _ensure_seeded() -> None:
+    """Seed store bằng mock nếu trống — để mutation có dữ liệu thao tác."""
+    if inventory_store.is_empty():
+        inventory_store.replace_all([dict(u) for u in _FALLBACK_UNITS])
+
+
 def _recompute_price_label(u: dict) -> None:
-    u["gia"] = f"{u['gia_tri']:.1f} tỷ"
+    """Cập nhật nhãn `gia`: min-max nếu có gia_min/gia_max, ngược lại theo gia_tri."""
+    gmin = u.get("gia_min") or 0
+    gmax = u.get("gia_max") or 0
+    if gmin and gmax:
+        def _ty(v: int) -> str:
+            return f"{v / 1_000_000_000:.2f}".rstrip("0").rstrip(".")
+
+        u["gia"] = f"{_ty(gmin)} tỷ" if gmin == gmax else f"{_ty(gmin)} - {_ty(gmax)} tỷ"
+    elif u.get("gia_tri"):
+        u["gia"] = f"{u['gia_tri']:.1f} tỷ"
+    else:
+        u["gia"] = "Liên hệ"
 
 
 def admin_update_unit(unit_id: str, changes: dict) -> Optional[dict]:
-    """Cập nhật 1 căn. Cho phép đổi giá/trạng thái/diện tích/vị trí/phân khu/loại."""
-    u = get_unit(unit_id)
+    """Cập nhật 1 căn. Cho phép đổi giá (gia_tri / gia_min / gia_max), trạng
+    thái, diện tích, vị trí, phân khu, loại. Manual override dữ liệu sheet."""
+    _ensure_seeded()
+    u = inventory_store.get_by_id(unit_id)
     if not u:
         return None
+    patch: dict = {}
     if "trang_thai" in changes and changes["trang_thai"]:
         if changes["trang_thai"] not in _ALLOWED_STATUS:
             raise ValueError(f"Trạng thái không hợp lệ: {changes['trang_thai']}")
-        u["trang_thai"] = changes["trang_thai"]
+        patch["trang_thai"] = changes["trang_thai"]
+    for fld in ("gia_min", "gia_max"):
+        if changes.get(fld) is not None:
+            patch[fld] = int(round(float(changes[fld])))
     if changes.get("gia_tri") is not None:
-        u["gia_tri"] = round(float(changes["gia_tri"]), 2)
-        _recompute_price_label(u)
-    for fld in ("phan_khu", "loai"):
-        if changes.get(fld):
-            u[fld] = changes[fld]
+        patch["gia_tri"] = round(float(changes["gia_tri"]), 2)
+    for fld in ("phan_khu", "loai", "huong", "view", "notes"):
+        if changes.get(fld) is not None:
+            patch[fld] = changes[fld]
     for fld in ("dien_tich", "mat_tien"):
         if changes.get(fld) is not None:
-            u[fld] = float(changes[fld])
+            patch[fld] = float(changes[fld])
     if changes.get("position") and isinstance(changes["position"], dict):
-        u["position"] = {
-            "x": round(float(changes["position"].get("x", u["position"]["x"])), 1),
-            "y": round(float(changes["position"].get("y", u["position"]["y"])), 1),
+        cur = u.get("position") or {"x": _MAP_W / 2, "y": _MAP_H / 2}
+        patch["position"] = {
+            "x": round(float(changes["position"].get("x", cur["x"])), 1),
+            "y": round(float(changes["position"].get("y", cur["y"])), 1),
         }
-    return u
+    merged = {**u, **patch}
+    _recompute_price_label(merged)
+    patch["gia"] = merged["gia"]
+    return inventory_store.update(unit_id, patch)
 
 
 def admin_create_unit(data: dict) -> dict:
     """Tạo căn mới. id phải duy nhất; tự sinh giá-label."""
+    _ensure_seeded()
     unit_id = (data.get("id") or "").strip()
     if not unit_id:
         raise ValueError("Thiếu mã căn (id)")
-    if get_unit(unit_id):
+    if inventory_store.get_by_id(unit_id, include_deleted=True):
         raise ValueError(f"Mã căn đã tồn tại: {unit_id}")
     status = data.get("trang_thai") or "Còn hàng"
     if status not in _ALLOWED_STATUS:
         raise ValueError(f"Trạng thái không hợp lệ: {status}")
+    gia_min = int(round(float(data.get("gia_min") or 0)))
+    gia_max = int(round(float(data.get("gia_max") or 0)))
     gia_tri = round(float(data.get("gia_tri") or 0), 2)
     unit = {
         "id": unit_id,
@@ -155,20 +196,22 @@ def admin_create_unit(data: dict) -> dict:
         "mat_tien": float(data.get("mat_tien") or 0),
         "trang_thai": status,
         "gia_tri": gia_tri,
-        "gia": f"{gia_tri:.1f} tỷ",
+        "gia_min": gia_min,
+        "gia_max": gia_max,
+        "huong": data.get("huong") or "",
+        "view": data.get("view") or "",
+        "notes": data.get("notes") or "",
+        "source": "manual",
         "position": data.get("position") or {"x": _MAP_W / 2, "y": _MAP_H / 2},
     }
-    _UNITS.append(unit)
-    return unit
+    _recompute_price_label(unit)
+    return inventory_store.create(unit)
 
 
 def admin_delete_unit(unit_id: str) -> bool:
-    """Xoá căn khỏi quỹ (in-memory). Trả về True nếu xoá được."""
-    for i, u in enumerate(_UNITS):
-        if u["id"] == unit_id:
-            del _UNITS[i]
-            return True
-    return False
+    """Soft-delete căn khỏi quỹ (giữ trong file, set deleted=True)."""
+    _ensure_seeded()
+    return inventory_store.delete_soft(unit_id)
 
 
 @router.get("/{slug}/units")
@@ -180,7 +223,7 @@ def list_units(
     """Danh sách căn của dự án, có lọc theo ?phankhu= và ?status=."""
     if slug != SLUG:
         raise HTTPException(status_code=404, detail="Dự án không tồn tại")
-    rows = _UNITS
+    rows = get_units()
     if phankhu and phankhu not in ("", "Tất cả"):
         rows = [u for u in rows if u["phan_khu"] == phankhu]
     if status and status not in ("", "Tất cả"):
@@ -193,10 +236,11 @@ def get_stats(slug: str) -> dict:
     """Thống kê quỹ căn: tổng / còn hàng / đã bán / đặt cọc."""
     if slug != SLUG:
         raise HTTPException(status_code=404, detail="Dự án không tồn tại")
-    total = len(_UNITS)
-    available = sum(1 for u in _UNITS if u["trang_thai"] == "Còn hàng")
-    sold = sum(1 for u in _UNITS if u["trang_thai"] == "Đã bán")
-    reserved = sum(1 for u in _UNITS if u["trang_thai"] == "Đặt cọc")
+    rows = get_units()
+    total = len(rows)
+    available = sum(1 for u in rows if u["trang_thai"] == "Còn hàng")
+    sold = sum(1 for u in rows if u["trang_thai"] == "Đã bán")
+    reserved = sum(1 for u in rows if u["trang_thai"] == "Đặt cọc")
     return {
         "total": total,
         "available": available,

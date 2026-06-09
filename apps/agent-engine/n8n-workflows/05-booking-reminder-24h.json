@@ -1,0 +1,170 @@
+{
+  "name": "🔔 Booking Reminder 24h",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔔 Booking Reminder 24h\n\nChạy mỗi giờ, check booking sắp đến trong 24h.\n\n**Cần:** `ELC_API_URL`, SMTP, Telegram credential.\n\n**Endpoint:** `GET /admin/bookings/upcoming-24h`",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/bookings/upcoming-24h",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h1",
+      "name": "GET booking 24h",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "bookings",
+        "options": {}
+      },
+      "id": "sp1",
+      "name": "Tách bookings",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $json.lead_email }}",
+        "subject": "=🔔 Nhắc lịch xem căn vào {{ $json.booking_time }}",
+        "emailFormat": "text",
+        "text": "=Xin chào {{ $json.lead_name }},\n\nBạn có lịch xem căn {{ $json.unit_id }} vào {{ $json.booking_time }}.\nĐịa chỉ: 1 Đào Đình Luyện, Long Biên, Hà Nội.\n\nMọi thắc mắc liên hệ sale: {{ $json.sale_phone }}",
+        "options": {}
+      },
+      "id": "em5",
+      "name": "Nhắc khách",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        120
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.sale_telegram_chat_id }}",
+        "text": "=🔔 Bạn có lịch hẹn với *{{ $json.lead_name }}* lúc {{ $json.booking_time }} — căn {{ $json.unit_id }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg5",
+      "name": "Push sale",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        320
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET booking 24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET booking 24h": {
+      "main": [
+        [
+          {
+            "node": "Tách bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách bookings": {
+      "main": [
+        [
+          {
+            "node": "Nhắc khách",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Push sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

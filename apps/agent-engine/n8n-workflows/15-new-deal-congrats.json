@@ -1,0 +1,115 @@
+{
+  "name": "🏆 New Deal Congrats",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🏆 New Deal Congrats\n\nWebhook khi deal closed → broadcast Telegram team + leaderboard update.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-closed-team",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "deal-closed-team"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.SALES_TEAM_TELEGRAM_CHAT_ID }}",
+        "text": "=🏆 *{{ $json.body.sale_name }}* vừa chốt deal *{{ $json.body.deal_amount_vnd }}đ* — căn {{ $json.body.unit_id }}!\n👏 Chúc mừng team!",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg15a",
+      "name": "Telegram team",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/leaderboard/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ sale_id: $('Webhook').item.json.body.sale_id, deal_amount: $('Webhook').item.json.body.deal_amount, period: 'monthly' }) }}"
+      },
+      "id": "h15",
+      "name": "Update leaderboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Telegram team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

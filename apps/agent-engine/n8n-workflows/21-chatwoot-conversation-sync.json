@@ -1,0 +1,130 @@
+{
+  "name": "💬 Chatwoot Conversation Sync",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💬 Chatwoot Conversation Sync\n\nChatwoot webhook khi conversation được tag `hot-lead` → mirror vào FastAPI /leads.\n\n**Setup Chatwoot:** Settings → Integrations → Webhooks → URL = /webhook/chatwoot-hot-lead, event = `conversation_updated`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-hot-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "chatwoot-hot-lead"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ JSON.stringify($json.body.changed_attributes || $json.body.labels || []) }}",
+              "rightValue": "hot-lead",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "singleValue": false
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if21",
+      "name": "Tag = hot-lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').item.json.body.meta.sender.name, phone: $('Webhook').item.json.body.meta.sender.phone_number, email: $('Webhook').item.json.body.meta.sender.email, source: 'chatwoot', external_conversation_id: $('Webhook').item.json.body.id, ai_score: 80, tags: ['hot-lead'] }) }}"
+      },
+      "id": "h21",
+      "name": "POST leads ELC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Tag = hot-lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag = hot-lead?": {
+      "main": [
+        [
+          {
+            "node": "POST leads ELC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

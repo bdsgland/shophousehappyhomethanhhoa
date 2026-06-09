@@ -25,6 +25,7 @@ from app.api.deps import require_admin, require_admin_or_service
 from app.core import (
     audit_store,
     commission_store,
+    inventory_store,
     learning_store,
     settings_store,
     user_store,
@@ -43,9 +44,6 @@ from app.schemas.admin import (
 from app.schemas.user import UserOut, UserUpdate
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-# Hoa hồng ước tính trên giá trị căn đã chốt — dùng cho "doanh thu dự kiến".
-_COMMISSION_RATE = 0.03
 
 
 @router.get("/overview")
@@ -172,14 +170,26 @@ def dashboard_kpi(_admin: dict = Depends(require_admin)) -> dict:
         by_role[r] = by_role.get(r, 0) + 1
 
     # --- Inventory ---
+    # QUAN TRỌNG: khi store chưa sync (rỗng) hệ thống dùng quỹ căn MOCK để map
+    # không trống. Số đó KHÔNG phải dữ liệu thật → tuyệt đối không đưa vào KPI
+    # "đơn đặt cọc" / "doanh thu". Chỉ tính KPI khi đã có inventory THẬT.
+    inventory_is_demo = inventory_store.is_empty()
     units = inventory_module.get_units()
     reserved = sum(1 for u in units if u["trang_thai"] == "Đặt cọc")
     sold = sum(1 for u in units if u["trang_thai"] == "Đã bán")
     available = sum(1 for u in units if u["trang_thai"] == "Còn hàng")
-    booked_value = sum(
-        u["gia_tri"] for u in units if u["trang_thai"] in ("Đặt cọc", "Đã bán")
-    )
-    revenue_projection = round(booked_value * _COMMISSION_RATE, 2)
+
+    commission_rate = settings_store.commission_rate()
+    if inventory_is_demo:
+        # Chưa có quỹ căn thật → KPI cọc/doanh thu = 0 (không bịa từ mock).
+        orders = 0
+        revenue_projection = 0.0
+    else:
+        booked_value = sum(
+            u["gia_tri"] for u in units if u["trang_thai"] in ("Đặt cọc", "Đã bán")
+        )
+        orders = reserved
+        revenue_projection = round(booked_value * commission_rate, 2)
 
     # --- Top sale theo hoa hồng (MVP: chưa có giao dịch thật → để trống) ---
     top_sales: list[dict] = []
@@ -189,13 +199,15 @@ def dashboard_kpi(_admin: dict = Depends(require_admin)) -> dict:
         "lead_total": len(leads),
         "users_total": len(users),
         "users_by_role": by_role,
-        "orders_this_month": reserved,  # đơn đặt cọc đang giữ chỗ
+        "orders_this_month": orders,  # đơn đặt cọc đang giữ chỗ (0 nếu chưa có data thật)
         "revenue_projection_ty": revenue_projection,  # tỷ đồng (hoa hồng ước tính)
+        "commission_rate": commission_rate,  # tỷ lệ thật từ settings (không hardcode)
         "inventory": {
             "total": len(units),
             "available": available,
             "sold": sold,
             "reserved": reserved,
+            "is_demo": inventory_is_demo,  # FE hiển thị badge "Dữ liệu mẫu"
         },
         "lead_trend": lead_trend,
         "top_sales": top_sales,

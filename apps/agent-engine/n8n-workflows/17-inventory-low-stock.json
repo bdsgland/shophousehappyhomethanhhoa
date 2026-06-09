@@ -1,0 +1,160 @@
+{
+  "name": "📦 Inventory Low Stock",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📦 Inventory Low Stock\n\nDaily 8h, check available units < 10% → email admin.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/inventory/low",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h17",
+      "name": "GET inventory low",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "larger",
+                "singleValue": false
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if17",
+      "name": "Có inventory thấp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $env.ADMIN_EMAIL }}",
+        "subject": "=📦 Cảnh báo inventory thấp: {{ $json.count }} loại căn còn < 10%",
+        "emailFormat": "text",
+        "text": "=Inventory thấp:\n{{ JSON.stringify($json.units, null, 2) }}\n\nCân nhắc kích hoạt promo / mở rộng block.",
+        "options": {}
+      },
+      "id": "em17",
+      "name": "Email admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        120
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET inventory low",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET inventory low": {
+      "main": [
+        [
+          {
+            "node": "Có inventory thấp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Có inventory thấp?": {
+      "main": [
+        [
+          {
+            "node": "Email admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

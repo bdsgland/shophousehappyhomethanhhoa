@@ -1,0 +1,210 @@
+{
+  "name": "🎨 Auto-publish Facebook Post",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎨 Auto-publish Facebook Post\n\nDaily 9h: AI generate post BĐS (thông tin căn / giá / view / tiện ích) → publish lên Page ELC qua Graph API → log Sheets.\n\n**Cần env:** `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `GOOGLE_SHEET_LOG_ID`.",
+        "width": 380,
+        "height": 320
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/units/hot-pick",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h25a",
+      "name": "Random unit hot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 content creator B\\u0110S ELC. Vi\\u1ebft Facebook post ~150 ch\\u1eef v\\u1ec1 1 c\\u0103n c\\u1ee5 th\\u1ec3. Format: d\\u00f2ng 1 hook h\\u1ea5p d\\u1eabn, sau \\u0111\\u00f3 4 d\\u00f2ng (th\\u00f4ng tin c\\u0103n / gi\\u00e1 / view / ti\\u1ec7n \\u00edch), k\\u1ebft th\\u00fac CTA inbox \\u0111\\u1ec3 xem. C\\u00f3 5-7 emoji & 3-5 hashtag #BatDongSan #LightCity #Hanoi.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl25",
+      "name": "Claude — viết post FB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v19.0/{{ $env.FB_PAGE_ID }}/feed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.content[0].text, access_token: $env.FB_PAGE_ACCESS_TOKEN }) }}"
+      },
+      "id": "h25b",
+      "name": "Publish FB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/posts/log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ platform: 'facebook', content: $('Claude — viết post FB').item.json.content[0].text, fb_post_id: $json.id, unit_id: $('Random unit hot').item.json.unit_id }) }}"
+      },
+      "id": "h25c",
+      "name": "Log to ELC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "Random unit hot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random unit hot": {
+      "main": [
+        [
+          {
+            "node": "Claude — viết post FB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — viết post FB": {
+      "main": [
+        [
+          {
+            "node": "Publish FB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish FB": {
+      "main": [
+        [
+          {
+            "node": "Log to ELC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

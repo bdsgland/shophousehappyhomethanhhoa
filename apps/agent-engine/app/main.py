@@ -23,18 +23,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api import (
     admin,
+    admin_commission,
     admin_conversations,
+    admin_drive_sync,
+    admin_inventory,
     automation,
     auth,
     bookings,
     chat,
     client,
+    crm,
     health,
     inventory,
     leads,
     learning,
+    match,
     me,
+    n8n_stubs,
+    openclaw_bridge,
     webhook,
+    ws_match,
+    ws_presence,
 )
 from app.core.settings import settings
 
@@ -87,7 +96,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 — không để seed làm chết app
         print(f"[SEED] Error: {type(e).__name__}: {e}")
         traceback.print_exc()
+
+    # --- Live Match: dọn presence "ma" (sale mất kết nối không heartbeat) ---
+    import asyncio
+
+    from app.core import presence
+
+    async def _presence_janitor():
+        while True:
+            try:
+                await asyncio.sleep(30)
+                presence.cleanup_stale()
+            except asyncio.CancelledError:  # pragma: no cover
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"[PRESENCE] janitor error: {type(exc).__name__}: {exc}")
+
+    janitor = asyncio.create_task(_presence_janitor())
     yield
+    janitor.cancel()
 
 
 app = FastAPI(
@@ -109,6 +136,49 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def openclaw_audit_middleware(request, call_next):
+    """Audit MỌI request đến /openclaw/* (tag OPENCLAW_GOD_MODE).
+
+    Ghi method/path/status/thời gian + body (đã mask password/token) + query.
+    Không bao giờ làm hỏng request nếu audit lỗi (best-effort).
+    """
+    if not request.url.path.startswith("/openclaw"):
+        return await call_next(request)
+
+    import time
+
+    from app.api.openclaw_bridge import parse_and_mask_body
+    from app.core import audit_store
+
+    start = time.perf_counter()
+    body_bytes = await request.body()
+
+    # Cho phép downstream đọc lại body (middleware đã "tiêu thụ" stream).
+    async def _receive():
+        return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+    request._receive = _receive
+
+    response = await call_next(request)
+    duration_ms = int((time.perf_counter() - start) * 1000)
+    try:
+        masked = parse_and_mask_body(
+            body_bytes, request.headers.get("content-type", "")
+        )
+        audit_store.record_openclaw(
+            request.method,
+            request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+            body=masked,
+            query=dict(request.query_params),
+        )
+    except Exception:  # noqa: BLE001 — audit không được làm hỏng response
+        pass
+    return response
+
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(me.router)
@@ -117,11 +187,23 @@ app.include_router(chat.router)
 app.include_router(leads.router)
 app.include_router(inventory.router)
 app.include_router(admin.router)
+app.include_router(admin_inventory.router)
+app.include_router(admin_commission.router)
+app.include_router(admin_commission.sale_router)
+app.include_router(n8n_stubs.router)
 app.include_router(admin_conversations.router)
+app.include_router(admin_drive_sync.router)
 app.include_router(learning.router)
 app.include_router(automation.router)
 app.include_router(bookings.router)
 app.include_router(bookings.me_router)
+app.include_router(crm.sale_router)
+app.include_router(crm.admin_router)
+app.include_router(crm.internal_router)
+app.include_router(match.router)
+app.include_router(ws_presence.router)
+app.include_router(ws_match.router)
+app.include_router(openclaw_bridge.router)
 app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
 
 

@@ -1,0 +1,192 @@
+{
+  "name": "🎬 TikTok Caption Generator",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎬 TikTok Caption Generator\n\n3x/tuần (Mon/Wed/Fri 10h): AI generate hook + caption + hashtag → push qua webhook để team upload manual.\n\n**Output:** Telegram team & log sheet.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1,3,5"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/units/hot-pick",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h27a",
+      "name": "Pick unit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft script TikTok B\\u0110S 15-20s cho ELC. Output JSON: {hook: '...', caption: '...', hashtags: ['#bds', '#hanoi', ...], cta: '...'}. Gi\\u1ecdng tr\\u1ebb trung Gen Z.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl27",
+      "name": "Claude — TikTok script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const t = $json.content?.[0]?.text || '{}'; try { const m=t.match(/\\{[\\s\\S]*\\}/); return [{ json: JSON.parse(m?m[0]:t) }]; } catch(e){ return [{ json: { raw: t } }]; }"
+      },
+      "id": "cd27",
+      "name": "Parse output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MARKETING_TEAM_TELEGRAM_CHAT_ID }}",
+        "text": "=🎬 *TikTok script hôm nay*\n\n*Hook:* {{ $json.hook }}\n*Caption:* {{ $json.caption }}\n*Hashtags:* {{ ($json.hashtags || []).join(' ') }}\n*CTA:* {{ $json.cta }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg27",
+      "name": "Telegram team",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "Pick unit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick unit": {
+      "main": [
+        [
+          {
+            "node": "Claude — TikTok script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — TikTok script": {
+      "main": [
+        [
+          {
+            "node": "Parse output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse output": {
+      "main": [
+        [
+          {
+            "node": "Telegram team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

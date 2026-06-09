@@ -317,3 +317,106 @@ export function Sparkles(p: IconProps) {
     </svg>
   );
 }
+
+export function Search(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+export function Upload(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 9l5-5 5 5" />
+      <path d="M12 4v12" />
+    </svg>
+  );
+}
+
+export function Trash2(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
+export function X(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+export function Phone(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z" />
+    </svg>
+  );
+}
+
+export function Target(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.5" />
+    </svg>
+  );
+}
+
+export function Trophy(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M6 4h12v4a6 6 0 0 1-12 0V4Z" />
+      <path d="M6 6H3v1a4 4 0 0 0 4 4M18 6h3v1a4 4 0 0 1-4 4" />
+      <path d="M10 14v3M14 14v3M8 21h8M9 21v-1.5a3 3 0 0 1 6 0V21" />
+    </svg>
+  );
+}
+
+export function Flame(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 2c1 3-2 4-2 7a2 2 0 0 0 4 0c0-1 0-1 0-1 2 1.5 3 3.8 3 6a5 5 0 0 1-10 0c0-3.5 2.5-5 3-8 .4-1.8.8-3 2-4Z" />
+    </svg>
+  );
+}
+
+export function ClipboardList(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="8" y="3" width="8" height="4" rx="1" />
+      <path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
+      <path d="M8 11h8M8 15h6" />
+    </svg>
+  );
+}
+
+export function Video(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="m22 8-6 4 6 4V8Z" />
+    </svg>
+  );
+}
+
+export function Radio(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="2" />
+      <path d="M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" />
+      <path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4" />
+    </svg>
+  );
+}

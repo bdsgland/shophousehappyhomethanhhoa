@@ -32,6 +32,11 @@ _DEFAULTS: dict[str, Any] = {
         "notify_sale_on_assignment": True,
         "daily_briefing": True,
     },
+    "commission": {
+        # Tỷ lệ hoa hồng ước tính trên giá trị căn đã chốt — dùng cho "doanh thu
+        # dự kiến" ở dashboard. Admin chỉnh được, KHÔNG hardcode trong code.
+        "default_rate": 0.03,
+    },
 }
 
 
@@ -81,6 +86,18 @@ def _save(data: dict) -> None:
 def get_settings() -> dict:
     with _LOCK:
         return _load()
+
+
+def commission_rate() -> float:
+    """Tỷ lệ hoa hồng hiện hành (0 < rate < 1). Đọc từ cấu hình admin, fallback
+    0.03 nếu thiếu/sai. Dùng chung cho dashboard KPI và n8n KPI (không hardcode)."""
+    with _LOCK:
+        cfg = _load().get("commission") or {}
+    try:
+        rate = float(cfg.get("default_rate", 0.03))
+    except (TypeError, ValueError):
+        return 0.03
+    return rate if 0 < rate < 1 else 0.03
 
 
 def update_settings(patch: dict) -> dict:

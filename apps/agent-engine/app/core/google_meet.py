@@ -1,0 +1,145 @@
+"""Tạo Google Meet qua Calendar API — dùng cho Live Match.
+
+Khác với app/core/google_oauth.py (Sign-in, chỉ scope openid/email/profile),
+module này dùng 1 **refresh token của tài khoản Workspace** (lấy 1 lần, scope
+`calendar.events`) để tạo sự kiện lịch kèm Meet link.
+
+Lấy refresh token: chạy scripts/get_google_refresh_token.py (in ra refresh
+token), rồi đặt env GOOGLE_WORKSPACE_REFRESH_TOKEN trên Railway. KHÔNG commit.
+
+Nếu chưa cấu hình → create_meet_event raise RuntimeError; tầng match_service bắt
+lỗi và fallback "sale sẽ gọi điện" thay vì hard-code link.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import httpx
+
+from app.core.settings import settings
+
+_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+_CALENDAR_EVENTS_ENDPOINT = (
+    "https://www.googleapis.com/calendar/v3/calendars/{calendar}/events"
+)
+
+
+def is_configured() -> bool:
+    """True khi đủ client id/secret + refresh token để gọi Calendar API."""
+    return bool(
+        settings.google_oauth_client_id
+        and settings.google_oauth_client_secret
+        and settings.google_workspace_refresh_token
+    )
+
+
+async def get_workspace_access_token() -> str:
+    """Đổi refresh token Workspace lấy access token mới (sống ~1h).
+
+    Raise RuntimeError nếu chưa cấu hình hoặc Google trả lỗi.
+    """
+    if not is_configured():
+        raise RuntimeError(
+            "Chưa cấu hình Google Workspace (thiếu GOOGLE_WORKSPACE_REFRESH_TOKEN "
+            "hoặc client id/secret) — không tạo được Google Meet."
+        )
+    async with httpx.AsyncClient(timeout=15.0) as http:
+        res = await http.post(
+            _TOKEN_ENDPOINT,
+            data={
+                "client_id": settings.google_oauth_client_id,
+                "client_secret": settings.google_oauth_client_secret,
+                "refresh_token": settings.google_workspace_refresh_token,
+                "grant_type": "refresh_token",
+            },
+            headers={"Accept": "application/json"},
+        )
+    if res.status_code != 200:
+        raise RuntimeError(
+            f"Google token (refresh) lỗi {res.status_code}: {res.text}"
+        )
+    token = res.json().get("access_token")
+    if not token:
+        raise RuntimeError("Google không trả access_token cho refresh token Workspace")
+    return token
+
+
+async def create_meet_event(
+    *,
+    customer_email: str,
+    sale_email: str,
+    summary: str = "ELC — Tư vấn trực tuyến",
+    duration_minutes: int = 30,
+) -> dict[str, Any]:
+    """Tạo Calendar event có Google Meet link.
+
+    Trả: {meet_link, event_id, start, end}. Raise RuntimeError nếu thất bại.
+    """
+    access_token = await get_workspace_access_token()
+
+    now = datetime.now(tz=timezone.utc)
+    end = now + timedelta(minutes=duration_minutes)
+    request_id = str(uuid.uuid4())
+
+    attendees = []
+    for email in (customer_email, sale_email):
+        if email and "@" in email:
+            attendees.append({"email": email})
+
+    event_body = {
+        "summary": summary,
+        "description": (
+            "Cuộc tư vấn trực tuyến tự động ghép qua hệ thống Live Match của "
+            "Eurowindow Light City."
+        ),
+        "start": {"dateTime": now.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
+        "attendees": attendees,
+        "conferenceData": {
+            "createRequest": {
+                "requestId": request_id,
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        },
+    }
+
+    url = _CALENDAR_EVENTS_ENDPOINT.format(
+        calendar=settings.google_workspace_calendar_email or "primary"
+    )
+    async with httpx.AsyncClient(timeout=20.0) as http:
+        res = await http.post(
+            url,
+            params={"conferenceDataVersion": 1, "sendUpdates": "all"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json=event_body,
+        )
+    if res.status_code not in (200, 201):
+        raise RuntimeError(f"Google Calendar tạo sự kiện lỗi {res.status_code}: {res.text}")
+
+    event = res.json()
+    meet_link = _extract_meet_link(event)
+    if not meet_link:
+        raise RuntimeError("Sự kiện tạo xong nhưng không có Meet link (entryPoints rỗng)")
+    return {
+        "meet_link": meet_link,
+        "event_id": event.get("id"),
+        "start": (event.get("start") or {}).get("dateTime"),
+        "end": (event.get("end") or {}).get("dateTime"),
+    }
+
+
+def _extract_meet_link(event: dict) -> str | None:
+    """Lấy URI video từ conferenceData.entryPoints (ưu tiên type=video)."""
+    conf = event.get("conferenceData") or {}
+    entry_points = conf.get("entryPoints") or []
+    for ep in entry_points:
+        if ep.get("entryPointType") == "video" and ep.get("uri"):
+            return ep["uri"]
+    # Fallback: hangoutLink (trường cũ) nếu có.
+    return event.get("hangoutLink")

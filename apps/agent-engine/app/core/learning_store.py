@@ -21,6 +21,7 @@ nội bộ (vài trăm chunk).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -273,6 +274,21 @@ def file_abspath(doc: dict) -> Path:
     return _base_dir() / doc["file_path"]
 
 
+def _content_hash(content: bytes) -> str:
+    """Hash ngắn (16 hex) để phát hiện file trùng nội dung khi sync."""
+    return hashlib.sha256(content).hexdigest()[:16]
+
+
+def exists_by_hash(content_hash: str) -> bool:
+    """True nếu đã có tài liệu cùng content hash (dùng skip duplicate khi sync)."""
+    if not content_hash:
+        return False
+    with _LOCK:
+        return any(
+            d.get("content_hash") == content_hash for d in _load_meta()["documents"]
+        )
+
+
 def add_document(
     *,
     content: bytes,
@@ -280,13 +296,24 @@ def add_document(
     title: str,
     category: str,
     uploaded_by: Optional[str] = None,
+    source: str = "upload",
+    source_metadata: Optional[dict] = None,
+    content_hash: Optional[str] = None,
+    reindex: bool = True,
 ) -> dict:
-    """Lưu file, ghi metadata, build lại index BM25. Trả về metadata tài liệu."""
+    """Lưu file, ghi metadata, (tuỳ chọn) build lại index BM25.
+
+    - source: "upload" (admin tải tay) hoặc "google_drive" (sync) — để UI lọc nguồn.
+    - source_metadata: thông tin nguồn (vd {drive_file_id, modified}).
+    - content_hash: nếu None sẽ tự tính; lưu kèm để skip trùng lần sau.
+    - reindex: False khi sync hàng loạt (gọi reindex_all() 1 lần ở cuối cho nhanh).
+    """
     ext = Path(original_name).suffix.lower()
     if ext not in extract.SUPPORTED_EXTS:
         raise ValueError(f"Định dạng không hỗ trợ: {ext or '(không rõ)'}")
     doc_id = str(uuid.uuid4())
     rel_path = f"files/{doc_id}{ext}"
+    chash = content_hash or _content_hash(content)
     with _LOCK:
         base = _ensure_dirs()
         (base / rel_path).write_bytes(content)
@@ -304,11 +331,15 @@ def add_document(
             "indexed": False,
             "indexed_at": None,
             "uploaded_by": uploaded_by,
+            "source": source,
+            "source_metadata": source_metadata or {},
+            "content_hash": chash,
             "created_at": _now_iso(),
         }
         data["documents"].append(doc)
-        # Re-index toàn bộ (cập nhật chunks/indexed/indexed_at in-place).
-        _rebuild_index(data["documents"])
+        if reindex:
+            # Re-index toàn bộ (cập nhật chunks/indexed/indexed_at in-place).
+            _rebuild_index(data["documents"])
         _save_meta(data)
     return doc
 

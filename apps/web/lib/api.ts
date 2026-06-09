@@ -356,6 +356,33 @@ export function fetchCommission(token: string): Promise<CommissionData> {
   return requestJson<CommissionData>("/me/commission", { token });
 }
 
+export type FrontlineKPITier = {
+  tier_id: number;
+  name: string;
+  min_monthly_volume: number;
+  max_monthly_volume: number | null;
+  frontline_percentage: number;
+  ekip_bonus_percentage: number;
+  description_vi: string;
+};
+
+export type MyCommissionTier = {
+  current_tier: FrontlineKPITier;
+  monthly_volume_so_far: number;
+  next_tier: FrontlineKPITier | null;
+  progress_percentage: number;
+  amount_to_next_tier: number;
+  all_tiers: FrontlineKPITier[];
+  referral_bonus: { enabled: boolean; percentage_of_commission: number };
+};
+
+/** Bậc KPI lũy tiến hiện tại của sale frontline (cấu hình động từ admin). */
+export function fetchMyCommissionTier(token: string): Promise<MyCommissionTier> {
+  return requestJson<MyCommissionTier>("/sale/commission/me/current-tier", {
+    token,
+  });
+}
+
 export function fetchReferrals(token: string): Promise<ReferralsData> {
   return requestJson<ReferralsData>("/me/referrals", { token });
 }

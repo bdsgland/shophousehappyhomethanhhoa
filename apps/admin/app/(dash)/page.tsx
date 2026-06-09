@@ -112,7 +112,13 @@ export default function DashboardPage() {
           label="Doanh thu dự kiến"
           value={formatTy(kpi?.revenue_projection_ty ?? 0)}
           icon={Banknote}
-          hint="Hoa hồng ước tính (3%)"
+          hint={
+            kpi?.commission_rate
+              ? `Hoa hồng ước tính (${(kpi.commission_rate * 100)
+                  .toFixed(1)
+                  .replace(/\.0$/, "")}%)`
+              : "Hoa hồng ước tính"
+          }
           accent="primary"
           loading={loading}
         />
@@ -139,14 +145,21 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Cơ cấu quỹ căn</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle>Cơ cấu quỹ căn</CardTitle>
+                {kpi?.inventory.is_demo && (
+                  <Badge variant="warning">Dữ liệu mẫu</Badge>
+                )}
+              </div>
               <CardDescription>
                 {kpi
-                  ? `${formatNumber(kpi.inventory.total)} căn — còn ${formatNumber(
-                      kpi.inventory.available,
-                    )}, cọc ${formatNumber(kpi.inventory.reserved)}, đã bán ${formatNumber(
-                      kpi.inventory.sold,
-                    )}`
+                  ? kpi.inventory.is_demo
+                    ? "Chưa đồng bộ quỹ căn thật từ Google Sheets — đang hiển thị dữ liệu mẫu."
+                    : `${formatNumber(kpi.inventory.total)} căn — còn ${formatNumber(
+                        kpi.inventory.available,
+                      )}, cọc ${formatNumber(kpi.inventory.reserved)}, đã bán ${formatNumber(
+                        kpi.inventory.sold,
+                      )}`
                   : "Đang tải…"}
               </CardDescription>
             </CardHeader>

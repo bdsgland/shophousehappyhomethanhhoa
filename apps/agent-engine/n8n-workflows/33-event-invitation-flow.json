@@ -1,0 +1,173 @@
+{
+  "name": "🎪 Event Invitation Flow",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎪 Event Invitation Flow\n\nWebhook khi admin tạo event mở bán → query khách phù hợp → email + SMS → track RSVP.\n\n**Payload:** `{ event_id, event_date, event_name, target_budget_min, target_budget_max }`",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "event-create",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "event-create"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/audience/match",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ budget_min: $('Webhook').item.json.body.target_budget_min, budget_max: $('Webhook').item.json.body.target_budget_max, has_favorites: true }) }}"
+      },
+      "id": "h33a",
+      "name": "GET matched audience",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "users",
+        "options": {}
+      },
+      "id": "sp33",
+      "name": "Tách users",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=🎪 Mời tham dự sự kiện mở bán {{ $('Webhook').item.json.body.event_name }} ngày {{ $('Webhook').item.json.body.event_date }}",
+        "emailFormat": "text",
+        "text": "=Xin chào {{ $json.full_name }},\n\nELC trân trọng mời bạn dự sự kiện mở bán '{{ $('Webhook').item.json.body.event_name }}' lúc {{ $('Webhook').item.json.body.event_date }}.\n\nXác nhận tham dự: https://eurowindowlightcity.net/rsvp?event={{ $('Webhook').item.json.body.event_id }}&user={{ $json.user_id }}",
+        "options": {}
+      },
+      "id": "em33",
+      "name": "Mời event",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        120
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/events/{{ $('Webhook').item.json.body.event_id }}/invites",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, channel: 'email' }) }}"
+      },
+      "id": "h33b",
+      "name": "Log invite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        320
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "GET matched audience",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET matched audience": {
+      "main": [
+        [
+          {
+            "node": "Tách users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách users": {
+      "main": [
+        [
+          {
+            "node": "Mời event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

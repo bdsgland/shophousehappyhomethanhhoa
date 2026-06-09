@@ -8,6 +8,7 @@ import { deleteUnit, listInventory } from "@/lib/api";
 import type { InventoryUnit } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { InventoryMap } from "@/components/inventory/InventoryMap";
+import { InventorySyncCard } from "@/components/inventory/InventorySyncCard";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import {
   LOAI_OPTIONS,
@@ -50,6 +51,24 @@ export default function InventoryPage() {
     queryKey: ["admin-inventory", filters],
     queryFn: () => listInventory(filters),
   });
+
+  // Danh sách KHÔNG lọc — dùng dựng option bộ lọc (phân khu/loại theo data thật).
+  const { data: allData } = useQuery({
+    queryKey: ["admin-inventory", "all"],
+    queryFn: () => listInventory(),
+  });
+
+  const phanKhuOptions = useMemo(() => {
+    const set = new Set<string>(PHAN_KHU_OPTIONS);
+    for (const u of allData?.units ?? []) if (u.phan_khu) set.add(u.phan_khu);
+    return Array.from(set);
+  }, [allData]);
+
+  const loaiOptions = useMemo(() => {
+    const set = new Set<string>(LOAI_OPTIONS);
+    for (const u of allData?.units ?? []) if (u.loai) set.add(u.loai);
+    return Array.from(set);
+  }, [allData]);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["admin-inventory"] });
@@ -112,6 +131,8 @@ export default function InventoryPage() {
         }
       />
 
+      <InventorySyncCard onSynced={() => refetch()} />
+
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Tổng" value={stats.total} />
         <StatCard label="Còn hàng" value={stats.conHang} accent="success" />
@@ -129,7 +150,7 @@ export default function InventoryPage() {
             }
           >
             <option value="">Tất cả</option>
-            {PHAN_KHU_OPTIONS.map((pk) => (
+            {phanKhuOptions.map((pk) => (
               <option key={pk} value={pk}>
                 {pk}
               </option>
@@ -145,7 +166,7 @@ export default function InventoryPage() {
             }
           >
             <option value="">Tất cả</option>
-            {LOAI_OPTIONS.map((l) => (
+            {loaiOptions.map((l) => (
               <option key={l} value={l}>
                 {l}
               </option>

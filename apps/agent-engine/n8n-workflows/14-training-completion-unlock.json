@@ -1,0 +1,121 @@
+{
+  "name": "🎓 Training Completion Unlock",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎓 Training Completion Unlock\n\nWebhook khi sale hoàn thành training → POST API upgrade commission tier.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "training-complete",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "training-complete"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/sales/{{ $json.body.sale_id }}/upgrade-tier",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ new_tier: $('Webhook').item.json.body.target_tier, reason: 'training_completed', training_id: $('Webhook').item.json.body.training_id }) }}"
+      },
+      "id": "h14",
+      "name": "Upgrade tier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Webhook').item.json.body.sale_telegram_chat_id }}",
+        "text": "=🎓 Chúc mừng! Bạn đã hoàn thành training và được nâng commission tier lên *{{ $('Webhook').item.json.body.target_tier }}*.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg14",
+      "name": "Telegram sale",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Upgrade tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upgrade tier": {
+      "main": [
+        [
+          {
+            "node": "Telegram sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

@@ -1,0 +1,238 @@
+{
+  "name": "📝 Blog SEO Auto",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📝 Blog SEO Auto\n\nMon 6h sáng. Research keyword Hà Nội BĐS → AI write blog 1000 chữ → POST WordPress → trigger Vercel rebuild.\n\n**Env:** `WP_URL`, `WP_API_TOKEN`, `VERCEL_DEPLOY_HOOK`.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Lịch chạy",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ELC_API_URL }}/admin/marketing/keywords/pool",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h28a",
+      "name": "GET keyword pool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft blog SEO 1000 ch\\u1eef ti\\u1ebfng Vi\\u1ec7t cho ELC H\\u00e0 N\\u1ed9i. Theo keyword cho tr\\u01b0\\u1edbc. C\\u00f3 H2/H3, internal link \\u0111\\u1ebfn /can-ho /tien-ich, CTA cu\\u1ed1i. Output JSON: {title, slug, content_md, meta_description, tags}.\", messages: [ { role: 'user', content: 'Keyword chính: ' + ($json.primary || '') + '. Phụ: ' + JSON.stringify($json.secondary || []) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl28",
+      "name": "Claude — write blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const t=$json.content?.[0]?.text||'{}'; try{const m=t.match(/\\{[\\s\\S]*\\}/); return [{json:JSON.parse(m?m[0]:t)}];}catch(e){return [{json:{raw:t}}];}"
+      },
+      "id": "cd28",
+      "name": "Parse blog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WP_URL }}/wp-json/wp/v2/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.WP_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $json.title, slug: $json.slug, content: $json.content_md, status: 'publish', excerpt: $json.meta_description }) }}"
+      },
+      "id": "h28b",
+      "name": "POST WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.VERCEL_DEPLOY_HOOK }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ref: 'main' }) }}"
+      },
+      "id": "h28c",
+      "name": "Trigger Vercel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Lịch chạy": {
+      "main": [
+        [
+          {
+            "node": "GET keyword pool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET keyword pool": {
+      "main": [
+        [
+          {
+            "node": "Claude — write blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — write blog": {
+      "main": [
+        [
+          {
+            "node": "Parse blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse blog": {
+      "main": [
+        [
+          {
+            "node": "POST WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST WordPress": {
+      "main": [
+        [
+          {
+            "node": "Trigger Vercel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

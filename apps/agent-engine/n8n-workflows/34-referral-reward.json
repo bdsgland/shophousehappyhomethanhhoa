@@ -1,0 +1,192 @@
+{
+  "name": "🎁 Referral Reward",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🎁 Referral Reward\n\nWebhook khi sale có downline đầu tiên đăng ký → AI congrats + bonus commission.\n\n**Payload:** `{ sponsor_sale_id, downline_sale_id, downline_name }`",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "referral-first",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "referral-first"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/sales/{{ $('Webhook').item.json.body.sponsor_sale_id }}/bonus",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ amount: 2000000, reason: 'first_referral', downline_id: $('Webhook').item.json.body.downline_sale_id }) }}"
+      },
+      "id": "h34a",
+      "name": "Add bonus commission",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft l\\u1eddi ch\\u00fac m\\u1eebng ng\\u1eafn 60 ch\\u1eef cho sale ELC khi h\\u1ecd c\\u00f3 downline \\u0111\\u1ea7u ti\\u00ean. Th\\u00e2n thi\\u1ec7n, c\\u00f3 emoji.\", messages: [ { role: 'user', content: 'Sponsor: ' + $('Webhook').item.json.body.sponsor_name + ', downline: ' + $('Webhook').item.json.body.downline_name } ] }) }}",
+        "options": {}
+      },
+      "id": "cl34",
+      "name": "Claude — gen congrats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Webhook').item.json.body.sponsor_telegram_chat_id }}",
+        "text": "=🎁 {{ $json.content[0].text }}\n\nBonus 2.000.000đ đã cộng vào commission.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg34",
+      "name": "Telegram sponsor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "ELC Sale Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.sponsor_email }}",
+        "subject": "=🎁 Chúc mừng có downline đầu tiên + bonus 2M",
+        "emailFormat": "text",
+        "text": "={{ $json.content[0].text }}\n\nBonus 2.000.000đ đã cộng vào commission tháng này.",
+        "options": {}
+      },
+      "id": "em34",
+      "name": "Email sponsor",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        320
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Add bonus commission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add bonus commission": {
+      "main": [
+        [
+          {
+            "node": "Claude — gen congrats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — gen congrats": {
+      "main": [
+        [
+          {
+            "node": "Telegram sponsor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email sponsor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

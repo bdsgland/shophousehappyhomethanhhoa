@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { Award, DollarSign, TrendingUp, Users } from "@/components/dashboard/icons";
-import { fetchCommission, type CommissionData } from "@/lib/api";
-import { readToken } from "@/lib/auth";
+import {
+  fetchCommission,
+  fetchMyCommissionTier,
+  type CommissionData,
+  type MyCommissionTier,
+} from "@/lib/api";
+import { readToken, readUserFromCookie } from "@/lib/auth";
 
 function vnd(n: number): string {
   if (!n) return "0 ₫";
@@ -42,6 +47,7 @@ const LUY_TIEN_ROWS = [
 
 export default function CommissionPage() {
   const [data, setData] = useState<CommissionData | null>(null);
+  const [tier, setTier] = useState<MyCommissionTier | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +62,14 @@ export default function CommissionPage() {
       .then(setData)
       .catch((e) => setError(e.message ?? "Không tải được dữ liệu"))
       .finally(() => setLoading(false));
+
+    // Bậc KPI lũy tiến (cấu hình động từ admin) — chỉ sale/admin mới gọi được.
+    const user = readUserFromCookie();
+    if (user && (user.role === "sale" || user.role === "admin")) {
+      fetchMyCommissionTier(token)
+        .then(setTier)
+        .catch(() => setTier(null));
+    }
   }, []);
 
   if (loading) {
@@ -106,6 +120,56 @@ export default function CommissionPage() {
           Theo dõi thu nhập, bậc hoa hồng lũy tiến và cơ chế chia hoa hồng đa tầng.
         </p>
       </header>
+
+      {/* Bậc KPI hiện tại (cấu hình động từ admin) */}
+      {tier && (
+        <section className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-6 shadow-sm">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-emerald-800">
+            Bậc KPI hiện tại của bạn
+          </h2>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-2xl font-extrabold text-brand-900">
+                {tier.current_tier.name}
+              </h3>
+              <p className="text-sm text-brand-700">
+                Doanh số tháng: <b>{vnd(tier.monthly_volume_so_far)}</b>
+              </p>
+              <p className="mt-1 text-3xl font-extrabold text-emerald-600">
+                {tier.current_tier.frontline_percentage}% hoa hồng
+              </p>
+              {tier.current_tier.description_vi && (
+                <p className="mt-1 text-xs text-brand-500">
+                  {tier.current_tier.description_vi}
+                </p>
+              )}
+            </div>
+            <div className="w-full sm:max-w-xs">
+              {tier.next_tier ? (
+                <>
+                  <p className="text-sm text-brand-700">
+                    Còn <b>{vnd(tier.amount_to_next_tier)}</b> để lên{" "}
+                    <b>{tier.next_tier.name}</b>
+                  </p>
+                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-amber-100">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-500 transition-all"
+                      style={{ width: `${Math.min(100, Math.max(0, tier.progress_percentage))}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-brand-600">
+                    Lên bậc tiếp = {tier.next_tier.frontline_percentage}% hoa hồng
+                  </p>
+                </>
+              ) : (
+                <p className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">
+                  🏆 Bạn đang ở bậc cao nhất!
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Stats 4 cột */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

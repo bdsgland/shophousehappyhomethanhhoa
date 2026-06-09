@@ -1,0 +1,215 @@
+{
+  "name": "📬 Customer Journey Drip",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📬 Customer Journey Drip\n\nSau register: D7 ping, D14 update dự án, D30 offer.\n\nWait nodes dùng cron resume — giữ workflow active.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "register-drip",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        240
+      ],
+      "webhookId": "register-drip"
+    },
+    {
+      "parameters": {
+        "amount": 7,
+        "unit": "days"
+      },
+      "id": "w7d",
+      "name": "Chờ 7 ngày",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        240
+      ],
+      "webhookId": "wait-7d-drip"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "=👋 {{ $('Webhook').item.json.body.full_name }}, đã 1 tuần — bạn cần hỗ trợ tìm căn không?",
+        "emailFormat": "text",
+        "text": "=Chào {{ $('Webhook').item.json.body.full_name }},\n\nĐã 1 tuần kể từ khi bạn đăng ký. Đội sale ELC luôn sẵn sàng tư vấn căn phù hợp ngân sách. Trả lời email này để bắt đầu.",
+        "options": {}
+      },
+      "id": "em8a",
+      "name": "Email D7 — ping",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        240
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 7,
+        "unit": "days"
+      },
+      "id": "w14d",
+      "name": "Chờ +7 ngày (D14)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        240
+      ],
+      "webhookId": "wait-14d-drip"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "=🏗 Update dự án Eurowindow Light City — block A đã cất nóc",
+        "emailFormat": "text",
+        "text": "=Tin vui từ ELC: block A vừa cất nóc, sẵn sàng bàn giao Q3/2026. Còn 12 căn 2PN giá tốt. Xem ngay: https://eurowindowlightcity.net",
+        "options": {}
+      },
+      "id": "em8b",
+      "name": "Email D14 — update",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1360,
+        240
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 16,
+        "unit": "days"
+      },
+      "id": "w30d",
+      "name": "Chờ +16 ngày (D30)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1600,
+        240
+      ],
+      "webhookId": "wait-30d-drip"
+    },
+    {
+      "parameters": {
+        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "toEmail": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "=🎁 Ưu đãi 30 ngày: tặng gói nội thất 200 triệu",
+        "emailFormat": "text",
+        "text": "=Chỉ trong tháng này: đặt cọc căn ELC để nhận gói nội thất 200 triệu + chiết khấu 2%. Liên hệ sale ngay.",
+        "options": {}
+      },
+      "id": "em8c",
+      "name": "Email D30 — offer",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1840,
+        240
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Chờ 7 ngày",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chờ 7 ngày": {
+      "main": [
+        [
+          {
+            "node": "Email D7 — ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email D7 — ping": {
+      "main": [
+        [
+          {
+            "node": "Chờ +7 ngày (D14)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chờ +7 ngày (D14)": {
+      "main": [
+        [
+          {
+            "node": "Email D14 — update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email D14 — update": {
+      "main": [
+        [
+          {
+            "node": "Chờ +16 ngày (D30)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chờ +16 ngày (D30)": {
+      "main": [
+        [
+          {
+            "node": "Email D30 — offer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

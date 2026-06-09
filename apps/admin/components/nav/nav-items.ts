@@ -1,10 +1,13 @@
 import {
   LayoutDashboard,
   Users,
+  UserSquare2,
   BadgeDollarSign,
   Building2,
   BookOpen,
   MessagesSquare,
+  Medal,
+  Radio,
   Server,
   Settings,
   type LucideIcon,
@@ -19,6 +22,9 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/live", label: "Live Match", icon: Radio },
+  { href: "/customers", label: "Khách hàng", icon: UserSquare2 },
+  { href: "/customers/performance", label: "Hiệu suất Sale", icon: Medal },
   { href: "/users", label: "Người dùng", icon: Users },
   { href: "/sales", label: "Sale & Hoa hồng", icon: BadgeDollarSign },
   { href: "/inventory", label: "Quỹ căn", icon: Building2 },

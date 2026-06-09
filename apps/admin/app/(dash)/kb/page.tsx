@@ -20,6 +20,7 @@ import {
 import type { LearningDocument } from "@/lib/types";
 import { formatNumber, shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { DriveSyncCard } from "@/components/kb/DriveSyncCard";
 import { UploadZone } from "@/components/kb/UploadZone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,15 +41,16 @@ const CATEGORY_LABEL: Record<string, string> = {
   contract: "Hợp đồng / Pháp lý",
   brochure: "Tài liệu giới thiệu",
   training: "Đào tạo",
+  master_plan: "Bản đồ / Phân khu",
+  units: "Thiết kế căn",
+  legal: "Pháp lý / Giấy phép",
+  media: "Hình ảnh / Video",
+  other: "Khác",
 };
 
 const CATEGORY_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "Tất cả" },
-  { value: "policy", label: "Chính sách" },
-  { value: "pricing", label: "Bảng giá" },
-  { value: "contract", label: "Hợp đồng / Pháp lý" },
-  { value: "brochure", label: "Tài liệu giới thiệu" },
-  { value: "training", label: "Đào tạo" },
+  ...Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value, label })),
 ];
 
 const TABS = [
@@ -191,6 +193,7 @@ export default function KbPage() {
 
       {tab === "docs" ? (
         <>
+          <DriveSyncCard onSynced={invalidateAll} />
           <UploadZone onUploaded={invalidateAll} />
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

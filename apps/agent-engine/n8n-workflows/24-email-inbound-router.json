@@ -1,0 +1,156 @@
+{
+  "name": "📧 Email Inbound Router",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📧 Email Inbound Router\n\nChatwoot email inbox → AI classify (intent: viewing/pricing/complaint/spam) → route đến sale phù hợp.",
+        "width": 380,
+        "height": 280
+      },
+      "id": "note",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-email-inbound",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "webhookId": "chatwoot-email-inbound"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Ph\\u00e2n lo\\u1ea1i email kh\\u00e1ch. Output JSON: {intent: 'viewing'|'pricing'|'complaint'|'spam'|'other', urgency: 'low'|'mid'|'high', summary_vi: '...'}\", messages: [ { role: 'user', content: 'From: ' + ($json.body.meta?.sender?.email || 'unknown') + '\\nSubject: ' + ($json.body.subject || '') + '\\nContent: ' + ($json.body.content || '').slice(0, 1500) } ] }) }}",
+        "options": {}
+      },
+      "id": "cl24",
+      "name": "Claude — classify intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract JSON từ Claude response\nconst txt = $json.content?.[0]?.text || '{}';\nlet parsed = {};\ntry {\n  const m = txt.match(/\\{[\\s\\S]*\\}/);\n  if (m) parsed = JSON.parse(m[0]);\n} catch(e){}\nreturn [{ json: {\n  intent: parsed.intent || 'other',\n  urgency: parsed.urgency || 'mid',\n  summary_vi: parsed.summary_vi || '',\n  conversation_id: $('Webhook').item.json.body.id,\n  sender_email: $('Webhook').item.json.body.meta?.sender?.email\n} }];"
+      },
+      "id": "cd24",
+      "name": "Parse intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ELC_API_URL }}/admin/inbox/route",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_WEBHOOK_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "h24",
+      "name": "Route to sale",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Claude — classify intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — classify intent": {
+      "main": [
+        [
+          {
+            "node": "Parse intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse intent": {
+      "main": [
+        [
+          {
+            "node": "Route to sale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

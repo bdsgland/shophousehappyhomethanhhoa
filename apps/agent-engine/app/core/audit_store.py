@@ -69,22 +69,56 @@ def record_admin(
     )
 
 
+def record_openclaw(
+    method: str,
+    path: str,
+    *,
+    status_code: int,
+    duration_ms: int,
+    body: Optional[dict[str, Any]] = None,
+    query: Optional[dict[str, Any]] = None,
+    principal: str = "openclaw_ceo",
+) -> dict:
+    """Ghi 1 request God-Mode của OpenClaw (mọi /openclaw/*) — tag riêng.
+
+    `body`/`query` PHẢI được mask password/token trước khi gọi (xem middleware).
+    Lưu dưới event_type "openclaw.<METHOD>" để lọc qua prefix="openclaw.".
+    """
+    return record(
+        f"openclaw.{method.upper()}",
+        {
+            "tag": "OPENCLAW_GOD_MODE",
+            "principal": principal,
+            "method": method.upper(),
+            "path": path,
+            "status_code": status_code,
+            "duration_ms": duration_ms,
+            "query": query or {},
+            "body": body or {},
+        },
+        status="ok" if status_code < 400 else "error",
+        detail=f"{method.upper()} {path} → {status_code} ({duration_ms}ms)",
+    )
+
+
 def list_events(
     event_type: Optional[str] = None,
     limit: int = 100,
-    prefix: Optional[str] = None,
+    prefix: Optional[object] = None,
 ) -> list[dict]:
     """Trả về sự kiện gần nhất (mới nhất trước).
 
     - `event_type`: lọc khớp tuyệt đối loại sự kiện.
-    - `prefix`: lọc theo tiền tố (vd "admin." để lấy nhật ký thao tác quản trị).
+    - `prefix`: lọc theo tiền tố. Nhận str (1 tiền tố) hoặc tuple/list nhiều tiền
+      tố (vd ("admin.", "openclaw.") để gộp nhật ký quản trị + God-Mode).
     """
     with _LOCK:
         items = list(reversed(_EVENTS))
     if event_type:
         items = [e for e in items if e["event_type"] == event_type]
     if prefix:
-        items = [e for e in items if e["event_type"].startswith(prefix)]
+        prefixes = (prefix,) if isinstance(prefix, str) else tuple(prefix)
+        items = [e for e in items if e["event_type"].startswith(prefixes)]
     return items[:limit]
 
 
