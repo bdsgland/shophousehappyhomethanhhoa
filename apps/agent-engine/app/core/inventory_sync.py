@@ -53,6 +53,22 @@ C_GIA_MAX = 13
 C_DOT = 14
 C_COC = 15
 
+# === MAP CỘT GIÁ CHI TIẾT (sheet bảng hàng MỚI có N/VAT/KPBT/GT xây) ===========
+# Khớp theo TÊN HEADER (không theo index) để chịu được sheet đổi vị trí cột.
+# Mỗi field = danh sách "bộ token" (đã bỏ dấu, lowercase). Một cột HEADER khớp khi
+# chứa ĐỦ token của ÍT NHẤT 1 bộ. Resolve theo thứ tự ưu tiên N→VAT→KPBT→GTxây,
+# mỗi cột chỉ dùng 1 lần (tránh cột "niêm yết gồm VAT, KPBT" bị nhận nhầm là KPBT).
+# >>> CHỈNH các bộ token dưới đây nếu header sheet thật lệch. Không khớp → để trống.
+PRICE_COLUMN_TOKENS: dict[str, list[list[str]]] = {
+    "gia_ny_gom_vat_kpbt": [
+        ["tgt niem yet"], ["niem yet", "vat", "kpbt"], ["niem yet", "bao tri"],
+        ["tong gia tri niem yet"],
+    ],
+    "vat_hdmb": [["vat", "hdmb"], ["vat hdmb"], ["thue vat"], ["tien vat"]],
+    "kpbt": [["kpbt"], ["kinh phi bao tri"], ["phi bao tri"]],
+    "gt_xay_ny": [["gia tri xay"], ["gt xay"], ["xay", "ny"], ["thanh tien xay"]],
+}
+
 # Kích thước ảnh mặt bằng tổng (khớp inventory.py mock) để sinh toạ độ marker.
 _MAP_W = 2001
 _MAP_H = 1126
@@ -122,6 +138,37 @@ async def fetch_sheet_csv(sheet_url: str, gid: int = 0) -> list[list[str]]:
 # ---------------------------------------------------------------------------
 def _cell(row: list[str], idx: int) -> str:
     return row[idx].strip() if idx < len(row) and row[idx] is not None else ""
+
+
+def _deaccent(s: str) -> str:
+    """Bỏ dấu tiếng Việt + lowercase để match header bền vững."""
+    import unicodedata
+
+    s = unicodedata.normalize("NFD", s or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return s.replace("đ", "d").replace("Đ", "d").lower().strip()
+
+
+def _resolve_price_columns(header: list[str]) -> dict[str, Optional[int]]:
+    """Tìm index cột giá chi tiết theo tên header (xem PRICE_COLUMN_TOKENS).
+
+    Resolve theo thứ tự ưu tiên, mỗi cột chỉ gán cho 1 field. Không thấy → None.
+    """
+    norm = [_deaccent(h) for h in header]
+    out: dict[str, Optional[int]] = {}
+    used: set[int] = set()
+    for field, token_sets in PRICE_COLUMN_TOKENS.items():
+        found: Optional[int] = None
+        for i, h in enumerate(norm):
+            if i in used:
+                continue
+            if any(all(tok in h for tok in tset) for tset in token_sets):
+                found = i
+                break
+        if found is not None:
+            used.add(found)
+        out[field] = found
+    return out
 
 
 def parse_vn_money(raw: str) -> Optional[int]:
@@ -199,7 +246,9 @@ def _gen_position(index: int, group_key: str) -> dict:
 # ---------------------------------------------------------------------------
 # Row → unit dict
 # ---------------------------------------------------------------------------
-def parse_inventory_row(row: list[str], index: int = 0) -> Optional[dict]:
+def parse_inventory_row(
+    row: list[str], index: int = 0, price_cols: Optional[dict] = None
+) -> Optional[dict]:
     """Chuyển 1 dòng CSV (list cells, theo index cột) → unit dict, hoặc None nếu
     dòng không có mã căn (dòng trống / footer).
 
@@ -247,6 +296,15 @@ def parse_inventory_row(row: list[str], index: int = 0) -> Optional[dict]:
 
     lo = code.split("-")[-1] if "-" in code else code
 
+    # --- Giá chi tiết cho phiếu tính giá (nếu sheet có các cột tương ứng) ---
+    pc = price_cols or {}
+
+    def _price(field: str) -> int:
+        idx = pc.get(field)
+        if idx is None:
+            return 0
+        return parse_vn_money(_cell(row, idx)) or 0
+
     return {
         "id": code,
         "lo": lo,
@@ -263,6 +321,11 @@ def parse_inventory_row(row: list[str], index: int = 0) -> Optional[dict]:
         "gia_max": gia_max or 0,
         "don_gia_min": don_gia_min or 0,
         "don_gia_max": don_gia_max or 0,
+        # Giá chi tiết cho phiếu tính giá (0 nếu sheet chưa có cột).
+        "gia_ny_gom_vat_kpbt": _price("gia_ny_gom_vat_kpbt"),
+        "vat_hdmb": _price("vat_hdmb"),
+        "kpbt": _price("kpbt"),
+        "gt_xay_ny": _price("gt_xay_ny"),
         "khu": khu,
         "duong": duong,
         "huong": huong,
@@ -286,9 +349,10 @@ def parse_rows(rows: list[list[str]]) -> tuple[list[dict], list[str]]:
     units: list[dict] = []
     errors: list[str] = []
     seen: set[str] = set()
+    price_cols = _resolve_price_columns(rows[0]) if rows else {}
     for i, row in enumerate(rows[1:], start=1):  # bỏ header
         try:
-            unit = parse_inventory_row(row, index=i)
+            unit = parse_inventory_row(row, index=i, price_cols=price_cols)
         except Exception as e:  # noqa: BLE001
             errors.append(f"Dòng {i + 1}: {type(e).__name__}: {e}")
             continue

@@ -335,243 +335,164 @@ def list_price_vnd(unit: dict) -> float:
     return float(gia_tri) * 1_000_000_000
 
 
-def build_policy_quote_pdf(
-    *, quote_id: str, unit: dict, req, computed: dict
-) -> bytes:
-    """PDF "PHIẾU TÍNH GIÁ" theo chính sách bán hàng — tái dùng style/branding/font.
+def _fmt_day(days):
+    if days is None:
+        return "—"
+    if days == 0:
+        return "Khi ký HĐMB"
+    return f"+{days} ngày"
 
-    `computed` = kết quả services.pricing_policy.compute_policy_quote (kèm
-    discount_lines, vat/maintenance, total_payment, milestones) + base_plan_label.
+
+def build_policy_quote_pdf(*, quote_id: str, unit: dict, req, computed: dict) -> bytes:
+    """PDF "PHIẾU TÍNH GIÁ" khớp mẫu Excel CĐT (CK chồng tuần tự + 3 tiến độ).
+
+    `computed` = kết quả services.pricing_policy.compute_policy_quote.
     """
     _ensure_fonts()
     styles, font, font_bold = _styles()
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
-        leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=16 * mm, bottomMargin=16 * mm,
+        leftMargin=16 * mm, rightMargin=16 * mm,
+        topMargin=14 * mm, bottomMargin=14 * mm,
         title=f"Phiếu tính giá {unit.get('id', '')}",
     )
     story: list = []
 
-    # ----- Header -----
-    header = Table(
-        [[
-            Paragraph("EUROWINDOW<br/>LIGHT CITY", styles["brand"]),
-            Paragraph(
-                "PHIẾU TÍNH GIÁ CĂN HỘ<br/>"
-                f"<font size=8 color='#8A7B66'>Mã phiếu: {quote_id[:8].upper()} · "
-                f"Ngày lập: {datetime.now().strftime('%d/%m/%Y')}</font>",
-                ParagraphStyle("hr", parent=styles["title"], alignment=2, fontSize=15),
-            ),
-        ]],
-        colWidths=[70 * mm, 104 * mm],
-    )
-    header.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEBELOW", (0, 0), (-1, -1), 2, _BRAND),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    story.append(header)
-    story.append(Spacer(1, 10))
+    def kv_table(rows, highlight_last=False, soft_rows=()):
+        tbl = Table(
+            [[Paragraph(r[0], styles["cellb"] if (i == len(rows) - 1 and highlight_last) else styles["cell"]),
+              r[1]] for i, r in enumerate(rows)],
+            colWidths=[118 * mm, 60 * mm],
+        )
+        st = [
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]
+        for r in soft_rows:
+            st.append(("BACKGROUND", (0, r), (-1, r), _BG_SOFT))
+        if highlight_last:
+            st += [("BACKGROUND", (0, len(rows) - 1), (-1, len(rows) - 1), _BRAND),
+                   ("TEXTCOLOR", (0, len(rows) - 1), (-1, len(rows) - 1), colors.white)]
+        tbl.setStyle(TableStyle(st))
+        return tbl
 
-    # ----- Khách hàng & sale -----
-    info = Table(
-        [
-            [Paragraph("KHÁCH HÀNG", styles["h2"]), Paragraph("CHUYÊN VIÊN TƯ VẤN", styles["h2"])],
-            [
-                Paragraph(
-                    f"<b>Họ tên:</b> {req.customer_name or '—'}<br/>"
-                    f"<b>Điện thoại:</b> {req.customer_phone or '—'}",
-                    styles["body"],
-                ),
-                Paragraph(
-                    f"<b>Họ tên:</b> {req.sale_name or '—'}<br/>"
-                    f"<b>Điện thoại:</b> {req.sale_phone or '—'}",
-                    styles["body"],
-                ),
-            ],
-        ],
-        colWidths=[87 * mm, 87 * mm],
+    # Header
+    header = Table(
+        [[Paragraph("EUROWINDOW<br/>LIGHT CITY", styles["brand"]),
+          Paragraph("PHIẾU TÍNH GIÁ CĂN HỘ<br/>"
+                    f"<font size=8 color='#8A7B66'>Mã phiếu: {quote_id[:8].upper()} · "
+                    f"Ngày lập: {datetime.now().strftime('%d/%m/%Y')}</font>",
+                    ParagraphStyle("hr", parent=styles["title"], alignment=2, fontSize=15))]],
+        colWidths=[70 * mm, 108 * mm],
     )
-    info.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _BG_SOFT),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.5, _BRAND),
-        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]))
+    header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                                ("LINEBELOW", (0, 0), (-1, -1), 2, _BRAND),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
+    story.append(header)
+    story.append(Spacer(1, 8))
+
+    # Khách & sale
+    info = Table(
+        [[Paragraph("KHÁCH HÀNG", styles["h2"]), Paragraph("CHUYÊN VIÊN TƯ VẤN", styles["h2"])],
+         [Paragraph(f"<b>Họ tên:</b> {req.customer_name or '—'}<br/><b>Điện thoại:</b> {req.customer_phone or '—'}", styles["body"]),
+          Paragraph(f"<b>Họ tên:</b> {req.sale_name or '—'}<br/><b>Điện thoại:</b> {req.sale_phone or '—'}", styles["body"])]],
+        colWidths=[89 * mm, 89 * mm],
+    )
+    info.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), _BG_SOFT),
+                              ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                              ("BOX", (0, 0), (-1, -1), 0.5, _BRAND),
+                              ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
+                              ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                              ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
     story.append(info)
 
-    # ----- Thông tin căn -----
-    story.append(Paragraph("THÔNG TIN CĂN", styles["h2"]))
-    unit_rows = [
-        ["Mã căn", str(unit.get("id", "—")), "Phân khu", str(unit.get("phan_khu", "—"))],
-        ["Loại sản phẩm", str(unit.get("loai", "—")), "Trạng thái", str(unit.get("trang_thai", "—"))],
-        ["Diện tích", f"{unit.get('dien_tich', '—')} m²", "Mặt tiền", f"{unit.get('mat_tien', '—')} m"],
-    ]
-    unit_tbl = Table(
-        [[Paragraph(c, styles["cellb"] if i % 2 == 0 else styles["cell"]) for i, c in enumerate(r)]
-         for r in unit_rows],
-        colWidths=[30 * mm, 57 * mm, 30 * mm, 57 * mm],
-    )
-    unit_tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, -1), _BG_SOFT),
-        ("BACKGROUND", (2, 0), (2, -1), _BG_SOFT),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    # Thông số sản phẩm
+    story.append(Paragraph("THÔNG SỐ SẢN PHẨM", styles["h2"]))
+    story.append(kv_table([
+        ["Mã căn", Paragraph(str(unit.get("id", "—")), styles["right"])],
+        ["Phân khu / Loại", Paragraph(f"{unit.get('phan_khu', '—')} · {unit.get('loai', '—')}", styles["right"])],
+        ["Diện tích", Paragraph(f"{computed['dien_tich']:g} m²", styles["right"])],
+        ["Đơn giá (gồm VAT, KPBT)", Paragraph(fmt_vnd(computed["don_gia"]) + " /m²", styles["right"])],
     ]))
-    story.append(unit_tbl)
 
-    # ----- Chi tiết chính sách chiết khấu -----
-    story.append(Paragraph(
-        f"CHI TIẾT CHÍNH SÁCH CHIẾT KHẤU — {computed.get('base_plan_label', '')}",
-        styles["h2"],
-    ))
-    rows = [[
-        Paragraph("Khoản mục", styles["cellb"]),
-        Paragraph("Tỷ lệ", styles["cellb"]),
-        Paragraph("Số tiền", styles["cellb"]),
-    ]]
-    rows.append([
-        Paragraph("Giá trị sản phẩm (chưa VAT)", styles["cell"]),
-        Paragraph("", styles["cell"]),
-        Paragraph(fmt_vnd(computed["list_price_ex_vat"]), styles["right"]),
-    ])
+    # Giá niêm yết
+    story.append(Paragraph("GIÁ NIÊM YẾT", styles["h2"]))
+    story.append(kv_table([
+        ["Tổng giá trị niêm yết (gồm VAT, KPBT)", Paragraph(f"<b>{fmt_vnd(computed['gia_ny_gom_vat_kpbt'])}</b>", styles["right"])],
+        ["— Trong đó VAT", Paragraph(fmt_vnd(computed["vat"]), styles["right"])],
+        ["— Trong đó phí bảo trì (KPBT)", Paragraph(fmt_vnd(computed["kpbt"]), styles["right"])],
+        ["— Giá trị xây dựng (NY)", Paragraph(fmt_vnd(computed["gt_xay"]), styles["right"])],
+        ["Niêm yết chưa VAT, chưa KPBT", Paragraph(fmt_vnd(computed["niem_yet_chua_vat_kpbt"]), styles["right"])],
+    ], soft_rows=(0,)))
+
+    # Chiết khấu tuần tự
+    story.append(Paragraph("CHIẾT KHẤU (chồng tuần tự)", styles["h2"]))
+    drows = []
+    if computed["gift_cash"]:
+        drows.append(["Quà tặng tiền mặt", Paragraph("− " + fmt_vnd(computed["gift_cash"]), styles["right"])])
     for d in computed["discount_lines"]:
-        rows.append([
-            Paragraph(d["label"], styles["cell"]),
-            Paragraph(f"−{d['pct']:g}%", styles["cell"]),
-            Paragraph("− " + fmt_vnd(d["amount"]), styles["right"]),
-        ])
-    rows.append([
-        Paragraph("Giá sau chiết khấu", styles["cellb"]),
-        Paragraph(f"−{computed['total_discount_pct']:g}%", styles["cellb"]),
-        Paragraph(f"<b>{fmt_vnd(computed['price_after_discount'])}</b>", styles["right"]),
-    ])
-    rows.append([
-        Paragraph(f"VAT ({computed['vat_pct']:g}%)", styles["cell"]),
-        Paragraph("", styles["cell"]),
-        Paragraph("+ " + fmt_vnd(computed["vat_amount"]), styles["right"]),
-    ])
-    rows.append([
-        Paragraph(f"Phí bảo trì ({computed['maintenance_pct']:g}%)", styles["cell"]),
-        Paragraph("", styles["cell"]),
-        Paragraph("+ " + fmt_vnd(computed["maintenance_amount"]), styles["right"]),
-    ])
-    rows.append([
-        Paragraph("TỔNG THANH TOÁN", styles["cellb"]),
-        Paragraph("", styles["cellb"]),
-        Paragraph(f"<b>{fmt_vnd(computed['total_payment'])}</b>", styles["right"]),
-    ])
-    n = len(rows)
-    after_discount_row = 2 + len(computed["discount_lines"])
-    price_tbl = Table(rows, colWidths=[112 * mm, 22 * mm, 40 * mm])
-    price_tbl.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
-        ("BACKGROUND", (0, 0), (-1, 0), _BRAND_DARK),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("BACKGROUND", (0, after_discount_row), (-1, after_discount_row), _BG_SOFT),
-        ("BACKGROUND", (0, n - 1), (-1, n - 1), _BRAND),
-        ("TEXTCOLOR", (0, n - 1), (-1, n - 1), colors.white),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
-    story.append(price_tbl)
+        drows.append([f"{d['label']} ({d['pct']:g}%)", Paragraph("− " + fmt_vnd(d["amount"]), styles["right"])])
+    drows.append(["TỔNG GIẢM GIÁ", Paragraph(f"<b>− {fmt_vnd(computed['total_discount'])}</b>", styles["right"])])
+    story.append(kv_table(drows, highlight_last=False, soft_rows=(len(drows) - 1,)))
 
-    # ----- Tiến độ thanh toán -----
-    story.append(Paragraph("TIẾN ĐỘ THANH TOÁN", styles["h2"]))
+    # Giá sản phẩm
+    story.append(Paragraph("GIÁ SẢN PHẨM", styles["h2"]))
+    story.append(kv_table([
+        ["GT sản phẩm (gồm VAT, chưa KPBT)", Paragraph(fmt_vnd(computed["gtsp_gom_vat_chua_kpbt"]), styles["right"])],
+        ["Cộng phí bảo trì (KPBT)", Paragraph("+ " + fmt_vnd(computed["kpbt"]), styles["right"])],
+        ["GT đất (tham khảo)", Paragraph(fmt_vnd(computed["gt_dat"]), styles["right"])],
+        ["GIÁ BÁN (gồm VAT, KPBT)", Paragraph(f"<b>{fmt_vnd(computed['gtsp_final'])}</b>", styles["right"])],
+    ], highlight_last=True))
+
+    # Tiến độ
+    has_bank = any(m["bank_amount"] for m in computed["milestones"])
+    story.append(Paragraph(f"TIẾN ĐỘ THANH TOÁN — {computed['base_plan_label']}", styles["h2"]))
     head = [Paragraph("Đợt", styles["cellb"]), Paragraph("Nội dung", styles["cellb"]),
-            Paragraph("Tỷ lệ", styles["cellb"]), Paragraph("Số tiền", styles["cellb"])]
-    prows = [head]
-    ms_total = 0.0
+            Paragraph("Mốc", styles["cellb"]), Paragraph("KH thanh toán", styles["cellb"])]
+    if has_bank:
+        head.append(Paragraph("NH giải ngân", styles["cellb"]))
+    rows = [head]
+    cust_total = 0.0
+    bank_total = 0.0
     for i, m in enumerate(computed["milestones"], 1):
-        ms_total += m["amount"]
-        label = m["label"]
-        if m.get("deposit_deducted"):
-            label += " (đã trừ cọc)"
-        if m.get("needs_confirm"):
-            label += " *"
-        pct_txt = "—" if m.get("kind") == "amount_fixed" else f"{m['pct']:g}%"
-        prows.append([
-            Paragraph(str(i), styles["cell"]),
-            Paragraph(label, styles["cell"]),
-            Paragraph(pct_txt, styles["cell"]),
-            Paragraph(fmt_vnd(m["amount"]), styles["right"]),
-        ])
-    prows.append([
-        Paragraph("", styles["cell"]),
-        Paragraph("CỘNG TIẾN ĐỘ (GTSP sau CK)", styles["cellb"]),
-        Paragraph("", styles["cellb"]),
-        Paragraph(f"<b>{fmt_vnd(ms_total)}</b>", styles["right"]),
-    ])
-    pay_tbl = Table(prows, colWidths=[14 * mm, 110 * mm, 18 * mm, 32 * mm])
-    pay_tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _BRAND_DARK),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("BACKGROUND", (0, -1), (-1, -1), _BG_SOFT),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
-    story.append(pay_tbl)
+        cust_total += m["customer_amount"]
+        bank_total += m["bank_amount"]
+        row = [Paragraph(str(i), styles["cell"]), Paragraph(m["label"], styles["cell"]),
+               Paragraph(_fmt_day(m.get("days_offset")), styles["cell"]),
+               Paragraph(fmt_vnd(m["customer_amount"]) if m["customer_amount"] else "—", styles["right"])]
+        if has_bank:
+            row.append(Paragraph(fmt_vnd(m["bank_amount"]) if m["bank_amount"] else "—", styles["right"]))
+        rows.append(row)
+    total_row = [Paragraph("", styles["cell"]), Paragraph("TỔNG CỘNG", styles["cellb"]),
+                 Paragraph("", styles["cellb"]), Paragraph(f"<b>{fmt_vnd(cust_total)}</b>", styles["right"])]
+    if has_bank:
+        total_row.append(Paragraph(f"<b>{fmt_vnd(bank_total)}</b>", styles["right"]))
+    rows.append(total_row)
+    widths = [12 * mm, 86 * mm, 24 * mm, 30 * mm] if not has_bank else [10 * mm, 64 * mm, 22 * mm, 30 * mm, 30 * mm]
+    pay = Table(rows, colWidths=widths)
+    pay.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), _BRAND_DARK),
+                             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                             ("BACKGROUND", (0, -1), (-1, -1), _BG_SOFT),
+                             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E8D9BF")),
+                             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                             ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                             ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+    story.append(pay)
 
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        "Tiến độ tính trên Giá trị sản phẩm SAU chiết khấu; VAT và phí bảo trì "
-        "thanh toán riêng theo thông báo của Chủ đầu tư. Khoản đặt cọc thiện chí "
-        "được khấu trừ vào đợt thanh toán đầu tiên.",
-        styles["foot"],
-    ))
-    if any(m.get("needs_confirm") for m in computed["milestones"]):
-        story.append(Paragraph(
-            "* Tỷ lệ đợt thanh toán là tạm tính theo chính sách, sẽ được Chủ đầu tư "
-            "xác nhận chính thức.",
-            styles["foot"],
-        ))
+        "Khoản đặt cọc thiện chí được khấu trừ vào đợt thanh toán đầu tiên. Giá và "
+        "tiến độ theo chính sách bán hàng từng thời điểm của Chủ đầu tư; phiếu có giá "
+        "trị tham khảo trong 07 ngày.", styles["foot"]))
 
     if getattr(req, "note", None):
         story.append(Paragraph("GHI CHÚ", styles["h2"]))
         story.append(Paragraph(req.note, styles["body"]))
-
-    # ----- Chân trang + ký -----
-    story.append(Spacer(1, 14))
-    sign = Table(
-        [[
-            Paragraph("<b>KHÁCH HÀNG</b><br/><font size=7>(Ký, ghi rõ họ tên)</font>", styles["body"]),
-            Paragraph(
-                "<b>CHUYÊN VIÊN TƯ VẤN</b><br/><font size=7>(Ký, ghi rõ họ tên)</font>"
-                f"<br/><br/><br/><b>{req.sale_name or ''}</b>",
-                ParagraphStyle("sg", parent=styles["body"], alignment=1),
-            ),
-        ]],
-        colWidths=[87 * mm, 87 * mm],
-    )
-    sign.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (0, 0), "CENTER"),
-        ("ALIGN", (1, 0), (1, 0), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    story.append(sign)
-    story.append(Spacer(1, 10))
-    story.append(Paragraph(
-        "Phiếu tính giá có giá trị tham khảo trong 07 ngày kể từ ngày lập và có thể "
-        "thay đổi theo chính sách bán hàng từng thời điểm của Chủ đầu tư.",
-        styles["foot"],
-    ))
 
     doc.build(story)
     return buf.getvalue()

@@ -4,6 +4,15 @@ export const metadata = {
   title: "Kho học tập | Eurowindow Light City",
 };
 
-export default function LearningPage() {
-  return <LearningCenter />;
+export default function LearningPage({
+  searchParams,
+}: {
+  searchParams?: { tab?: string; unit?: string };
+}) {
+  return (
+    <LearningCenter
+      initialTab={searchParams?.tab}
+      initialUnit={searchParams?.unit}
+    />
+  );
 }

@@ -73,6 +73,14 @@ export function UnitEditModal({
     editing?.trang_thai ?? TRANG_THAI_OPTIONS[0],
   );
   const [quy, setQuy] = useState<string>(editing?.quy ?? QUY_OPTIONS[4].value);
+  const [giaNY, setGiaNY] = useState(
+    editing?.gia_ny_gom_vat_kpbt ? String(editing.gia_ny_gom_vat_kpbt) : "",
+  );
+  const [vat, setVat] = useState(editing?.vat_hdmb ? String(editing.vat_hdmb) : "");
+  const [kpbt, setKpbt] = useState(editing?.kpbt ? String(editing.kpbt) : "");
+  const [gtXay, setGtXay] = useState(
+    editing?.gt_xay_ny ? String(editing.gt_xay_ny) : "",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +97,10 @@ export function UnitEditModal({
     setGiaTri(editing ? String(editing.gia_tri) : "");
     setTrangThai(editing?.trang_thai ?? TRANG_THAI_OPTIONS[0]);
     setQuy(editing?.quy ?? QUY_OPTIONS[4].value);
+    setGiaNY(editing?.gia_ny_gom_vat_kpbt ? String(editing.gia_ny_gom_vat_kpbt) : "");
+    setVat(editing?.vat_hdmb ? String(editing.vat_hdmb) : "");
+    setKpbt(editing?.kpbt ? String(editing.kpbt) : "");
+    setGtXay(editing?.gt_xay_ny ? String(editing.gt_xay_ny) : "");
     setError(null);
   }
 
@@ -106,6 +118,10 @@ export function UnitEditModal({
       gia_tri: giaTri.trim() ? Number(giaTri) : undefined,
       trang_thai: trangThai,
       quy,
+      gia_ny_gom_vat_kpbt: giaNY.trim() ? Number(giaNY) : undefined,
+      vat_hdmb: vat.trim() ? Number(vat) : undefined,
+      kpbt: kpbt.trim() ? Number(kpbt) : undefined,
+      gt_xay_ny: gtXay.trim() ? Number(gtXay) : undefined,
     };
     setSaving(true);
     try {
@@ -217,6 +233,45 @@ export function UnitEditModal({
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Giá chi tiết (cho phiếu tính giá) — đơn vị VND
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>TGT niêm yết (gồm VAT, KPBT)</Label>
+            <Input
+              type="number"
+              value={giaNY}
+              onChange={(e) => setGiaNY(e.target.value)}
+              placeholder="VD: 7264177517"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>VAT (số tiền)</Label>
+            <Input
+              type="number"
+              value={vat}
+              onChange={(e) => setVat(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phí bảo trì KPBT (số tiền)</Label>
+            <Input
+              type="number"
+              value={kpbt}
+              onChange={(e) => setKpbt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Giá trị xây NY (số tiền)</Label>
+            <Input
+              type="number"
+              value={gtXay}
+              onChange={(e) => setGtXay(e.target.value)}
+            />
           </div>
         </div>
         {error && (

@@ -1,23 +1,8 @@
-"""Engine tính phiếu giá theo Chính sách bán hàng (đọc % từ store, KHÔNG hardcode).
+"""Engine tính phiếu tính giá — khớp ĐÚNG mẫu Excel CĐT (chiết khấu chồng tuần tự
++ 3 tiến độ). Đọc % từ config (KHÔNG hardcode); giá chi tiết N/VAT/KPBT/GT xây lấy
+theo từng căn trong bảng hàng.
 
-Công thức (chốt với người dùng):
-  1. Chiết khấu tính trên GTSP CHƯA VAT (list_price_ex_vat).
-  2. total_discount_pct = base_discount_pct(phương án) + Σ pct(addon được chọn)  [cộng dồn %]
-  3. price_after_discount = ex_vat × (1 − total_discount_pct/100)
-  4. vat = price_after_discount × vat_pct/100
-     maintenance = price_after_discount × maintenance_pct/100
-  5. total_payment = price_after_discount + vat + maintenance
-  6. Tiến độ (milestones) áp lên GTSP SAU CHIẾT KHẤU (price_after_discount):
-       - đợt kind="pct": giá trị đợt = price_after_discount × pct/100.
-         → % các đợt cộng = 100% ⇒ tổng các đợt % = price_after_discount.
-       - đợt kind="amount_fixed" (vd đặt cọc 200tr): là khoản ĐẶT CHỖ, KHÔNG tính
-         vào %; được TRỪ dần vào (các) đợt % ĐẦU TIÊN. Nhờ vậy tổng tiền các đợt
-         (cọc + phần còn lại của các đợt %) = price_after_discount, không cộng trùng.
-     VAT và phí bảo trì hiển thị RIÊNG (không gộp vào % tiến độ) — tổng thanh toán
-     thực = price_after_discount + VAT + bảo trì (xem bảng giá).
-
-Đơn vị giá: inventory `gia_tri` theo TỶ đồng; nếu trống → fallback gia_max/gia_min
-(VND) để phiếu không ra giá 0.
+Xem công thức đầy đủ trong app/schemas/sales_policy.py (docstring).
 """
 
 from __future__ import annotations
@@ -27,25 +12,30 @@ from typing import Any, Optional
 from app.schemas.sales_policy import SalesPolicyConfig
 
 
-def list_price_ex_vat(unit: dict) -> float:
-    """Giá niêm yết CHƯA VAT (VND) từ căn inventory.
+def _r(x: float) -> float:
+    """ROUND về 0 chữ số thập phân (đồng) — khớp ROUND(...,0) của Excel."""
+    return float(round(x))
 
-    Ưu tiên `gia_tri` (tỷ đồng → ×1e9). Fallback `gia_max` rồi `gia_min` (đã VND).
+
+def get_unit_prices(unit: dict) -> Optional[dict]:
+    """Lấy N (niêm yết gồm VAT+KPBT), K (VAT), L (KPBT), P (GT xây) từ unit.
+
+    Trả None nếu THIẾU N/K/L (không đủ để tính theo mẫu). P khuyết → 0.
     """
-    gia_tri = unit.get("gia_tri")
-    if gia_tri:
-        try:
-            return float(gia_tri) * 1_000_000_000
-        except (TypeError, ValueError):
-            pass
-    for key in ("gia_max", "gia_min"):
-        v = unit.get(key)
-        if v:
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                continue
-    return 0.0
+    N = unit.get("gia_ny_gom_vat_kpbt")
+    K = unit.get("vat_hdmb")
+    L = unit.get("kpbt")
+    if not N or K is None or L is None:
+        return None
+    try:
+        return {
+            "N": float(N),
+            "K": float(K),
+            "L": float(L),
+            "P": float(unit.get("gt_xay_ny") or 0),
+        }
+    except (TypeError, ValueError):
+        return None
 
 
 def _find_base_plan(config: SalesPolicyConfig, key: str):
@@ -57,85 +47,101 @@ def _find_base_plan(config: SalesPolicyConfig, key: str):
 
 def compute_policy_quote(
     *,
-    list_price_ex_vat: float,
+    prices: dict,
+    dien_tich: float,
     base_key: str,
     addon_keys: list[str],
+    gift_cash: float,
     config: SalesPolicyConfig,
 ) -> dict[str, Any]:
-    """Tính toàn bộ phiếu giá theo chính sách. Raise ValueError nếu phương án sai."""
+    """Tính toàn bộ phiếu theo mẫu. Raise ValueError nếu phương án sai."""
     base = _find_base_plan(config, base_key)
     if base is None:
         raise ValueError(f"Phương án thanh toán '{base_key}' không hợp lệ hoặc đã tắt.")
 
-    ex_vat = max(0.0, float(list_price_ex_vat))
+    N = prices["N"]
+    K = prices["K"]
+    L = prices["L"]
+    P = prices.get("P", 0.0)
 
-    discount_lines: list[dict[str, Any]] = [
-        {
-            "label": f"Chiết khấu phương án — {base.label}",
-            "pct": base.base_discount_pct,
-            "amount": ex_vat * base.base_discount_pct / 100.0,
-        }
-    ]
-    total_discount_pct = base.base_discount_pct
+    F13 = N - K - L  # niêm yết chưa VAT, chưa KPBT
+    F17 = max(0.0, float(gift_cash or 0))  # quà tặng tiền mặt
 
+    # ----- Chiết khấu CHỒNG TUẦN TỰ (ROUND từng bước, trên phần còn lại) -----
+    remaining = F13 - F17
+    discount_lines: list[dict[str, Any]] = []
     chosen = set(addon_keys or [])
-    for a in config.addons:
+    for a in config.addons:  # thứ tự: early_bird → qua_he → dau_tu
         if a.enabled and a.key in chosen:
-            discount_lines.append({
-                "label": f"Ưu đãi — {a.label}",
-                "pct": a.pct,
-                "amount": ex_vat * a.pct / 100.0,
-            })
-            total_discount_pct += a.pct
+            amt = _r(remaining * a.pct / 100.0)
+            discount_lines.append({"key": a.key, "label": a.label, "pct": a.pct, "amount": amt})
+            remaining -= amt
+    # CK thanh toán (F23) theo phương án
+    r = base.payment_discount_pct
+    f23 = _r(remaining * r / 100.0)
+    discount_lines.append({
+        "key": "payment", "label": f"CK thanh toán — {base.label}", "pct": r, "amount": f23,
+    })
+    remaining -= f23
 
-    total_discount_amount = ex_vat * total_discount_pct / 100.0
-    price_after_discount = ex_vat - total_discount_amount
+    sum_ck = sum(d["amount"] for d in discount_lines)  # F19
+    F16 = F17 + sum_ck                                  # tổng giảm giá
+    F28 = N - L - F16                                   # GT SP gồm VAT, chưa KPBT
+    F26 = F28 + L                                       # GIÁ CUỐI (gồm VAT + KPBT)
+    F27 = (F26 / dien_tich) if dien_tich else 0.0       # đơn giá
+    F29 = N - P - L - F16                               # GT đất
+    O = _r((N - L) * 0.05)                              # 5% HĐMB
 
-    vat_amount = price_after_discount * config.vat_pct / 100.0
-    maintenance_amount = price_after_discount * config.maintenance_pct / 100.0
-    total_payment = price_after_discount + vat_amount + maintenance_amount
-
-    # Tiến độ tính trên GTSP SAU CHIẾT KHẤU. Đợt % = base × pct/100; đợt cố định
-    # (cọc) là khoản đặt chỗ, được TRỪ dần vào các đợt % đầu tiên (không cộng trùng).
-    base_amount = price_after_discount
-    deposit_remaining = sum(
-        float(m.amount) for m in base.schedule if m.kind == "amount_fixed"
-    )
+    # ----- Tiến độ thanh toán -----
+    deposit = float(config.deposit_amount)
     milestones: list[dict[str, Any]] = []
+    cust_sum = 0.0
+    bank_sum = 0.0
     for m in base.schedule:
-        if m.kind == "amount_fixed":
-            # Hiển thị nguyên khoản đặt cọc.
-            amount = float(m.amount)
-            pct = 0.0
-            note_deduct = False
-        else:
-            pct = float(m.pct)
-            gross = base_amount * pct / 100.0
-            deduct = min(deposit_remaining, gross)  # trừ cọc vào đợt % đầu
-            amount = gross - deduct
-            deposit_remaining -= deduct
-            note_deduct = deduct > 0
+        cust = 0.0
+        bank = 0.0
+        if m.kind == "deposit_fixed":
+            cust = deposit
+        elif m.kind == "pct_f28":
+            cust = _r(F28 * m.pct / 100.0)
+            if m.deduct_deposit:
+                cust -= deposit  # trừ cọc vào đợt 1
+        elif m.kind == "balance_100":
+            cust = F26 - cust_sum - O  # luỹ kế: phần còn lại (đợt 5% HĐMB theo sau)
+        elif m.kind == "balance_partial":
+            cust = _r(F28 * m.pct / 100.0 - cust_sum - O + L)
+        elif m.kind == "bank_70":
+            bank = _r(F28 * m.pct / 100.0)
+        elif m.kind == "five_pct_hdmb":
+            cust = O
         milestones.append({
             "label": m.label,
             "kind": m.kind,
-            "pct": pct,
-            "amount": amount,
-            "needs_confirm": bool(m.needs_confirm),
-            "deposit_deducted": note_deduct,
+            "days_offset": m.days_offset,
+            "pct": m.pct,
+            "customer_amount": cust,
+            "bank_amount": bank,
         })
+        cust_sum += cust
+        bank_sum += bank
 
     return {
         "base_plan": base.key,
         "base_plan_label": base.label,
-        "list_price_ex_vat": ex_vat,
+        "dien_tich": float(dien_tich or 0),
+        "gia_ny_gom_vat_kpbt": N,
+        "vat": K,
+        "kpbt": L,
+        "gt_xay": P,
+        "niem_yet_chua_vat_kpbt": F13,
+        "gift_cash": F17,
         "discount_lines": discount_lines,
-        "total_discount_pct": total_discount_pct,
-        "total_discount_amount": total_discount_amount,
-        "price_after_discount": price_after_discount,
-        "vat_pct": config.vat_pct,
-        "vat_amount": vat_amount,
-        "maintenance_pct": config.maintenance_pct,
-        "maintenance_amount": maintenance_amount,
-        "total_payment": total_payment,
+        "total_discount": F16,
+        "gtsp_gom_vat_chua_kpbt": F28,
+        "gtsp_final": F26,
+        "don_gia": F27,
+        "gt_dat": F29,
+        "five_pct_hdmb": O,
         "milestones": milestones,
+        "bank_total": bank_sum,
     }

@@ -122,6 +122,11 @@ export interface InventoryUnit {
   gia_tri: number;
   gia: string;
   quy?: string; // phân loại quỹ (key: exclusive|bonus|agency_f1|mid|not_open)
+  // Giá chi tiết (VND) cho phiếu tính giá
+  gia_ny_gom_vat_kpbt?: number; // N
+  vat_hdmb?: number; // K
+  kpbt?: number; // L
+  gt_xay_ny?: number; // P
   position: { x: number; y: number };
   // ---- Mở rộng từ đồng bộ Google Sheets (optional, tương thích ngược) ----
   gia_min?: number; // VNĐ
@@ -180,19 +185,26 @@ export interface LearningDocument {
   project_slug?: string | null;
 }
 
+export type MilestoneKind =
+  | "deposit_fixed"
+  | "pct_f28"
+  | "balance_100"
+  | "balance_partial"
+  | "five_pct_hdmb"
+  | "bank_70";
+
 export interface PolicyMilestoneCfg {
   label: string;
-  kind: "pct" | "amount_fixed";
+  kind: MilestoneKind;
   pct: number;
-  amount: number;
   days_offset?: number | null;
-  needs_confirm?: boolean;
+  deduct_deposit?: boolean;
 }
 
 export interface SalesBasePlan {
   key: string;
   label: string;
-  base_discount_pct: number;
+  payment_discount_pct: number;
   enabled: boolean;
   schedule: PolicyMilestoneCfg[];
 }
@@ -207,8 +219,7 @@ export interface SalesPolicyAddon {
 export interface SalesPolicyConfig {
   base_plans: SalesBasePlan[];
   addons: SalesPolicyAddon[];
-  vat_pct: number;
-  maintenance_pct: number;
+  deposit_amount: number;
   note: string;
   last_updated_by?: string | null;
   last_updated_at?: string | null;

@@ -67,6 +67,11 @@ class InventoryUnitCreate(BaseModel):
     trang_thai: Optional[str] = None
     gia_tri: Optional[float] = Field(default=None, ge=0)
     quy: Optional[str] = None  # phân loại quỹ (xem _QUY_OPTIONS)
+    # Giá chi tiết (VND) cho phiếu tính giá — khớp bảng hàng CĐT.
+    gia_ny_gom_vat_kpbt: Optional[float] = Field(default=None, ge=0)  # N
+    vat_hdmb: Optional[float] = Field(default=None, ge=0)  # K
+    kpbt: Optional[float] = Field(default=None, ge=0)  # L
+    gt_xay_ny: Optional[float] = Field(default=None, ge=0)  # P
     position: Optional[UnitPosition] = None
 
 
@@ -78,6 +83,11 @@ class InventoryUnitUpdate(BaseModel):
     trang_thai: Optional[str] = None
     gia_tri: Optional[float] = Field(default=None, ge=0)
     quy: Optional[str] = None  # phân loại quỹ (xem _QUY_OPTIONS)
+    # Giá chi tiết (VND) cho phiếu tính giá.
+    gia_ny_gom_vat_kpbt: Optional[float] = Field(default=None, ge=0)  # N
+    vat_hdmb: Optional[float] = Field(default=None, ge=0)  # K
+    kpbt: Optional[float] = Field(default=None, ge=0)  # L
+    gt_xay_ny: Optional[float] = Field(default=None, ge=0)  # P
     position: Optional[UnitPosition] = None
 
 

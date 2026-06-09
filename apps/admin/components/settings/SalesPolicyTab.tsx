@@ -6,6 +6,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 
 import { getSalesPolicy, updateSalesPolicy } from "@/lib/api";
 import type {
+  MilestoneKind,
   PolicyMilestoneCfg,
   SalesBasePlan,
   SalesPolicyConfig,
@@ -19,15 +20,18 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
-function fmtVnd(n: number): string {
-  return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " ₫";
-}
+const KIND_LABELS: Record<MilestoneKind, string> = {
+  deposit_fixed: "Cọc cố định",
+  pct_f28: "% × GTSP (F28)",
+  balance_100: "Luỹ kế 100%",
+  balance_partial: "Luỹ kế phần KH (%)",
+  five_pct_hdmb: "5% HĐMB",
+  bank_70: "NH giải ngân (%)",
+};
+const KIND_KEYS = Object.keys(KIND_LABELS) as MilestoneKind[];
 
-/** Tổng % các đợt kind="pct" (đợt cố định/cọc không tính vào %). */
-function pctTotal(schedule: PolicyMilestoneCfg[]): number {
-  return schedule
-    .filter((m) => m.kind === "pct")
-    .reduce((s, m) => s + (Number(m.pct) || 0), 0);
+function fmtVnd(n: number): string {
+  return new Intl.NumberFormat("vi-VN").format(Math.round(n || 0)) + " ₫";
 }
 
 export function SalesPolicyTab() {
@@ -48,64 +52,77 @@ export function SalesPolicyTab() {
     onSuccess: (saved) => {
       qc.setQueryData(["sales-policy"], saved);
       setDraft(structuredClone(saved));
-      setBanner(`Đã lưu chính sách (phiên bản v${saved.version}).`);
+      setBanner(`Đã lưu chính sách (v${saved.version}).`);
     },
     onError: (e) => setBanner(`Lưu thất bại: ${(e as Error).message}`),
   });
 
-  if (isLoading || !draft) {
-    return <Skeleton className="h-96 w-full" />;
-  }
+  if (isLoading || !draft) return <Skeleton className="h-96 w-full" />;
 
   const patchPlan = (i: number, patch: Partial<SalesBasePlan>) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const plans = d.base_plans.map((p, idx) => (idx === i ? { ...p, ...patch } : p));
-      return { ...d, base_plans: plans };
-    });
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            base_plans: d.base_plans.map((p, idx) =>
+              idx === i ? { ...p, ...patch } : p,
+            ),
+          }
+        : d,
+    );
 
-  const patchMilestone = (
-    pi: number,
-    mi: number,
-    patch: Partial<PolicyMilestoneCfg>,
-  ) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const plans = d.base_plans.map((p, idx) => {
-        if (idx !== pi) return p;
-        const schedule = p.schedule.map((m, j) => (j === mi ? { ...m, ...patch } : m));
-        return { ...p, schedule };
-      });
-      return { ...d, base_plans: plans };
-    });
+  const patchMs = (pi: number, mi: number, patch: Partial<PolicyMilestoneCfg>) =>
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            base_plans: d.base_plans.map((p, idx) =>
+              idx === pi
+                ? {
+                    ...p,
+                    schedule: p.schedule.map((m, j) =>
+                      j === mi ? { ...m, ...patch } : m,
+                    ),
+                  }
+                : p,
+            ),
+          }
+        : d,
+    );
 
-  const addMilestone = (pi: number) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const plans = d.base_plans.map((p, idx) =>
-        idx === pi
-          ? {
-              ...p,
-              schedule: [
-                ...p.schedule,
-                { label: "Đợt mới", kind: "pct", pct: 0, amount: 0 } as PolicyMilestoneCfg,
-              ],
-            }
-          : p,
-      );
-      return { ...d, base_plans: plans };
-    });
+  const addMs = (pi: number) =>
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            base_plans: d.base_plans.map((p, idx) =>
+              idx === pi
+                ? {
+                    ...p,
+                    schedule: [
+                      ...p.schedule,
+                      { label: "Đợt mới", kind: "pct_f28", pct: 5 } as PolicyMilestoneCfg,
+                    ],
+                  }
+                : p,
+            ),
+          }
+        : d,
+    );
 
-  const removeMilestone = (pi: number, mi: number) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const plans = d.base_plans.map((p, idx) =>
-        idx === pi
-          ? { ...p, schedule: p.schedule.filter((_, j) => j !== mi) }
-          : p,
-      );
-      return { ...d, base_plans: plans };
-    });
+  const removeMs = (pi: number, mi: number) =>
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            base_plans: d.base_plans.map((p, idx) =>
+              idx === pi
+                ? { ...p, schedule: p.schedule.filter((_, j) => j !== mi) }
+                : p,
+            ),
+          }
+        : d,
+    );
 
   return (
     <div className="space-y-5">
@@ -118,51 +135,45 @@ export function SalesPolicyTab() {
         </div>
       )}
 
-      {/* VAT + bảo trì */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Thuế &amp; phí</span>
-            <Badge variant="muted">Phiên bản v{draft.version}</Badge>
+            <span>Tham số chung</span>
+            <Badge variant="muted">v{draft.version}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <Label>VAT (%)</Label>
+            <Label>Cọc thiện chí (VND)</Label>
             <Input
               type="number"
-              step="0.1"
-              value={draft.vat_pct}
+              value={draft.deposit_amount}
               onChange={(e) =>
-                setDraft({ ...draft, vat_pct: Number(e.target.value) })
+                setDraft({ ...draft, deposit_amount: Number(e.target.value) })
               }
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {fmtVnd(draft.deposit_amount)} — trừ vào đợt 1
+            </p>
           </div>
           <div>
-            <Label>Phí bảo trì (%)</Label>
-            <Input
-              type="number"
-              step="0.1"
-              value={draft.maintenance_pct}
-              onChange={(e) =>
-                setDraft({ ...draft, maintenance_pct: Number(e.target.value) })
-              }
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <Label>Ghi chú chính sách</Label>
+            <Label>Ghi chú</Label>
             <Input
               value={draft.note}
               onChange={(e) => setDraft({ ...draft, note: e.target.value })}
             />
           </div>
+          <p className="text-[11px] text-muted-foreground sm:col-span-2">
+            VAT và phí bảo trì (KPBT) lấy theo từng căn trong bảng hàng — không
+            cấu hình % ở đây. Chiết khấu chồng tuần tự trên giá niêm yết chưa
+            VAT/KPBT.
+          </p>
         </CardContent>
       </Card>
 
-      {/* Ưu đãi cộng thêm */}
       <Card>
         <CardHeader>
-          <CardTitle>Ưu đãi cộng thêm (addon)</CardTitle>
+          <CardTitle>Ưu đãi chiết khấu (chồng tuần tự)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {draft.addons.map((a, i) => (
@@ -179,23 +190,21 @@ export function SalesPolicyTab() {
                   })
                 }
               />
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  step="0.1"
-                  className="w-24"
-                  value={a.pct}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      addons: draft.addons.map((x, j) =>
-                        j === i ? { ...x, pct: Number(e.target.value) } : x,
-                      ),
-                    })
-                  }
-                />
-                <span className="text-sm text-muted-foreground">%</span>
-              </div>
+              <Input
+                type="number"
+                step="0.1"
+                className="w-24"
+                value={a.pct}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    addons: draft.addons.map((x, j) =>
+                      j === i ? { ...x, pct: Number(e.target.value) } : x,
+                    ),
+                  })
+                }
+              />
+              <span className="text-sm text-muted-foreground">%</span>
               <Switch
                 checked={a.enabled}
                 onChange={(v) =>
@@ -209,131 +218,136 @@ export function SalesPolicyTab() {
               />
             </div>
           ))}
+          <p className="text-[11px] text-muted-foreground">
+            Áp dụng tuần tự theo thứ tự trên (mỗi % trên phần còn lại), trước CK
+            thanh toán của phương án.
+          </p>
         </CardContent>
       </Card>
 
-      {/* Phương án thanh toán + tiến độ động */}
-      {draft.base_plans.map((plan, pi) => {
-        const total = pctTotal(plan.schedule);
-        const ok = Math.abs(total - 100) < 0.01;
-        return (
-          <Card key={plan.key}>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center justify-between gap-3">
-                <span className="flex items-center gap-2">
-                  {plan.label}
-                  <Badge variant="muted">{plan.key}</Badge>
-                </span>
-                <span className="flex items-center gap-3 text-sm font-normal">
-                  <span className="text-muted-foreground">Bật</span>
-                  <Switch
-                    checked={plan.enabled}
-                    onChange={(v) => patchPlan(pi, { enabled: v })}
-                  />
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <Label>Tên hiển thị</Label>
-                  <Input
-                    value={plan.label}
-                    onChange={(e) => patchPlan(pi, { label: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Chiết khấu gốc (%)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={plan.base_discount_pct}
-                    onChange={(e) =>
-                      patchPlan(pi, { base_discount_pct: Number(e.target.value) })
-                    }
-                  />
-                </div>
+      {draft.base_plans.map((plan, pi) => (
+        <Card key={plan.key}>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                {plan.label}
+                <Badge variant="muted">{plan.key}</Badge>
+              </span>
+              <span className="flex items-center gap-3 text-sm font-normal">
+                <span className="text-muted-foreground">Bật</span>
+                <Switch
+                  checked={plan.enabled}
+                  onChange={(v) => patchPlan(pi, { enabled: v })}
+                />
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Tên hiển thị</Label>
+                <Input
+                  value={plan.label}
+                  onChange={(e) => patchPlan(pi, { label: e.target.value })}
+                />
               </div>
+              <div>
+                <Label>CK thanh toán r (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={plan.payment_discount_pct}
+                  onChange={(e) =>
+                    patchPlan(pi, {
+                      payment_discount_pct: Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
 
-              {/* Bảng tiến độ động */}
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Nội dung đợt</th>
-                      <th className="px-3 py-2 font-medium">Kiểu</th>
-                      <th className="px-3 py-2 font-medium">% / Số tiền</th>
-                      <th className="px-3 py-2 font-medium">Tạm</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plan.schedule.map((m, mi) => (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Nội dung đợt</th>
+                    <th className="px-3 py-2 font-medium">Loại</th>
+                    <th className="px-3 py-2 font-medium">%</th>
+                    <th className="px-3 py-2 font-medium">Ngày</th>
+                    <th className="px-3 py-2 font-medium">Trừ cọc</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.schedule.map((m, mi) => {
+                    const usesPct =
+                      m.kind === "pct_f28" ||
+                      m.kind === "balance_partial" ||
+                      m.kind === "bank_70";
+                    return (
                       <tr key={mi} className="border-b border-border/60">
                         <td className="px-3 py-2">
                           <Input
                             value={m.label}
                             onChange={(e) =>
-                              patchMilestone(pi, mi, { label: e.target.value })
+                              patchMs(pi, mi, { label: e.target.value })
                             }
                           />
                         </td>
                         <td className="px-3 py-2">
                           <Select
-                            className="w-36"
+                            className="w-44"
                             value={m.kind}
                             onChange={(e) =>
-                              patchMilestone(pi, mi, {
-                                kind: e.target.value as "pct" | "amount_fixed",
+                              patchMs(pi, mi, {
+                                kind: e.target.value as MilestoneKind,
                               })
                             }
                           >
-                            <option value="pct">% GTSP sau CK</option>
-                            <option value="amount_fixed">Số tiền cố định</option>
+                            {KIND_KEYS.map((k) => (
+                              <option key={k} value={k}>
+                                {KIND_LABELS[k]}
+                              </option>
+                            ))}
                           </Select>
                         </td>
                         <td className="px-3 py-2">
-                          {m.kind === "pct" ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                step="0.1"
-                                className="w-24"
-                                value={m.pct}
-                                onChange={(e) =>
-                                  patchMilestone(pi, mi, {
-                                    pct: Number(e.target.value),
-                                  })
-                                }
-                              />
-                              <span className="text-muted-foreground">%</span>
-                            </div>
+                          {usesPct ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              className="w-20"
+                              value={m.pct}
+                              onChange={(e) =>
+                                patchMs(pi, mi, { pct: Number(e.target.value) })
+                              }
+                            />
                           ) : (
-                            <div className="flex flex-col">
-                              <Input
-                                type="number"
-                                step="1000000"
-                                className="w-40"
-                                value={m.amount}
-                                onChange={(e) =>
-                                  patchMilestone(pi, mi, {
-                                    amount: Number(e.target.value),
-                                  })
-                                }
-                              />
-                              <span className="text-[11px] text-muted-foreground">
-                                {fmtVnd(m.amount)}
-                              </span>
-                            </div>
+                            <span className="text-muted-foreground">—</span>
                           )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input
+                            type="number"
+                            className="w-20"
+                            value={m.days_offset ?? ""}
+                            onChange={(e) =>
+                              patchMs(pi, mi, {
+                                days_offset:
+                                  e.target.value === ""
+                                    ? null
+                                    : Number(e.target.value),
+                              })
+                            }
+                          />
                         </td>
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
-                            checked={Boolean(m.needs_confirm)}
+                            checked={Boolean(m.deduct_deposit)}
                             onChange={(e) =>
-                              patchMilestone(pi, mi, {
-                                needs_confirm: e.target.checked,
+                              patchMs(pi, mi, {
+                                deduct_deposit: e.target.checked,
                               })
                             }
                           />
@@ -341,7 +355,7 @@ export function SalesPolicyTab() {
                         <td className="px-3 py-2 text-right">
                           <button
                             type="button"
-                            onClick={() => removeMilestone(pi, mi)}
+                            onClick={() => removeMs(pi, mi)}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-danger"
                             title="Xoá đợt"
                           >
@@ -349,52 +363,36 @@ export function SalesPolicyTab() {
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={5} className="px-3 py-2">
-                        <div className="flex items-center justify-between">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addMilestone(pi)}
-                          >
-                            <Plus className="h-4 w-4" /> Thêm đợt
-                          </Button>
-                          <span
-                            className={
-                              ok
-                                ? "text-sm font-medium text-success"
-                                : "text-sm font-semibold text-danger"
-                            }
-                          >
-                            Tổng % các đợt: {total.toFixed(1)}%
-                            {ok ? " ✓" : " — phải = 100%"}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Đợt &quot;Số tiền cố định&quot; (vd đặt cọc 200tr) là khoản đặt chỗ,
-                KHÔNG tính vào tổng %; khi lập phiếu nó được trừ vào (các) đợt %
-                đầu tiên. % các đợt tính trên GTSP SAU chiết khấu; VAT và phí bảo
-                trì hiển thị riêng.
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} className="px-3 py-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addMs(pi)}
+                      >
+                        <Plus className="h-4 w-4" /> Thêm đợt
+                      </Button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
 
       <div className="flex items-center justify-end gap-3">
         <span className="text-xs text-muted-foreground">
-          Lưu ý: các tỷ lệ đợt mặc định là TẠM — hãy chỉnh theo chính sách chính
-          thức của Chủ đầu tư.
+          Tiến độ đợt %·GTSP sau CK; cọc trừ vào đợt 1; "Luỹ kế" tự cân về tổng.
         </span>
-        <Button onClick={() => draft && saveMut.mutate(draft)} disabled={saveMut.isPending}>
+        <Button
+          onClick={() => draft && saveMut.mutate(draft)}
+          disabled={saveMut.isPending}
+        >
           <Save className="h-4 w-4" />
           {saveMut.isPending ? "Đang lưu…" : "Lưu chính sách"}
         </Button>

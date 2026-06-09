@@ -268,6 +268,10 @@ export interface UpdateUnitPayload {
   gia_min?: number;
   gia_max?: number;
   quy?: string;
+  gia_ny_gom_vat_kpbt?: number;
+  vat_hdmb?: number;
+  kpbt?: number;
+  gt_xay_ny?: number;
   huong?: string;
   view?: string;
   notes?: string;

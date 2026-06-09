@@ -183,46 +183,41 @@ export async function createQuote(
   return (await res.json()) as QuoteResult;
 }
 
-// ----- Phiếu TÍNH GIÁ theo Chính sách bán hàng -----
+// ----- Phiếu TÍNH GIÁ theo Chính sách bán hàng (khớp mẫu Excel CĐT) -----
 
-export type PolicyMilestoneCfg = {
-  label: string;
-  kind: "pct" | "amount_fixed";
-  pct: number;
-  amount: number;
-  days_offset?: number | null;
-  needs_confirm?: boolean;
-};
-export type BasePlan = {
+export type SalesBasePlan = {
   key: string;
   label: string;
-  base_discount_pct: number;
+  payment_discount_pct: number;
   enabled: boolean;
-  schedule: PolicyMilestoneCfg[];
 };
-export type PolicyAddon = {
+export type SalesPolicyAddon = {
   key: string;
   label: string;
   pct: number;
   enabled: boolean;
 };
 export type SalesPolicyConfig = {
-  base_plans: BasePlan[];
-  addons: PolicyAddon[];
-  vat_pct: number;
-  maintenance_pct: number;
+  base_plans: SalesBasePlan[];
+  addons: SalesPolicyAddon[];
+  deposit_amount: number;
   note: string;
   version: number;
 };
 
-export type DiscountLine = { label: string; pct: number; amount: number };
+export type DiscountLine = {
+  key: string;
+  label: string;
+  pct: number;
+  amount: number;
+};
 export type PolicyMilestoneOut = {
   label: string;
   kind: string;
+  days_offset?: number | null;
   pct: number;
-  amount: number;
-  needs_confirm?: boolean;
-  deposit_deducted?: boolean;
+  customer_amount: number;
+  bank_amount: number;
 };
 export type PolicyQuoteResult = {
   quote_id: string;
@@ -231,17 +226,22 @@ export type PolicyQuoteResult = {
   sale_name: string;
   base_plan: string;
   base_plan_label: string;
-  list_price_ex_vat: number;
+  dien_tich: number;
+  gia_ny_gom_vat_kpbt: number;
+  vat: number;
+  kpbt: number;
+  gt_xay: number;
+  niem_yet_chua_vat_kpbt: number;
+  gift_cash: number;
   discount_lines: DiscountLine[];
-  total_discount_pct: number;
-  total_discount_amount: number;
-  price_after_discount: number;
-  vat_pct: number;
-  vat_amount: number;
-  maintenance_pct: number;
-  maintenance_amount: number;
-  total_payment: number;
+  total_discount: number;
+  gtsp_gom_vat_chua_kpbt: number;
+  gtsp_final: number;
+  don_gia: number;
+  gt_dat: number;
+  five_pct_hdmb: number;
   milestones: PolicyMilestoneOut[];
+  bank_total: number;
   pdf_url: string;
   created_at: string;
 };
@@ -267,6 +267,7 @@ export async function createPolicyQuote(
     sale_phone?: string;
     base_plan: string;
     addons: string[];
+    gift_cash?: number;
     note?: string;
   },
 ): Promise<PolicyQuoteResult> {

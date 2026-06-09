@@ -44,8 +44,18 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: "policy", label: "Phiếu tính giá", Icon: Calculator },
 ];
 
-export function LearningCenter() {
-  const [tab, setTab] = useState<Tab>("library");
+const TAB_IDS: Tab[] = ["library", "ask", "quote", "policy"];
+
+export function LearningCenter({
+  initialTab,
+  initialUnit,
+}: {
+  initialTab?: string;
+  initialUnit?: string;
+} = {}) {
+  const [tab, setTab] = useState<Tab>(
+    TAB_IDS.includes(initialTab as Tab) ? (initialTab as Tab) : "library",
+  );
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
 
@@ -94,7 +104,7 @@ export function LearningCenter() {
       ) : tab === "quote" ? (
         <QuoteTab token={token} user={user} />
       ) : (
-        <PolicyQuoteTab token={token} user={user} />
+        <PolicyQuoteTab token={token} user={user} initialUnit={initialUnit} />
       )}
     </div>
   );
@@ -598,15 +608,24 @@ function QuoteTab({ token, user }: { token: string; user: AuthUser | null }) {
 // Tab 4 — Phiếu tính giá theo chính sách bán hàng
 // ============================================================
 
-function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null }) {
+function PolicyQuoteTab({
+  token,
+  user,
+  initialUnit,
+}: {
+  token: string;
+  user: AuthUser | null;
+  initialUnit?: string;
+}) {
   const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [policy, setPolicy] = useState<SalesPolicyConfig | null>(null);
   const [form, setForm] = useState({
-    unit_id: "",
+    unit_id: initialUnit ?? "",
     customer_name: "",
     customer_phone: "",
     base_plan: "",
     addons: [] as string[],
+    gift_cash: 0,
     note: "",
   });
   const [result, setResult] = useState<PolicyQuoteResult | null>(null);
@@ -663,6 +682,7 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
         sale_phone: user?.phone ?? undefined,
         base_plan: form.base_plan,
         addons: form.addons,
+        gift_cash: Number(form.gift_cash) || 0,
         note: form.note.trim() || undefined,
       });
       setResult(q);
@@ -694,7 +714,7 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
             {units.length === 0 && <option value="">Đang tải quỹ căn…</option>}
             {units.map((u) => (
               <option key={u.code} value={u.code}>
-                {u.code} · {u.zone} · {u.area}m² · {u.price}
+                {u.code} · {u.zone} · {u.area}m²
               </option>
             ))}
           </select>
@@ -734,13 +754,15 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
               >
                 {p.label}
                 <br />
-                <span className="text-[11px] font-normal">CK {p.base_discount_pct}%</span>
+                <span className="text-[11px] font-normal">
+                  CK TT {p.payment_discount_pct}%
+                </span>
               </button>
             ))}
           </div>
         </Field>
 
-        <Field label="Ưu đãi cộng thêm">
+        <Field label="Ưu đãi cộng thêm (chồng tuần tự)">
           <div className="flex flex-wrap gap-2">
             {addons.length === 0 && (
               <span className="text-xs text-brand-400">Không có ưu đãi.</span>
@@ -766,6 +788,17 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
           </div>
         </Field>
 
+        <Field label="Quà tặng tiền mặt (VND, tuỳ chọn)">
+          <input
+            type="number"
+            value={form.gift_cash}
+            onChange={(e) =>
+              setForm({ ...form, gift_cash: Number(e.target.value) })
+            }
+            className="w-full rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-orange-400"
+          />
+        </Field>
+
         <Field label="Ghi chú (tuỳ chọn)">
           <textarea
             value={form.note}
@@ -785,12 +818,6 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
         >
           <Calculator size={16} /> {busy ? "Đang tính giá…" : "Lập phiếu tính giá"}
         </button>
-        {policy && (
-          <p className="text-[11px] text-brand-400">
-            VAT {policy.vat_pct}% · phí bảo trì {policy.maintenance_pct}% · chính
-            sách v{policy.version}
-          </p>
-        )}
       </div>
 
       <div className="space-y-3 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
@@ -822,9 +849,19 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
           <>
             <div className="rounded-xl bg-brand-50 p-3 text-sm">
               <Row
-                label="Giá trị SP (chưa VAT)"
-                value={fmtVnd(result.list_price_ex_vat)}
+                label="Niêm yết (gồm VAT, KPBT)"
+                value={fmtVnd(result.gia_ny_gom_vat_kpbt)}
               />
+              <Row
+                label="Niêm yết chưa VAT/KPBT"
+                value={fmtVnd(result.niem_yet_chua_vat_kpbt)}
+              />
+              {result.gift_cash > 0 && (
+                <Row
+                  label="Quà tặng tiền mặt"
+                  value={"− " + fmtVnd(result.gift_cash)}
+                />
+              )}
               {result.discount_lines.map((d, i) => (
                 <Row
                   key={i}
@@ -834,24 +871,23 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
               ))}
               <div className="my-1 border-t border-brand-100" />
               <Row
-                label={`Giá sau CK (−${result.total_discount_pct}%)`}
-                value={fmtVnd(result.price_after_discount)}
-                strong
+                label="GTSP gồm VAT, chưa KPBT (F28)"
+                value={fmtVnd(result.gtsp_gom_vat_chua_kpbt)}
               />
-              <Row
-                label={`VAT (${result.vat_pct}%)`}
-                value={"+ " + fmtVnd(result.vat_amount)}
-              />
-              <Row
-                label={`Phí bảo trì (${result.maintenance_pct}%)`}
-                value={"+ " + fmtVnd(result.maintenance_amount)}
-              />
+              <Row label="Phí bảo trì (KPBT)" value={"+ " + fmtVnd(result.kpbt)} />
               <div className="my-1 border-t border-brand-100" />
               <Row
-                label="TỔNG THANH TOÁN"
-                value={fmtVnd(result.total_payment)}
+                label="GIÁ BÁN (gồm VAT, KPBT)"
+                value={fmtVnd(result.gtsp_final)}
                 strong
               />
+              <Row label="Đơn giá /m²" value={fmtVnd(result.don_gia)} />
+              {result.bank_total > 0 && (
+                <Row
+                  label="Ngân hàng giải ngân"
+                  value={fmtVnd(result.bank_total)}
+                />
+              )}
             </div>
             {pdfUrl && (
               <iframe
@@ -866,7 +902,6 @@ function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null 
     </div>
   );
 }
-
 // ============================================================
 // Bộ phận dùng chung
 // ============================================================

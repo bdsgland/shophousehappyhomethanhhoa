@@ -166,6 +166,9 @@ def admin_update_unit(unit_id: str, changes: dict) -> Optional[dict]:
         if changes["quy"] not in _QUY_OPTIONS:
             raise ValueError(f"Quỹ không hợp lệ: {changes['quy']}")
         patch["quy"] = changes["quy"]
+    for fld in ("gia_ny_gom_vat_kpbt", "vat_hdmb", "kpbt", "gt_xay_ny"):
+        if changes.get(fld) is not None:
+            patch[fld] = int(round(float(changes[fld])))
     for fld in ("dien_tich", "mat_tien"):
         if changes.get(fld) is not None:
             patch[fld] = float(changes[fld])
@@ -210,6 +213,10 @@ def admin_create_unit(data: dict) -> dict:
         "gia_min": gia_min,
         "gia_max": gia_max,
         "quy": quy,
+        "gia_ny_gom_vat_kpbt": int(round(float(data.get("gia_ny_gom_vat_kpbt") or 0))),
+        "vat_hdmb": int(round(float(data.get("vat_hdmb") or 0))),
+        "kpbt": int(round(float(data.get("kpbt") or 0))),
+        "gt_xay_ny": int(round(float(data.get("gt_xay_ny") or 0))),
         "huong": data.get("huong") or "",
         "view": data.get("view") or "",
         "notes": data.get("notes") or "",

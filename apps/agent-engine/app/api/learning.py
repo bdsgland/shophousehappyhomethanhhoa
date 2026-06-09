@@ -455,13 +455,22 @@ def create_policy_quote(
     if not unit:
         raise HTTPException(404, f"Không tìm thấy căn '{req.unit_id}' trong quỹ hàng")
 
+    prices = pricing_policy.get_unit_prices(unit)
+    if prices is None:
+        raise HTTPException(
+            400,
+            "Căn chưa có dữ liệu giá chi tiết (niêm yết gồm VAT/KPBT, VAT, KPBT) — "
+            "vui lòng cập nhật bảng hàng hoặc nhập trong trang Quỹ căn.",
+        )
+
     config = sales_policy_store.get_current()
-    ex_vat = pricing_policy.list_price_ex_vat(unit)
     try:
         computed = pricing_policy.compute_policy_quote(
-            list_price_ex_vat=ex_vat,
+            prices=prices,
+            dien_tich=float(unit.get("dien_tich") or 0),
             base_key=req.base_plan,
             addon_keys=req.addons,
+            gift_cash=req.gift_cash,
             config=config,
         )
     except ValueError as e:
@@ -488,9 +497,8 @@ def create_policy_quote(
         "created_by": user.get("email"),
         "base_plan": req.base_plan,
         "addons": req.addons,
-        "list_price_ex_vat": ex_vat,
-        "total_discount_pct": computed["total_discount_pct"],
-        "total_payment": computed["total_payment"],
+        "gift_cash": req.gift_cash,
+        "gtsp_final": computed["gtsp_final"],
         "policy_version": config.version,
         "created_at": created_at.isoformat() + "Z",
     }
@@ -498,7 +506,7 @@ def create_policy_quote(
     log.info(
         "learning.policy_quote email=%s quote=%s unit=%s plan=%s total=%.0f",
         user.get("email"), quote_id, req.unit_id, req.base_plan,
-        computed["total_payment"],
+        computed["gtsp_final"],
     )
     return PolicyQuoteResponse(
         quote_id=quote_id,

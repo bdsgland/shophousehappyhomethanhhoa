@@ -1,18 +1,28 @@
-"""Schema "Chính sách bán hàng" — cấu hình phương án thanh toán + chiết khấu
-nhiều lớp + VAT/phí bảo trì, dùng cho phiếu TÍNH GIÁ (policy quote).
+"""Schema "Chính sách bán hàng" — cấu hình chiết khấu CHỒNG TUẦN TỰ + 3 tiến độ,
+khớp ĐÚNG mẫu phiếu tính giá Excel của Chủ đầu tư (sheet "PTG public").
 
-Lưu thành 1 object `SalesPolicyConfig` (JSON store, xem core/sales_policy_store.py,
-cùng pattern version+backup với commission_config). Admin chỉnh qua /admin/sales-policy.
+Lưu 1 object `SalesPolicyConfig` (JSON store, core/sales_policy_store.py, version+
+backup). Admin chỉnh qua /admin/sales-policy.
 
-Công thức (xem services/pricing_policy.py):
-  - Chiết khấu tính trên GTSP CHƯA VAT (list_price_ex_vat).
-  - Tổng %CK = base_discount_pct (theo phương án) + Σ pct các addon được chọn.
-  - Giá sau CK = ex_vat × (1 − tổng%CK/100).
-  - VAT = giá sau CK × vat_pct/100; phí bảo trì = giá sau CK × maintenance_pct/100.
-  - Tổng thanh toán = giá sau CK + VAT + phí bảo trì.
+Mô hình giá (per-unit lấy từ bảng hàng — N/VAT/KPBT/GT xây):
+  F12 = N  (TGT niêm yết gồm VAT, KPBT)
+  F32 = K  (VAT, số tiền) ; F33 = L (KPBT, số tiền) ; F31 = P (GT xây NY)
+  F13 = N − K − L                      (niêm yết CHƯA VAT, CHƯA KPBT)
+  Chiết khấu CHỒNG TUẦN TỰ (ROUND từng bước, trên phần CÒN LẠI của F13):
+    F17 = quà tặng tiền mặt (default 0)
+    F20 = ROUND((F13−F17)            × early_bird%)
+    F21 = ROUND((F13−F17−F20)        × qua_he%)
+    F22 = ROUND((F13−F17−F20−F21)    × dau_tu%)
+    F23 = ROUND((F13−F17−F20−F21−F22)× r)   r = payment_discount_pct theo phương án
+    F24 = 0 (CK khác)
+    F16 = F17 + (F20+F21+F22+F23+F24)        (tổng giảm giá)
+  F28 = N − L − F16   (GT sản phẩm gồm VAT, CHƯA KPBT) — gốc áp tiến độ
+  F26 = F28 + L       (GT sản phẩm gồm VAT, KPBT) — GIÁ CUỐI khách trả
+  F27 = F26 / diện tích (đơn giá)
+  F29 = N − P − L − F16 (GT đất)
+  O   = (N − L) × 5%   (5% GT HĐMB — đợt "5% HĐMB")
 
-⚠️ Tỷ lệ các đợt thanh toán trong seed mặc định là TẠM (đánh dấu cần xác nhận) —
-admin sẽ chỉnh trong trang Cấu hình.
+3 tiến độ (đợt %·F28; cọc trừ vào đợt 1; xem services/pricing_policy.py).
 """
 
 from __future__ import annotations
@@ -22,52 +32,52 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+# Loại đợt thanh toán trong tiến độ.
+MilestoneKind = Literal[
+    "deposit_fixed",   # cọc thiện chí (số tiền cố định = config.deposit_amount)
+    "pct_f28",         # pct × F28 (đợt thường); deduct_deposit=True → trừ cọc
+    "balance_100",     # luỹ kế 100%: F26 − Σ(đợt trước) − O
+    "balance_partial", # luỹ kế phần KH (htls): ROUND(pct%·F28 − Σtrước − O + F33)
+    "five_pct_hdmb",   # 5% HĐMB = O = (N−L)×5%
+    "bank_70",         # ngân hàng giải ngân: pct × F28 (cột NH, không tính KH)
+]
+
 
 # ---------------------------------------------------------------------------
 # Cấu hình chính sách (admin sửa được)
 # ---------------------------------------------------------------------------
 
 class PolicyMilestone(BaseModel):
-    """1 đợt trong tiến độ thanh toán.
-
-    - kind="pct": số tiền = phần còn lại (sau khi trừ các đợt cố định) × pct/100.
-    - kind="amount_fixed": số tiền cố định (VND), vd đặt cọc 200.000.000.
-    """
-
     label: str
-    kind: Literal["pct", "amount_fixed"] = "pct"
-    pct: float = 0.0
-    amount: float = 0.0  # dùng khi kind="amount_fixed"
-    days_offset: Optional[int] = None  # mốc ngày tham khảo (vd 45) — chỉ hiển thị
-    needs_confirm: bool = False  # True = số liệu TẠM, chờ CĐT xác nhận
+    kind: MilestoneKind = "pct_f28"
+    pct: float = 0.0  # cho pct_f28 / balance_partial / bank_70
+    days_offset: Optional[int] = None  # mốc ngày (hiển thị)
+    deduct_deposit: bool = False  # đợt này trừ khoản cọc thiện chí (đợt 1)
 
 
 class BasePlan(BaseModel):
-    """1 phương án thanh toán gốc (chuẩn / sớm / vay)."""
+    """1 phương án thanh toán (thuong / som95 / htls)."""
 
-    key: str  # "chuan" | "som" | "vay"
+    key: str
     label: str
-    base_discount_pct: float = 0.0
+    payment_discount_pct: float = 0.0  # r — CK thanh toán (F23)
     enabled: bool = True
     schedule: list[PolicyMilestone] = Field(default_factory=list)
 
 
 class PolicyAddon(BaseModel):
-    """1 ưu đãi cộng thêm (early bird / quà hè / đầu tư)."""
+    """1 ưu đãi chiết khấu chồng tuần tự (early_bird / qua_he / dau_tu)."""
 
-    key: str  # "early_bird" | "qua_he" | "dau_tu"
+    key: str
     label: str
     pct: float = 0.0
-    enabled: bool = True
+    enabled: bool = True  # "Áp dụng / Không" trong chính sách
 
 
 class SalesPolicyConfig(BaseModel):
-    """Toàn bộ chính sách bán hàng — 1 object duy nhất trong store."""
-
     base_plans: list[BasePlan]
     addons: list[PolicyAddon]
-    vat_pct: float = 10.0
-    maintenance_pct: float = 2.0
+    deposit_amount: float = 200_000_000.0  # cọc thiện chí (VND)
     note: str = ""
     last_updated_by: Optional[str] = None
     last_updated_at: Optional[datetime] = None
@@ -87,19 +97,21 @@ class SalesPolicyVersion(BaseModel):
 # ---------------------------------------------------------------------------
 
 class PolicyQuoteRequest(BaseModel):
-    unit_id: str = Field(description="Mã căn trong quỹ hàng (vd BM-01)")
+    unit_id: str = Field(description="Mã căn trong quỹ hàng")
     customer_name: str = Field(min_length=1)
     customer_phone: str = ""
     sale_name: str = ""
     sale_phone: str = ""
-    base_plan: str = Field(description="key phương án: chuan | som | vay")
-    addons: list[str] = Field(default_factory=list, description="key các ưu đãi chọn thêm")
+    base_plan: str = Field(description="key phương án: thuong | som95 | htls")
+    addons: list[str] = Field(default_factory=list, description="key ưu đãi áp dụng")
+    gift_cash: float = 0.0  # F17 — quà tặng tiền mặt (VND)
     note: Optional[str] = None
 
 
 class DiscountLine(BaseModel):
-    """1 dòng chiết khấu (CK gốc theo phương án, hoặc 1 addon)."""
+    """1 dòng chiết khấu (F20..F24)."""
 
+    key: str
     label: str
     pct: float
     amount: float
@@ -108,10 +120,10 @@ class DiscountLine(BaseModel):
 class PolicyMilestoneOut(BaseModel):
     label: str
     kind: str
-    pct: float
-    amount: float
-    needs_confirm: bool = False
-    deposit_deducted: bool = False  # True: đợt này đã được trừ khoản đặt cọc
+    days_offset: Optional[int] = None
+    pct: float = 0.0
+    customer_amount: float = 0.0  # KH thanh toán
+    bank_amount: float = 0.0      # NH giải ngân (htls)
 
 
 class PolicyQuoteResponse(BaseModel):
@@ -121,91 +133,102 @@ class PolicyQuoteResponse(BaseModel):
     sale_name: str
     base_plan: str
     base_plan_label: str
-    list_price_ex_vat: float  # GTSP chưa VAT
-    discount_lines: list[DiscountLine]
-    total_discount_pct: float
-    total_discount_amount: float
-    price_after_discount: float
-    vat_pct: float
-    vat_amount: float
-    maintenance_pct: float
-    maintenance_amount: float
-    total_payment: float
+    dien_tich: float
+    # Niêm yết & breakdown
+    gia_ny_gom_vat_kpbt: float   # F12 = N
+    vat: float                   # F32 = K
+    kpbt: float                  # F33 = L
+    gt_xay: float                # F31 = P
+    niem_yet_chua_vat_kpbt: float  # F13
+    # Chiết khấu
+    gift_cash: float             # F17
+    discount_lines: list[DiscountLine]  # F20..F24
+    total_discount: float        # F16
+    # Giá sản phẩm
+    gtsp_gom_vat_chua_kpbt: float  # F28
+    gtsp_final: float            # F26 (giá cuối)
+    don_gia: float               # F27
+    gt_dat: float                # F29
+    five_pct_hdmb: float         # O
+    # Tiến độ
     milestones: list[PolicyMilestoneOut]
+    bank_total: float = 0.0      # tổng NH giải ngân (htls)
     pdf_url: str
     created_at: datetime
 
 
 # ---------------------------------------------------------------------------
-# Seed mặc định (lần đầu) — TỶ LỆ ĐỢT LÀ TẠM, chờ CĐT/admin xác nhận
+# Seed mặc định — khớp 3 tiến độ trong mẫu CĐT
 # ---------------------------------------------------------------------------
 
-# Đặt cọc thiện chí cố định (VND).
-_DEPOSIT = 200_000_000.0
+def _pct(label: str, pct: float, days: int, deduct: bool = False) -> PolicyMilestone:
+    return PolicyMilestone(
+        label=label, kind="pct_f28", pct=pct, days_offset=days, deduct_deposit=deduct
+    )
 
 
 def default_config() -> SalesPolicyConfig:
-    """Bản chính sách mặc định MỚI (tránh chia sẻ object mutable).
-
-    ⚠️ % các đợt (đặc biệt đợt cuối "Nhận nhà/Bàn giao") là TẠM để tổng = 100%;
-    admin chỉnh lại theo chính sách thực tế của CĐT trong trang Cấu hình.
-    """
-    twelve = [
-        PolicyMilestone(
-            label=f"Đợt {i} (mỗi 45 ngày)", kind="pct", pct=5.0,
-            days_offset=45 * i, needs_confirm=True,
-        )
-        for i in range(1, 13)
+    """Bản chính sách mặc định MỚI (khớp mẫu Excel). Admin chỉnh được mọi %."""
+    # --- THANH TOÁN THƯỜNG (chuẩn, r=5%) ---
+    thuong = [
+        PolicyMilestone(label="Đặt cọc thiện chí", kind="deposit_fixed"),
+        _pct("Đợt 1 — Ký HĐMB (10%)", 10.0, 0, deduct=True),
     ]
+    thuong += [_pct(f"Đợt {i} (5%)", 5.0, 45 * (i - 1)) for i in range(2, 12)]  # đợt 2..11
+    thuong += [
+        _pct("Đợt 12 (10%)", 10.0, 45 * 11),
+        _pct("Đợt 13 (10%)", 10.0, 45 * 12),
+        PolicyMilestone(label="Luỹ kế 100% — Nhận nhà/Bàn giao", kind="balance_100",
+                        days_offset=45 * 13),
+        PolicyMilestone(label="5% còn lại khi có thông báo ra sổ (5% HĐMB)",
+                        kind="five_pct_hdmb"),
+    ]
+
+    # --- THANH TOÁN SỚM 95% (som95, r=12%) ---
+    som95 = [
+        PolicyMilestone(label="Đặt cọc thiện chí", kind="deposit_fixed"),
+        _pct("Đợt 1 — Ký HĐMB (10%)", 10.0, 0, deduct=True),
+        _pct("Đợt 2 (5%)", 5.0, 45),
+        _pct("Đợt 3 (5%)", 5.0, 90),
+        _pct("Đợt 4 (5%)", 5.0, 135),
+        _pct("Đợt 5 (5%)", 5.0, 180),
+        PolicyMilestone(label="Luỹ kế 100% (180 ngày)", kind="balance_100",
+                        days_offset=180),
+        PolicyMilestone(label="5% HĐMB (khi ra sổ)", kind="five_pct_hdmb"),
+    ]
+
+    # --- HỖ TRỢ LÃI SUẤT NGÂN HÀNG (htls, r=0%) ---
+    htls = [
+        PolicyMilestone(label="Đặt cọc thiện chí", kind="deposit_fixed"),
+        _pct("Đợt 1 — Ký HĐMB (10%)", 10.0, 0, deduct=True),
+        _pct("Đợt 2 (5%)", 5.0, 45),
+        _pct("Đợt 3 (5%)", 5.0, 90),
+        _pct("Đợt 4 (5%)", 5.0, 135),
+        PolicyMilestone(label="Luỹ kế 30% — vốn tự có (180 ngày)", kind="balance_partial",
+                        pct=30.0, days_offset=180),
+        PolicyMilestone(label="Ngân hàng giải ngân 70%", kind="bank_70", pct=70.0,
+                        days_offset=180),
+        PolicyMilestone(label="5% HĐMB (khi ra sổ)", kind="five_pct_hdmb"),
+    ]
+
     return SalesPolicyConfig(
-        vat_pct=10.0,
-        maintenance_pct=2.0,
+        deposit_amount=200_000_000.0,
         note=(
-            "Tỷ lệ các đợt thanh toán là TẠM (đặc biệt đợt 'Nhận nhà/Bàn giao') — "
-            "vui lòng cập nhật theo chính sách chính thức của Chủ đầu tư."
+            "Chiết khấu chồng tuần tự trên giá niêm yết chưa VAT/KPBT; VAT, KPBT, "
+            "giá trị xây lấy theo bảng hàng từng căn. Tỷ lệ đợt khớp mẫu CĐT — "
+            "admin chỉnh nếu chính sách thay đổi."
         ),
         base_plans=[
-            BasePlan(
-                key="chuan", label="Thanh toán chuẩn", base_discount_pct=5.0,
-                schedule=[
-                    PolicyMilestone(label="Đặt cọc thiện chí", kind="amount_fixed", amount=_DEPOSIT),
-                    PolicyMilestone(label="Ký HĐMB", kind="pct", pct=10.0),
-                    *twelve,
-                    PolicyMilestone(
-                        label="Nhận nhà / Bàn giao", kind="pct", pct=30.0, needs_confirm=True,
-                    ),
-                ],
-            ),
-            BasePlan(
-                key="som", label="Thanh toán sớm", base_discount_pct=12.0,
-                schedule=[
-                    PolicyMilestone(label="Đặt cọc thiện chí", kind="amount_fixed", amount=_DEPOSIT),
-                    PolicyMilestone(label="Ký HĐMB", kind="pct", pct=10.0),
-                    PolicyMilestone(label="Đợt 1 (45 ngày)", kind="pct", pct=5.0, days_offset=45),
-                    PolicyMilestone(label="Đợt 2 (90 ngày)", kind="pct", pct=5.0, days_offset=90),
-                    PolicyMilestone(label="Đợt 3 (135 ngày)", kind="pct", pct=5.0, days_offset=135),
-                    PolicyMilestone(label="Đợt 4 (180 ngày)", kind="pct", pct=5.0, days_offset=180),
-                    PolicyMilestone(
-                        label="Nhận nhà / Bàn giao", kind="pct", pct=70.0, needs_confirm=True,
-                    ),
-                ],
-            ),
-            BasePlan(
-                key="vay", label="Vay ngân hàng", base_discount_pct=5.0,
-                schedule=[
-                    PolicyMilestone(label="Đặt cọc thiện chí", kind="amount_fixed", amount=_DEPOSIT),
-                    PolicyMilestone(label="Vốn tự có khi ký HĐMB", kind="pct", pct=20.0),
-                    PolicyMilestone(label="Đợt 1 (45 ngày)", kind="pct", pct=5.0, days_offset=45),
-                    PolicyMilestone(label="Đợt 2 (90 ngày)", kind="pct", pct=5.0, days_offset=90),
-                    PolicyMilestone(
-                        label="Ngân hàng giải ngân (vay)", kind="pct", pct=70.0, needs_confirm=True,
-                    ),
-                ],
-            ),
+            BasePlan(key="thuong", label="Thanh toán thường", payment_discount_pct=5.0,
+                     schedule=thuong),
+            BasePlan(key="som95", label="Thanh toán sớm 95%", payment_discount_pct=12.0,
+                     schedule=som95),
+            BasePlan(key="htls", label="Hỗ trợ lãi suất ngân hàng",
+                     payment_discount_pct=0.0, schedule=htls),
         ],
         addons=[
-            PolicyAddon(key="early_bird", label="Early bird (đặt sớm)", pct=2.0),
-            PolicyAddon(key="qua_he", label="Quà hè", pct=1.5),
+            PolicyAddon(key="early_bird", label="Early Bird", pct=2.0),
+            PolicyAddon(key="qua_he", label="Chào Hè", pct=1.5),
             PolicyAddon(key="dau_tu", label="Ưu đãi đầu tư", pct=2.0),
         ],
     )
