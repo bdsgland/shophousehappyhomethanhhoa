@@ -32,6 +32,8 @@ _VN_TZ = timezone(timedelta(hours=7))
 _presence: dict[str, dict[str, Any]] = {}
 _sale_ws: dict[str, Any] = {}  # sale_id -> WebSocket
 _customer_ws: dict[str, Any] = {}  # customer_id -> WebSocket
+# Admin có thể mở nhiều tab dashboard cùng lúc → set các kết nối đang xem.
+_admin_ws: set[Any] = set()  # {WebSocket, ...} admin theo dõi Live Match realtime
 
 
 def _now() -> datetime:
@@ -231,6 +233,33 @@ async def send_to_sale(sale_id: str, message: dict) -> bool:
     except Exception:  # noqa: BLE001 — kết nối có thể đã đứt
         _sale_ws.pop(sale_id, None)
         return False
+
+
+def register_admin_ws(ws: Any) -> None:
+    """Đăng ký 1 kết nối admin đang xem dashboard Live Match."""
+    _admin_ws.add(ws)
+
+
+def unregister_admin_ws(ws: Any) -> None:
+    """Gỡ kết nối admin (WS disconnect / unmount)."""
+    _admin_ws.discard(ws)
+
+
+async def broadcast_to_admins(message: dict) -> int:
+    """Đẩy JSON tới mọi admin đang theo dõi. Trả số kết nối gửi thành công.
+
+    Best-effort: kết nối lỗi sẽ bị loại khỏi registry, không raise.
+    """
+    if not _admin_ws:
+        return 0
+    sent = 0
+    for ws in list(_admin_ws):
+        try:
+            await ws.send_json(message)
+            sent += 1
+        except Exception:  # noqa: BLE001 — kết nối có thể đã đứt
+            _admin_ws.discard(ws)
+    return sent
 
 
 async def send_to_customer(customer_id: str, message: dict) -> bool:

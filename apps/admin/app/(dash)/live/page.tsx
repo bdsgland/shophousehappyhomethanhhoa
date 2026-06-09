@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -8,8 +9,10 @@ import {
   Radio,
   UserCheck,
   Users,
+  Video,
 } from "lucide-react";
 
+import { useAdminMatchSocket } from "@/hooks/useAdminMatchSocket";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/kpi/StatCard";
 import { Badge } from "@/components/ui/badge";
@@ -60,21 +63,81 @@ function fmtDuration(sec: number | null): string {
   return `${m}m${s.toString().padStart(2, "0")}s`;
 }
 
+/** Định dạng elapsed giây → mm:ss (hoặc h:mm:ss nếu ≥ 1 giờ). */
+function fmtElapsed(totalSec: number): string {
+  const sec = totalSec < 0 ? 0 : totalSec;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const mm = m.toString().padStart(2, "0");
+  const ss = s.toString().padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * Thời lượng hiển thị: cuộc đang `live` → đếm realtime từ accepted_at; cuộc đã
+ * kết thúc → dùng duration_seconds sẵn có.
+ */
+function durationDisplay(m: MatchRecord, nowMs: number): string {
+  if (m.status === "live" && m.accepted_at) {
+    const started = new Date(m.accepted_at).getTime();
+    return fmtElapsed(Math.floor((nowMs - started) / 1000));
+  }
+  return fmtDuration(m.duration_seconds);
+}
+
+/** Link "Vào Meet": nổi bật khi cuộc đang `live`, còn lại để mờ. "—" nếu chưa có. */
+function MeetLink({ match }: { match: MatchRecord }) {
+  if (!match.meet_link) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const isLive = match.status === "live";
+  return (
+    <a
+      href={match.meet_link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        isLive
+          ? "inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+          : "inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      }
+    >
+      <Video className="h-3.5 w-3.5" />
+      Vào Meet
+    </a>
+  );
+}
+
 export default function LiveMatchPage() {
+  // WebSocket push realtime; polling bên dưới chỉ còn là fallback khi WS rớt.
+  const { connected: wsLive } = useAdminMatchSocket();
+
+  // Đồng hồ tick mỗi giây để cập nhật thời lượng cuộc đang `live`.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Khi WS đang sống → nới polling (giảm tải); khi rớt → poll dày như cũ.
+  const fastInterval = wsLive ? 20_000 : 5_000;
+  const slowInterval = wsLive ? 30_000 : 10_000;
+
   const statsQuery = useQuery({
     queryKey: ["match-stats"],
     queryFn: () => getMatchStats("today"),
-    refetchInterval: 5_000,
+    refetchInterval: fastInterval,
   });
   const presenceQuery = useQuery({
     queryKey: ["match-presence"],
     queryFn: getMatchPresence,
-    refetchInterval: 5_000,
+    refetchInterval: fastInterval,
   });
   const historyQuery = useQuery({
     queryKey: ["match-history"],
     queryFn: () => getMatchHistory(50),
-    refetchInterval: 10_000,
+    refetchInterval: slowInterval,
   });
 
   const stats = statsQuery.data;
@@ -88,21 +151,33 @@ export default function LiveMatchPage() {
         title="Live Match"
         description="Theo dõi realtime việc ghép khách online với chuyên viên qua Google Meet."
         action={
-          <Button
-            variant="outline"
-            size="sm"
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className={
+                  wsLive
+                    ? "h-2 w-2 rounded-full bg-success"
+                    : "h-2 w-2 rounded-full bg-muted-foreground/40"
+                }
+              />
+              {wsLive ? "Realtime" : "Đang polling"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
             onClick={() => {
               statsQuery.refetch();
               presenceQuery.refetch();
               historyQuery.refetch();
             }}
-            disabled={statsQuery.isFetching}
-          >
-            <RefreshCw
-              className={statsQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"}
-            />
-            Làm mới
-          </Button>
+              disabled={statsQuery.isFetching}
+            >
+              <RefreshCw
+                className={statsQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+              />
+              Làm mới
+            </Button>
+          </div>
         }
       />
 
@@ -186,9 +261,17 @@ export default function LiveMatchPage() {
                           ↔ {m.sale_name ?? "…"}
                         </span>
                       </div>
-                      <Badge variant={STATUS[m.status]?.variant ?? "muted"}>
-                        {STATUS[m.status]?.label ?? m.status}
-                      </Badge>
+                      <div className="flex items-center gap-3">
+                        {m.status === "live" && (
+                          <span className="font-mono text-xs tabular-nums text-success">
+                            {durationDisplay(m, nowMs)}
+                          </span>
+                        )}
+                        <MeetLink match={m} />
+                        <Badge variant={STATUS[m.status]?.variant ?? "muted"}>
+                          {STATUS[m.status]?.label ?? m.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -206,6 +289,7 @@ export default function LiveMatchPage() {
                         <th className="py-2 font-medium">Khách</th>
                         <th className="py-2 font-medium">Chuyên viên</th>
                         <th className="py-2 font-medium">Trạng thái</th>
+                        <th className="py-2 font-medium">Google Meet</th>
                         <th className="py-2 font-medium">Bắt đầu</th>
                         <th className="py-2 font-medium">Thời lượng</th>
                       </tr>
@@ -222,11 +306,20 @@ export default function LiveMatchPage() {
                               {STATUS[m.status]?.label ?? m.status}
                             </Badge>
                           </td>
+                          <td className="py-2">
+                            <MeetLink match={m} />
+                          </td>
                           <td className="py-2 text-muted-foreground">
                             {fmtTime(m.created_at)}
                           </td>
-                          <td className="py-2 text-muted-foreground">
-                            {fmtDuration(m.duration_seconds)}
+                          <td
+                            className={
+                              m.status === "live"
+                                ? "py-2 font-mono tabular-nums text-success"
+                                : "py-2 text-muted-foreground"
+                            }
+                          >
+                            {durationDisplay(m, nowMs)}
                           </td>
                         </tr>
                       ))}

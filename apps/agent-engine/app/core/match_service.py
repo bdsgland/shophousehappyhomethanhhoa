@@ -36,6 +36,24 @@ def _parse(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+async def _notify_admins(match: Optional[dict]) -> None:
+    """Đẩy 1 cập nhật match + stats hôm nay tới các admin đang xem dashboard.
+
+    Best-effort: lỗi broadcast KHÔNG được làm hỏng luồng match (admin chỉ là
+    observer). Stats tính lại nhẹ từ store nên gọi an toàn ở mỗi lần đổi trạng thái.
+    """
+    try:
+        await presence.broadcast_to_admins(
+            {
+                "type": "match:update",
+                "match": match,
+                "stats": get_match_stats("today"),
+            }
+        )
+    except Exception:  # noqa: BLE001 — broadcast là phụ trợ, nuốt mọi lỗi
+        pass
+
+
 # ----- Public API -----
 
 async def request_match(
@@ -85,6 +103,7 @@ async def _find_and_invite(match_id: str) -> bool:
             match["customer_id"],
             {"type": "match:no_sale_available", "match_id": match_id},
         )
+        await _notify_admins(match_store.get(match_id))
         return False
 
     sale_id = best["sale_id"]
@@ -109,6 +128,7 @@ async def _find_and_invite(match_id: str) -> bool:
             "timeout_seconds": settings.match_invite_timeout_seconds,
         },
     )
+    await _notify_admins(updated)
     _schedule_expiry(match_id, sale_id, expires_at)
     return True
 
@@ -143,6 +163,7 @@ async def accept_match(match_id: str, sale_id: str) -> dict:
             "match": match,
         },
     )
+    await _notify_admins(match)
 
     try:
         event = await google_meet.create_meet_event(
@@ -163,6 +184,7 @@ async def accept_match(match_id: str, sale_id: str) -> dict:
                 "fallback": "Chuyên viên sẽ gọi điện cho bạn trong ít phút.",
             },
         )
+        await _notify_admins(match)
         return match
 
     match = match_store.update_force(
@@ -177,6 +199,7 @@ async def accept_match(match_id: str, sale_id: str) -> dict:
     payload = {"type": "match:meet_ready", "match": match, "meet_link": event["meet_link"]}
     await presence.send_to_sale(sale_id, payload)
     await presence.send_to_customer(match["customer_id"], payload)
+    await _notify_admins(match)
     return match
 
 
@@ -267,6 +290,7 @@ async def cancel_match(match_id: str, by_customer: bool = True) -> dict:
         if was_live:
             presence.inc_active_calls(cur_sale, -1)
             presence.set_busy(cur_sale, False)
+    await _notify_admins(match)
     return match
 
 
@@ -298,6 +322,7 @@ async def complete_match(
     await presence.send_to_customer(
         match["customer_id"], {"type": "match:completed", "match_id": match_id}
     )
+    await _notify_admins(match)
     return match
 
 
