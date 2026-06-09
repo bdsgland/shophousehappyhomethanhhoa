@@ -183,6 +183,102 @@ export async function createQuote(
   return (await res.json()) as QuoteResult;
 }
 
+// ----- Phiếu TÍNH GIÁ theo Chính sách bán hàng -----
+
+export type PolicyMilestoneCfg = {
+  label: string;
+  kind: "pct" | "amount_fixed";
+  pct: number;
+  amount: number;
+  days_offset?: number | null;
+  needs_confirm?: boolean;
+};
+export type BasePlan = {
+  key: string;
+  label: string;
+  base_discount_pct: number;
+  enabled: boolean;
+  schedule: PolicyMilestoneCfg[];
+};
+export type PolicyAddon = {
+  key: string;
+  label: string;
+  pct: number;
+  enabled: boolean;
+};
+export type SalesPolicyConfig = {
+  base_plans: BasePlan[];
+  addons: PolicyAddon[];
+  vat_pct: number;
+  maintenance_pct: number;
+  note: string;
+  version: number;
+};
+
+export type DiscountLine = { label: string; pct: number; amount: number };
+export type PolicyMilestoneOut = {
+  label: string;
+  kind: string;
+  pct: number;
+  amount: number;
+  needs_confirm?: boolean;
+  deposit_deducted?: boolean;
+};
+export type PolicyQuoteResult = {
+  quote_id: string;
+  unit_id: string;
+  customer_name: string;
+  sale_name: string;
+  base_plan: string;
+  base_plan_label: string;
+  list_price_ex_vat: number;
+  discount_lines: DiscountLine[];
+  total_discount_pct: number;
+  total_discount_amount: number;
+  price_after_discount: number;
+  vat_pct: number;
+  vat_amount: number;
+  maintenance_pct: number;
+  maintenance_amount: number;
+  total_payment: number;
+  milestones: PolicyMilestoneOut[];
+  pdf_url: string;
+  created_at: string;
+};
+
+export async function fetchSalesPolicy(
+  token: string,
+): Promise<SalesPolicyConfig> {
+  const res = await fetch(`${AGENT_ENGINE_URL}/learning/sales-policy`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as SalesPolicyConfig;
+}
+
+export async function createPolicyQuote(
+  token: string,
+  payload: {
+    unit_id: string;
+    customer_name: string;
+    customer_phone?: string;
+    sale_name?: string;
+    sale_phone?: string;
+    base_plan: string;
+    addons: string[];
+    note?: string;
+  },
+): Promise<PolicyQuoteResult> {
+  const res = await fetch(`${AGENT_ENGINE_URL}/learning/policy-quote`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as PolicyQuoteResult;
+}
+
 /** Tải 1 endpoint nhị phân (PDF/file) kèm Bearer → trả blob URL (nhớ revoke sau). */
 export async function fetchBlobUrl(token: string, path: string): Promise<string> {
   const url = path.startsWith("http") ? path : `${AGENT_ENGINE_URL}${path}`;

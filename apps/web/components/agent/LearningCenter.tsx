@@ -21,22 +21,27 @@ import {
   askLearning,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
+  createPolicyQuote,
   createQuote,
   downloadFile,
   fetchDocuments,
+  fetchSalesPolicy,
   formatBytes,
   type AskSource,
   type DocumentCategory,
   type LearningDocument,
+  type PolicyQuoteResult,
   type QuoteResult,
+  type SalesPolicyConfig,
 } from "@/lib/learning";
 
-type Tab = "library" | "ask" | "quote";
+type Tab = "library" | "ask" | "quote" | "policy";
 
 const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: "library", label: "Thư viện", Icon: BookOpen },
   { id: "ask", label: "Hỏi AI", Icon: Sparkles },
   { id: "quote", label: "Phiếu báo giá", Icon: Calculator },
+  { id: "policy", label: "Phiếu tính giá", Icon: Calculator },
 ];
 
 export function LearningCenter() {
@@ -86,8 +91,10 @@ export function LearningCenter() {
         <LibraryTab token={token} />
       ) : tab === "ask" ? (
         <AskTab token={token} />
-      ) : (
+      ) : tab === "quote" ? (
         <QuoteTab token={token} user={user} />
+      ) : (
+        <PolicyQuoteTab token={token} user={user} />
       )}
     </div>
   );
@@ -576,6 +583,279 @@ function QuoteTab({ token, user }: { token: string; user: AuthUser | null }) {
             {pdfUrl && (
               <iframe
                 title="Phiếu báo giá"
+                src={pdfUrl}
+                className="h-72 w-full rounded-lg border border-brand-100"
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab 4 — Phiếu tính giá theo chính sách bán hàng
+// ============================================================
+
+function PolicyQuoteTab({ token, user }: { token: string; user: AuthUser | null }) {
+  const [units, setUnits] = useState<InventoryUnit[]>([]);
+  const [policy, setPolicy] = useState<SalesPolicyConfig | null>(null);
+  const [form, setForm] = useState({
+    unit_id: "",
+    customer_name: "",
+    customer_phone: "",
+    base_plan: "",
+    addons: [] as string[],
+    note: "",
+  });
+  const [result, setResult] = useState<PolicyQuoteResult | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchInventory().then((u) => {
+      if (u) {
+        setUnits(u);
+        setForm((f) => (f.unit_id ? f : { ...f, unit_id: u[0]?.code ?? "" }));
+      }
+    });
+    fetchSalesPolicy(token)
+      .then((p) => {
+        setPolicy(p);
+        setForm((f) =>
+          f.base_plan
+            ? f
+            : { ...f, base_plan: p.base_plans.find((b) => b.enabled)?.key ?? "" },
+        );
+      })
+      .catch((e: Error) => setError(e.message));
+  }, [token]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
+
+  const toggleAddon = (key: string) =>
+    setForm((f) => ({
+      ...f,
+      addons: f.addons.includes(key)
+        ? f.addons.filter((k) => k !== key)
+        : [...f.addons, key],
+    }));
+
+  async function submit() {
+    if (!form.unit_id || !form.customer_name.trim() || !form.base_plan) {
+      setError("Vui lòng chọn căn, phương án và nhập tên khách hàng.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const q = await createPolicyQuote(token, {
+        unit_id: form.unit_id,
+        customer_name: form.customer_name.trim(),
+        customer_phone: form.customer_phone.trim(),
+        sale_name: user?.full_name,
+        sale_phone: user?.phone ?? undefined,
+        base_plan: form.base_plan,
+        addons: form.addons,
+        note: form.note.trim() || undefined,
+      });
+      setResult(q);
+      const { fetchBlobUrl } = await import("@/lib/learning");
+      setPdfUrl(await fetchBlobUrl(token, q.pdf_url));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const plans = (policy?.base_plans ?? []).filter((b) => b.enabled);
+  const addons = (policy?.addons ?? []).filter((a) => a.enabled);
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="space-y-4 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-brand-900">
+          Thông tin phiếu tính giá
+        </h2>
+
+        <Field label="Căn hộ">
+          <select
+            value={form.unit_id}
+            onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
+            className="w-full rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-orange-400"
+          >
+            {units.length === 0 && <option value="">Đang tải quỹ căn…</option>}
+            {units.map((u) => (
+              <option key={u.code} value={u.code}>
+                {u.code} · {u.zone} · {u.area}m² · {u.price}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Tên khách hàng">
+            <input
+              value={form.customer_name}
+              onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
+              placeholder="Nguyễn Văn A"
+              className="w-full rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-orange-400"
+            />
+          </Field>
+          <Field label="SĐT khách">
+            <input
+              value={form.customer_phone}
+              onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
+              placeholder="09xx xxx xxx"
+              className="w-full rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-orange-400"
+            />
+          </Field>
+        </div>
+
+        <Field label="Phương án thanh toán">
+          <div className="flex flex-wrap gap-2">
+            {plans.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setForm({ ...form, base_plan: p.key })}
+                className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium ${
+                  form.base_plan === p.key
+                    ? "border-orange-400 bg-orange-50 text-orange-700"
+                    : "border-brand-100 text-brand-600 hover:border-orange-200"
+                }`}
+              >
+                {p.label}
+                <br />
+                <span className="text-[11px] font-normal">CK {p.base_discount_pct}%</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Ưu đãi cộng thêm">
+          <div className="flex flex-wrap gap-2">
+            {addons.length === 0 && (
+              <span className="text-xs text-brand-400">Không có ưu đãi.</span>
+            )}
+            {addons.map((a) => {
+              const on = form.addons.includes(a.key);
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => toggleAddon(a.key)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    on
+                      ? "border-orange-400 bg-orange-50 text-orange-700"
+                      : "border-brand-100 text-brand-600 hover:border-orange-200"
+                  }`}
+                >
+                  {on ? "✓ " : ""}
+                  {a.label} +{a.pct}%
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Ghi chú (tuỳ chọn)">
+          <textarea
+            value={form.note}
+            onChange={(e) => setForm({ ...form, note: e.target.value })}
+            rows={2}
+            className="w-full rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-orange-400"
+          />
+        </Field>
+
+        {error && <ErrorBox message={error} />}
+
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+        >
+          <Calculator size={16} /> {busy ? "Đang tính giá…" : "Lập phiếu tính giá"}
+        </button>
+        {policy && (
+          <p className="text-[11px] text-brand-400">
+            VAT {policy.vat_pct}% · phí bảo trì {policy.maintenance_pct}% · chính
+            sách v{policy.version}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-brand-900">Bản xem trước</h2>
+          {result && (
+            <button
+              type="button"
+              onClick={() =>
+                downloadFile(
+                  token,
+                  result.pdf_url,
+                  `phieu-tinh-gia-${result.unit_id}.pdf`,
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50"
+            >
+              <Download size={14} /> Tải PDF
+            </button>
+          )}
+        </div>
+
+        {!result ? (
+          <div className="flex h-72 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-brand-200 text-center text-sm text-brand-400">
+            <FileText size={32} />
+            Chọn phương án + ưu đãi rồi nhấn “Lập phiếu tính giá”.
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl bg-brand-50 p-3 text-sm">
+              <Row
+                label="Giá trị SP (chưa VAT)"
+                value={fmtVnd(result.list_price_ex_vat)}
+              />
+              {result.discount_lines.map((d, i) => (
+                <Row
+                  key={i}
+                  label={`${d.label} (${d.pct}%)`}
+                  value={"− " + fmtVnd(d.amount)}
+                />
+              ))}
+              <div className="my-1 border-t border-brand-100" />
+              <Row
+                label={`Giá sau CK (−${result.total_discount_pct}%)`}
+                value={fmtVnd(result.price_after_discount)}
+                strong
+              />
+              <Row
+                label={`VAT (${result.vat_pct}%)`}
+                value={"+ " + fmtVnd(result.vat_amount)}
+              />
+              <Row
+                label={`Phí bảo trì (${result.maintenance_pct}%)`}
+                value={"+ " + fmtVnd(result.maintenance_amount)}
+              />
+              <div className="my-1 border-t border-brand-100" />
+              <Row
+                label="TỔNG THANH TOÁN"
+                value={fmtVnd(result.total_payment)}
+                strong
+              />
+            </div>
+            {pdfUrl && (
+              <iframe
+                title="Phiếu tính giá"
                 src={pdfUrl}
                 className="h-72 w-full rounded-lg border border-brand-100"
               />

@@ -30,6 +30,7 @@ import type {
   ResetPasswordResult,
   SaleRow,
   SalePerformance,
+  SalesPolicyConfig,
   SettingsResponse,
   TokenResponse,
   User,
@@ -406,6 +407,19 @@ export function deleteLearningDocument(id: string) {
 
 export function getKbStats() {
   return apiFetch<KbStats>("/admin/kb/stats");
+}
+
+// ---- Chính sách bán hàng (phiếu tính giá) ----
+
+export function getSalesPolicy() {
+  return apiFetch<SalesPolicyConfig>("/admin/sales-policy");
+}
+
+export function updateSalesPolicy(config: SalesPolicyConfig) {
+  return apiFetch<SalesPolicyConfig>("/admin/sales-policy", {
+    method: "PUT",
+    body: config,
+  });
 }
 
 export function reindexKb() {

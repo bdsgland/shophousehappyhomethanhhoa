@@ -9,6 +9,7 @@ import {
   Save,
   Settings2,
   ShieldCheck,
+  Tag,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -35,6 +36,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { AuditLogTable } from "@/components/settings/AuditLogTable";
 import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
 import { IntegrationsList } from "@/components/settings/IntegrationsList";
+import { SalesPolicyTab } from "@/components/settings/SalesPolicyTab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +49,7 @@ import { Tabs } from "@/components/ui/tabs";
 const TABS = [
   { key: "general", label: "Chung", icon: <Settings2 className="h-4 w-4" /> },
   { key: "commission", label: "Cơ chế hoa hồng", icon: <Coins className="h-4 w-4" /> },
+  { key: "sales-policy", label: "Chính sách bán hàng", icon: <Tag className="h-4 w-4" /> },
   { key: "integrations", label: "Tích hợp", icon: <Database className="h-4 w-4" /> },
   { key: "notifications", label: "Thông báo", icon: <ShieldCheck className="h-4 w-4" /> },
   { key: "audit", label: "Nhật ký", icon: <ShieldCheck className="h-4 w-4" /> },
@@ -102,6 +105,8 @@ export default function SettingsPage() {
       )}
 
       {tab === "commission" && <CommissionTab />}
+
+      {tab === "sales-policy" && <SalesPolicyTab />}
 
       {tab === "integrations" && (
         <div className="space-y-4">

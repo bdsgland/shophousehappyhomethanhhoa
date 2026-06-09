@@ -29,8 +29,14 @@ from fastapi import (
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.api.deps import get_current_user, require_admin
-from app.core import learning_store
+from app.core import learning_store, sales_policy_store
 from app.core.settings import settings
+from app.services import pricing_policy
+from app.schemas.sales_policy import (
+    PolicyQuoteRequest,
+    PolicyQuoteResponse,
+    SalesPolicyConfig,
+)
 from app.schemas.learning import (
     CATEGORIES,
     AskRequest,
@@ -425,4 +431,94 @@ def download_quote(
         raise HTTPException(404, "Không tìm thấy phiếu báo giá")
     return FileResponse(
         path, media_type="application/pdf", filename=f"phieu-bao-gia-{quote_id[:8]}.pdf"
+    )
+
+
+# ============================================================
+# Phiếu TÍNH GIÁ theo Chính sách bán hàng (policy quote)
+# ============================================================
+
+@router.get("/sales-policy", response_model=SalesPolicyConfig)
+def get_sales_policy(_user: dict = Depends(require_sale_or_admin)) -> SalesPolicyConfig:
+    """Chính sách bán hàng hiện hành (sale/admin đọc để dựng form tính giá)."""
+    return sales_policy_store.get_current()
+
+
+@router.post("/policy-quote", response_model=PolicyQuoteResponse)
+def create_policy_quote(
+    req: PolicyQuoteRequest,
+    user: dict = Depends(require_sale_or_admin),
+) -> PolicyQuoteResponse:
+    from app.api import inventory as inventory_module
+
+    unit = inventory_module.get_unit(req.unit_id)
+    if not unit:
+        raise HTTPException(404, f"Không tìm thấy căn '{req.unit_id}' trong quỹ hàng")
+
+    config = sales_policy_store.get_current()
+    ex_vat = pricing_policy.list_price_ex_vat(unit)
+    try:
+        computed = pricing_policy.compute_policy_quote(
+            list_price_ex_vat=ex_vat,
+            base_key=req.base_plan,
+            addon_keys=req.addons,
+            config=config,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    if not req.sale_name:
+        req.sale_name = user.get("full_name", "")
+    if not req.sale_phone:
+        req.sale_phone = user.get("phone") or ""
+
+    quote_id = str(uuid.uuid4())
+    pdf_bytes = quote_pdf.build_policy_quote_pdf(
+        quote_id=quote_id, unit=unit, req=req, computed=computed
+    )
+    created_at = datetime.utcnow()
+    record = {
+        "quote_id": quote_id,
+        "kind": "policy",
+        "unit_id": req.unit_id,
+        "customer_name": req.customer_name,
+        "customer_phone": req.customer_phone,
+        "sale_name": req.sale_name,
+        "sale_phone": req.sale_phone,
+        "created_by": user.get("email"),
+        "base_plan": req.base_plan,
+        "addons": req.addons,
+        "list_price_ex_vat": ex_vat,
+        "total_discount_pct": computed["total_discount_pct"],
+        "total_payment": computed["total_payment"],
+        "policy_version": config.version,
+        "created_at": created_at.isoformat() + "Z",
+    }
+    learning_store.save_quote(record, pdf_bytes)
+    log.info(
+        "learning.policy_quote email=%s quote=%s unit=%s plan=%s total=%.0f",
+        user.get("email"), quote_id, req.unit_id, req.base_plan,
+        computed["total_payment"],
+    )
+    return PolicyQuoteResponse(
+        quote_id=quote_id,
+        unit_id=req.unit_id,
+        customer_name=req.customer_name,
+        sale_name=req.sale_name,
+        pdf_url=f"/learning/policy-quotes/{quote_id}/download",
+        created_at=created_at,
+        **computed,
+    )
+
+
+@router.get("/policy-quotes/{quote_id}/download")
+def download_policy_quote(
+    quote_id: str,
+    _user: dict = Depends(require_sale_or_admin),
+) -> FileResponse:
+    path = learning_store.quote_abspath(quote_id)
+    if not path.exists():
+        raise HTTPException(404, "Không tìm thấy phiếu tính giá")
+    return FileResponse(
+        path, media_type="application/pdf", filename=f"phieu-tinh-gia-{quote_id[:8]}.pdf"
     )

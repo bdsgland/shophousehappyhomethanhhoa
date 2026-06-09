@@ -179,6 +179,41 @@ export interface LearningDocument {
   project_slug?: string | null;
 }
 
+export interface PolicyMilestoneCfg {
+  label: string;
+  kind: "pct" | "amount_fixed";
+  pct: number;
+  amount: number;
+  days_offset?: number | null;
+  needs_confirm?: boolean;
+}
+
+export interface SalesBasePlan {
+  key: string;
+  label: string;
+  base_discount_pct: number;
+  enabled: boolean;
+  schedule: PolicyMilestoneCfg[];
+}
+
+export interface SalesPolicyAddon {
+  key: string;
+  label: string;
+  pct: number;
+  enabled: boolean;
+}
+
+export interface SalesPolicyConfig {
+  base_plans: SalesBasePlan[];
+  addons: SalesPolicyAddon[];
+  vat_pct: number;
+  maintenance_pct: number;
+  note: string;
+  last_updated_by?: string | null;
+  last_updated_at?: string | null;
+  version: number;
+}
+
 export interface KbStats {
   total_documents: number;
   indexed_documents: number;

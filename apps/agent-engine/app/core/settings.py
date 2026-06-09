@@ -153,6 +153,11 @@ class Settings(BaseSettings):
     commission_config_file: str = "data/_runtime/commission_config.json"
     commission_config_backup_keep: int = 10
 
+    # Chính sách bán hàng (phương án thanh toán + chiết khấu + VAT/bảo trì) cho
+    # phiếu tính giá. Cùng pattern store với commission_config (version + backup).
+    sales_policy_file: str = "data/_runtime/sales_policy.json"
+    sales_policy_backup_keep: int = 10
+
     # Sale Learning Center — thư mục lưu tài liệu upload + index BM25 + phiếu báo
     # giá. Tương đối thì resolve theo $DATA_DIR (Railway volume) hoặc thư mục
     # agent-engine; tuyệt đối thì dùng nguyên (xem core/learning_store.py).
