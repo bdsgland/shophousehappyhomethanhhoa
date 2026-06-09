@@ -439,8 +439,14 @@ def download_quote(
 # ============================================================
 
 @router.get("/sales-policy", response_model=SalesPolicyConfig)
-def get_sales_policy(_user: dict = Depends(require_sale_or_admin)) -> SalesPolicyConfig:
-    """Chính sách bán hàng hiện hành (sale/admin đọc để dựng form tính giá)."""
+def get_sales_policy() -> SalesPolicyConfig:
+    """Chính sách bán hàng hiện hành — PUBLIC (chỉ đọc cấu hình % để dựng form).
+
+    Để PUBLIC (không require auth) nhằm tránh trình duyệt phải preflight header
+    Authorization → giảm rủi ro 'Failed to fetch'. Không chứa dữ liệu nhạy cảm
+    (chỉ % chiết khấu + nhãn phương án). Chỉnh sửa vẫn qua PUT /admin/sales-policy
+    (yêu cầu quyền admin).
+    """
     return sales_policy_store.get_current()
 
 

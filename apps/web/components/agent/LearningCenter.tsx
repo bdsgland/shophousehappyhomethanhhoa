@@ -668,7 +668,7 @@ function PolicyQuoteTab({
           : { ...f, base_plan: p.base_plans.find((b) => b.enabled)?.key ?? "" },
       );
     };
-    fetchSalesPolicy(token)
+    fetchSalesPolicy()
       .then((p) => {
         applyPolicy(p);
         setPolicyWarn(null);

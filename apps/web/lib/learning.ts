@@ -246,11 +246,13 @@ export type PolicyQuoteResult = {
   created_at: string;
 };
 
-export async function fetchSalesPolicy(
-  token: string,
-): Promise<SalesPolicyConfig> {
+/**
+ * Đọc chính sách bán hàng. Endpoint PUBLIC → gọi KHÔNG kèm Authorization để
+ * thành "simple request" (giống fetchInventory đang chạy ổn), tránh preflight
+ * CORS gây "Failed to fetch".
+ */
+export async function fetchSalesPolicy(): Promise<SalesPolicyConfig> {
   const res = await fetch(`${AGENT_ENGINE_URL}/learning/sales-policy`, {
-    headers: authHeaders(token),
     cache: "no-store",
   });
   if (!res.ok) throw new Error(await parseError(res));
