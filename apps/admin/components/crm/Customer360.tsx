@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   Clock,
+  Edit3,
   FileText,
   GitBranch,
   Lightbulb,
@@ -13,6 +15,7 @@ import {
   MessageSquare,
   Phone,
   RefreshCw,
+  Send,
   Share2,
   Sparkles,
   StickyNote,
@@ -20,9 +23,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { getProfile360 } from "@/lib/api";
+import { addCareLog, getProfile360 } from "@/lib/api";
 import type {
+  CareLogInput,
   ChannelInteraction,
+  CrmCareChannel,
   Profile360,
   TimelineItem,
 } from "@/lib/types";
@@ -30,7 +35,9 @@ import { shortDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 const SOURCE_LABEL: Record<string, string> = {
   imported: "Danh bạ",
@@ -66,6 +73,48 @@ function dt(iso: string | null): string {
   return d.toLocaleString("vi-VN");
 }
 
+/** Thời gian tương đối kiểu mạng xã hội ("2 giờ trước"). */
+function relTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return "vừa xong";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} giờ trước`;
+  const dd = Math.floor(h / 24);
+  if (dd < 30) return `${dd} ngày trước`;
+  return d.toLocaleDateString("vi-VN");
+}
+
+/** Tên người đăng (nếu có) — nằm trong ref cho mục contact/update (care feed). */
+function actorName(item: TimelineItem): string | null {
+  const n = (item.ref as { actor_name?: unknown } | undefined)?.actor_name;
+  return typeof n === "string" && n.trim() ? n : null;
+}
+
+/** Kênh chọn khi đăng hoạt động chăm sóc (care feed). */
+const CARE_CHANNELS: { value: CrmCareChannel; label: string }[] = [
+  { value: "call", label: "Gọi điện" },
+  { value: "zalo", label: "Zalo" },
+  { value: "sms", label: "SMS" },
+  { value: "facebook", label: "Facebook" },
+  { value: "email", label: "Email" },
+  { value: "inperson", label: "Gặp mặt" },
+  { value: "note", label: "Ghi chú" },
+];
+
+const CARE_OUTCOMES: { value: string; label: string }[] = [
+  { value: "", label: "—" },
+  { value: "interested", label: "Quan tâm" },
+  { value: "callback", label: "Hẹn gọi lại" },
+  { value: "no_answer", label: "Không nghe máy" },
+  { value: "not_interested", label: "Không quan tâm" },
+  { value: "booked", label: "Đã đặt lịch" },
+];
+
 function money(v: unknown): string {
   return typeof v === "number" ? `${v.toLocaleString("vi-VN")} đ` : "—";
 }
@@ -76,6 +125,7 @@ function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
   if (item.type === "stage") return { Icon: GitBranch, color: "text-primary" };
   if (item.type === "booking") return { Icon: Calendar, color: "text-success" };
   if (item.type === "quote") return { Icon: FileText, color: "text-primary" };
+  if (item.type === "update") return { Icon: Edit3, color: "text-primary" };
   if (item.type === "note") return { Icon: StickyNote, color: "text-muted-foreground" };
   if (item.type === "created") return { Icon: UserPlus, color: "text-muted-foreground" };
   switch (item.channel) {
@@ -97,6 +147,78 @@ function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
 }
 
 /**
+ * Ô "soạn hoạt động chăm sóc" (care feed) đặt đầu dòng thời gian. Chọn kênh +
+ * nội dung + kết quả → POST /crm/leads/{id}/care → prepend item trả về NGAY.
+ */
+function CareComposer({
+  leadId,
+  onPosted,
+}: {
+  leadId: string;
+  onPosted: (item: TimelineItem) => void;
+}) {
+  const [channel, setChannel] = useState<CrmCareChannel>("call");
+  const [outcome, setOutcome] = useState("");
+  const [note, setNote] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const body: CareLogInput = { channel, note: note.trim(), outcome: outcome || null };
+      return addCareLog(leadId, body);
+    },
+    onSuccess: (res) => {
+      onPosted(res.item);
+      setNote("");
+      setOutcome("");
+    },
+  });
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="mb-2 flex flex-wrap gap-2">
+        <Select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as CrmCareChannel)}
+          className="h-9 w-auto"
+        >
+          {CARE_CHANNELS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value)}
+          className="h-9 w-auto"
+        >
+          {CARE_OUTCOMES.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label === "—" ? "Kết quả…" : o.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <Textarea
+        rows={2}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Ghi lại nội dung chăm sóc khách…"
+      />
+      {mut.isError && (
+        <p className="mt-1 text-xs text-danger">{(mut.error as Error)?.message}</p>
+      )}
+      <div className="mt-2 flex justify-end">
+        <Button size="sm" onClick={() => mut.mutate()} disabled={mut.isPending || !note.trim()}>
+          <Send className="h-4 w-4" />
+          {mut.isPending ? "Đang đăng…" : "Đăng"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Hồ sơ 360° 1 khách: header + khối AI + dòng thời gian đa nguồn + kênh đã
  * tương tác + giao dịch. Lấy dữ liệu qua /crm/leads/{id}/profile-360; nút "Chấm
  * điểm lại bằng AI" gọi lại với rescore=true rồi cập nhật cache.
@@ -107,6 +229,14 @@ export function Customer360({ leadId }: { leadId: string }) {
     queryKey: ["crm-360", leadId],
     queryFn: () => getProfile360(leadId),
   });
+
+  /** Prepend 1 mục care mới đăng vào timeline cache (hiện ngay đầu feed). */
+  function prependTimeline(item: TimelineItem) {
+    qc.setQueryData<Profile360>(["crm-360", leadId], (old) =>
+      old ? { ...old, timeline: [item, ...(old.timeline ?? [])] } : old,
+    );
+    qc.invalidateQueries({ queryKey: ["crm-lead", leadId] });
+  }
 
   const rescoreMut = useMutation({
     mutationFn: () => getProfile360(leadId, true),
@@ -222,24 +352,34 @@ export function Customer360({ leadId }: { leadId: string }) {
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {/* Dòng thời gian */}
+        {/* Dòng thời gian + tường hoạt động chăm sóc */}
         <Card className="p-5 lg:col-span-2">
           <h3 className="mb-4 text-sm font-semibold">Dòng thời gian ({timeline.length})</h3>
+          <CareComposer leadId={leadId} onPosted={prependTimeline} />
           {timeline.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có hoạt động nào.</p>
           ) : (
             <ol className="relative border-l border-border pl-6">
               {timeline.map((item, i) => {
                 const { Icon, color } = timelineIcon(item);
+                const who = actorName(item);
                 return (
                   <li key={i} className="mb-5 last:mb-0">
                     <span className="absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card">
                       <Icon className={`h-3.5 w-3.5 ${color}`} />
                     </span>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
                       <span className="text-sm">{item.summary}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{dt(item.time)}</span>
+                      <span
+                        className="shrink-0 text-xs text-muted-foreground"
+                        title={dt(item.time)}
+                      >
+                        {relTime(item.time)}
+                      </span>
                     </div>
+                    {who && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">— {who}</p>
+                    )}
                   </li>
                 );
               })}

@@ -471,10 +471,32 @@ def list_all_leads(
     }
 
 
+def find_dupe_excluding(
+    lead_id: str, phone: Optional[str], email: Optional[str]
+) -> Optional[dict]:
+    """Tìm lead KHÁC (id != lead_id) trùng SĐT chuẩn hoá hoặc email.
+
+    Dùng khi SỬA thông tin khách để tránh đụng SĐT/email của khách khác.
+    Trả public_view của bản trùng (nếu có), None nếu không trùng.
+    """
+    nphone = _norm_phone(phone or "")
+    nemail = (email or "").strip().lower() or None
+    with _LOCK:
+        data = _load_leads()
+        for l in data["leads"]:
+            if l["id"] == lead_id:
+                continue
+            if nphone and _norm_phone(l.get("phone", "")) == nphone:
+                return public_view(l)
+            if nemail and (l.get("email") or "") == nemail:
+                return public_view(l)
+    return None
+
+
 def update_lead(lead_id: str, **fields) -> Optional[dict]:
     """Cập nhật field tuỳ ý của lead. Tự set updated_at + tính lại ai_score."""
     allowed = {
-        "name", "phone", "email", "status", "note", "assigned_sale_id",
+        "name", "phone", "email", "source", "status", "note", "assigned_sale_id",
         "imported_by_sale_id", "booking_count", "registered",
         "last_contact_at", "hot_marker_at", "effective_contact_count",
         "contact_count",
@@ -493,6 +515,39 @@ def update_lead(lead_id: str, **fields) -> Optional[dict]:
                 l["ai_score"] = compute_ai_score(l)
                 _save_leads(data)
                 return public_view(l)
+    return None
+
+
+def add_activity_log(
+    lead_id: str,
+    *,
+    summary: str,
+    by: Optional[str] = None,
+    by_name: Optional[str] = None,
+    kind: str = "update",
+) -> Optional[dict]:
+    """Ghi 1 mục "nhật ký hoạt động" trên hồ sơ (vd "đã cập nhật thông tin").
+
+    Lưu vào `lead['activity_log']` — nguồn riêng để Hồ sơ 360° dựng mục timeline
+    type='update' mà KHÔNG đụng contact_count (khác contact log). Trả entry đã ghi,
+    None nếu lead không tồn tại.
+    """
+    now = _now()
+    entry = {
+        "id": str(uuid.uuid4()),
+        "kind": kind,
+        "summary": summary,
+        "by": by,
+        "by_name": by_name,
+        "at": now,
+    }
+    with _LOCK:
+        data = _load_leads()
+        for l in data["leads"]:
+            if l["id"] == lead_id:
+                l.setdefault("activity_log", []).append(entry)
+                _save_leads(data)
+                return entry
     return None
 
 
@@ -552,11 +607,20 @@ def find_by_contact(phone: Optional[str], email: Optional[str]) -> Optional[dict
 # ---------------------------------------------------------------------------
 
 def add_contact_log(
-    lead_id: str, sale_id: str, channel: str, note: str, outcome: str
+    lead_id: str,
+    sale_id: str,
+    channel: str,
+    note: str,
+    outcome: str,
+    *,
+    created_by_name: Optional[str] = None,
 ) -> Optional[dict]:
     """Ghi 1 contact log + cập nhật last_contact_at / contact_count của lead.
 
-    Trả contact log dict. None nếu lead không tồn tại.
+    `created_by_name` (tuỳ chọn) là tên người đăng — DENORMALIZE để Hồ sơ 360°
+    dựng "dòng chăm sóc" kiểu mạng xã hội (hiện tên người + thời gian) mà không
+    phải join user_store ở tầng timeline thuần. Trả contact log dict, None nếu
+    lead không tồn tại.
     """
     now = _now()
     log = {
@@ -566,6 +630,7 @@ def add_contact_log(
         "channel": channel,
         "note": note,
         "outcome": outcome,
+        "created_by_name": created_by_name,
         "created_at": now,
     }
     with _LOCK:

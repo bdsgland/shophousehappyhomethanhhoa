@@ -29,6 +29,7 @@ from app.schemas.crm import (
     ContactLogCreate,
     CrmStats,
     Lead,
+    LeadAdminUpdate,
     LeadBulkImport,
     LeadCreate,
     LeadDetail,
@@ -135,6 +136,57 @@ def _sale_name(sale_id: Optional[str]) -> Optional[str]:
     return u.get("full_name") if u else None
 
 
+# Nhãn field cho dòng timeline "đã cập nhật thông tin".
+_FIELD_LABELS: dict[str, str] = {
+    "name": "tên",
+    "phone": "SĐT",
+    "email": "email",
+    "source": "nguồn",
+    "status": "trạng thái",
+    "note": "ghi chú",
+    "assigned_sale_id": "người phụ trách",
+}
+
+
+def _edit_lead_with_log(lead_id: str, old_lead: dict, fields: dict, actor: dict) -> dict:
+    """Dùng chung cho sale + admin SỬA thông tin khách.
+
+    - Dedupe SĐT/email với khách KHÁC (409 nếu trùng).
+    - Cập nhật lead (lead_store.update_lead).
+    - Ghi 1 mục timeline "đã cập nhật thông tin" (chỉ khi có field đổi giá trị).
+    Trả lead public_view đã cập nhật. Raise 404/409 khi cần.
+    """
+    new_phone = fields.get("phone")
+    new_email = fields.get("email")
+    if new_phone or new_email:
+        conflict = lead_store.find_dupe_excluding(lead_id, new_phone, new_email)
+        if conflict is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="SĐT hoặc email đã thuộc về khách hàng khác",
+            )
+
+    # Field thực sự đổi giá trị (để mô tả timeline cho gọn, đúng).
+    changed = [
+        _FIELD_LABELS[k]
+        for k, v in fields.items()
+        if k in _FIELD_LABELS and v is not None and v != old_lead.get(k)
+    ]
+
+    updated = lead_store.update_lead(lead_id, **fields)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+
+    if changed:
+        lead_store.add_activity_log(
+            lead_id,
+            summary="Đã cập nhật thông tin khách: " + ", ".join(changed),
+            by=actor.get("id"),
+            by_name=actor.get("full_name"),
+        )
+    return updated
+
+
 # ===========================================================================
 # SALE ENDPOINTS
 # ===========================================================================
@@ -203,9 +255,7 @@ def sale_update_lead(
     fields = payload.model_dump(exclude_unset=True, mode="json")
     fields.pop("assigned_sale_id", None)  # sale không tự đổi người phụ trách
     new_status = fields.get("status")
-    updated = lead_store.update_lead(lead_id, **fields)
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    updated = _edit_lead_with_log(lead_id, lead, fields, user)
     # Chốt deal: lần đầu chuyển sang "customer" → +1 hot_leads_closed cho sale.
     if new_status == "customer" and lead.get("status") != "customer":
         sale_task_store.increment_metric(user["id"], "hot_leads_closed", 1)
@@ -230,6 +280,7 @@ def sale_add_contact_log(
         channel=payload.channel.value,
         note=payload.note,
         outcome=payload.outcome,
+        created_by_name=user.get("full_name"),
     )
     if log is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
@@ -312,6 +363,30 @@ def admin_get_lead(lead_id: str, _admin: dict = Depends(require_admin)) -> dict:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
     logs = lead_store.list_contact_logs(lead_id)
     return _serialize_lead_detail(lead, logs)
+
+
+@admin_router.patch("/leads/{lead_id}", response_model=Lead)
+def admin_update_lead(
+    lead_id: str,
+    payload: LeadAdminUpdate,
+    admin: dict = Depends(require_admin),
+) -> Lead:
+    """SỬA thông tin khách (admin) — name/phone/email/source/status/note/assigned.
+
+    Validate cơ bản (Pydantic), dedupe SĐT/email với khách khác, ghi updated_at +
+    1 mục timeline "đã cập nhật thông tin". Đổi assigned_sale_id kiểm tra sale hợp lệ.
+    """
+    lead = lead_store.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    fields = payload.model_dump(exclude_unset=True, mode="json")
+    new_sale = fields.get("assigned_sale_id")
+    if new_sale is not None:
+        sale = user_store.find_by_id(new_sale)
+        if not sale or sale.get("role") not in ("sale", "admin"):
+            raise HTTPException(status_code=400, detail="Sale không hợp lệ")
+    updated = _edit_lead_with_log(lead_id, lead, fields, admin)
+    return Lead(**updated)
 
 
 @admin_router.patch("/leads/{lead_id}/assign", response_model=Lead)

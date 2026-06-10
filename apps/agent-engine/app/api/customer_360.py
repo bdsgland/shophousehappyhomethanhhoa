@@ -11,10 +11,11 @@ liệu (sale chỉ thao tác lead có assigned_sale_id == mình) ở tầng endp
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import require_sale
-from app.core import ai_crm, customer_360, lead_store, user_store
+from app.core import ai_crm, customer_360, lead_store, sale_task_store, user_store
+from app.schemas.crm import CareLogCreate, ContactLog
 
 router = APIRouter(prefix="/crm", tags=["crm-360"])
 
@@ -52,3 +53,39 @@ async def get_profile_360(
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
     return profile
+
+
+@router.post("/leads/{lead_id}/care", status_code=status.HTTP_201_CREATED)
+def add_care_activity(
+    lead_id: str,
+    payload: CareLogCreate,
+    user: dict = Depends(require_sale),
+) -> dict:
+    """ĐĂNG 1 hoạt động chăm sóc lên dòng thời gian (care feed kiểu mạng xã hội).
+
+    Tái dùng contact log: set created_by = user hiện tại + denormalize tên người
+    đăng để timeline hiện ngay "tên + thời gian". `outcome` tuỳ chọn (ghi chú thuần).
+    Trả {item, log}: `item` đúng hình dạng 1 mục timeline để FE prepend NGAY lên
+    đầu dòng thời gian mà không cần tải lại cả hồ sơ.
+    """
+    _owned_lead(lead_id, user)
+    if not (payload.note or "").strip():
+        raise HTTPException(status_code=400, detail="Nội dung không được để trống")
+    log = lead_store.add_contact_log(
+        lead_id,
+        user["id"],
+        channel=payload.channel.value,
+        note=payload.note,
+        outcome=(payload.outcome or ""),
+        created_by_name=user.get("full_name"),
+    )
+    if log is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    # Tính vào KPI "đã liên hệ" hôm nay (đồng bộ với ghi contact log thường).
+    sale_task_store.increment_metric(user["id"], "contacts_made", 1)
+    item = customer_360.contact_log_item(log)
+    try:
+        safe_log = ContactLog(**log).model_dump(mode="json")
+    except Exception:  # noqa: BLE001 — outcome rỗng (ghi chú) không khớp Literal → trả raw
+        safe_log = dict(log)
+    return {"item": item, "log": safe_log}

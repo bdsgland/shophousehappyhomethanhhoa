@@ -63,7 +63,18 @@ export type ContactLog = {
   channel: ContactChannel;
   note: string;
   outcome: ContactOutcome;
+  created_by_name?: string | null;
   created_at: string;
+};
+
+/** Kênh care feed = kênh liên hệ + 'note' (ghi chú thuần). */
+export type CareChannel = ContactChannel | "note";
+
+/** Payload đăng 1 hoạt động chăm sóc (care feed). */
+export type CareLogInput = {
+  channel: CareChannel;
+  note: string;
+  outcome?: ContactOutcome | null;
 };
 
 export type CrmLeadDetail = CrmLead & {
@@ -179,6 +190,12 @@ export type TimelineItem = {
   time: string | null;
   summary: string;
   ref: Record<string, unknown>;
+};
+
+/** Kết quả POST care: item timeline để prepend + log thô. */
+export type CareLogResult = {
+  item: TimelineItem;
+  log: ContactLog;
 };
 
 export type ChannelInteraction = {
@@ -341,6 +358,20 @@ export function getProfile360(
     `/crm/leads/${id}/profile-360${rescore ? "?rescore=true" : ""}`,
     { token },
   );
+}
+
+/** Đăng 1 hoạt động chăm sóc (care feed) lên dòng thời gian hồ sơ 360°.
+ *  Trả { item } đúng hình dạng 1 mục timeline để prepend ngay. */
+export function addCareLog(
+  token: string,
+  id: string,
+  body: CareLogInput,
+): Promise<CareLogResult> {
+  return req<CareLogResult>(`/crm/leads/${id}/care`, {
+    method: "POST",
+    token,
+    body,
+  });
 }
 
 // ---------------------------------------------------------------------------

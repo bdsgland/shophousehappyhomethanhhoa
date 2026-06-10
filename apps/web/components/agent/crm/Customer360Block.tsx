@@ -18,6 +18,7 @@ import {
   User,
 } from "@/components/dashboard/icons";
 import {
+  addCareLog,
   formatDate,
   formatDateTime,
   getProfile360,
@@ -27,6 +28,8 @@ import {
   STATUS_LABEL,
   tierBadge,
   tierLabel,
+  type CareChannel,
+  type CareLogInput,
   type ChannelInteraction,
   type LeadSource,
   type LeadStatus,
@@ -40,12 +43,54 @@ function money(v: unknown): string {
   return typeof v === "number" ? `${v.toLocaleString("vi-VN")} đ` : "—";
 }
 
+/** Thời gian tương đối kiểu mạng xã hội ("2 giờ trước"). */
+function relTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return "vừa xong";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} giờ trước`;
+  const dd = Math.floor(h / 24);
+  if (dd < 30) return `${dd} ngày trước`;
+  return d.toLocaleDateString("vi-VN");
+}
+
+/** Tên người đăng (nếu có) — nằm trong ref cho mục contact/update. */
+function actorName(item: TimelineItem): string | null {
+  const n = (item.ref as { actor_name?: unknown } | undefined)?.actor_name;
+  return typeof n === "string" && n.trim() ? n : null;
+}
+
+const CARE_CHANNELS: { value: CareChannel; label: string }[] = [
+  { value: "call", label: "Gọi điện" },
+  { value: "zalo", label: "Zalo" },
+  { value: "sms", label: "SMS" },
+  { value: "facebook", label: "Facebook" },
+  { value: "email", label: "Email" },
+  { value: "inperson", label: "Gặp mặt" },
+  { value: "note", label: "Ghi chú" },
+];
+
+const CARE_OUTCOMES: { value: string; label: string }[] = [
+  { value: "", label: "Kết quả…" },
+  { value: "interested", label: "Quan tâm" },
+  { value: "callback", label: "Hẹn gọi lại" },
+  { value: "no_answer", label: "Không nghe máy" },
+  { value: "not_interested", label: "Không quan tâm" },
+  { value: "booked", label: "Đã đặt lịch" },
+];
+
 /** Icon + màu cho 1 mục dòng thời gian theo type/channel. */
 function timelineIcon(item: TimelineItem): { Icon: IconCmp; color: string } {
   if (item.type === "ai") return { Icon: Sparkles, color: "text-amber-500" };
   if (item.type === "stage") return { Icon: TrendingUp, color: "text-orange-500" };
   if (item.type === "booking") return { Icon: Calendar, color: "text-emerald-500" };
   if (item.type === "quote") return { Icon: FileText, color: "text-sky-500" };
+  if (item.type === "update") return { Icon: FileText, color: "text-orange-500" };
   if (item.type === "note") return { Icon: FileText, color: "text-brand-400" };
   if (item.type === "created") return { Icon: User, color: "text-brand-400" };
   switch (item.channel) {
@@ -63,6 +108,94 @@ function timelineIcon(item: TimelineItem): { Icon: IconCmp; color: string } {
     default:
       return { Icon: Clock, color: "text-brand-400" };
   }
+}
+
+/**
+ * Ô "soạn hoạt động chăm sóc" (care feed) đầu dòng thời gian. Chọn kênh + nội
+ * dung + kết quả → POST /crm/leads/{id}/care → prepend item trả về NGAY.
+ */
+function CareComposer({
+  token,
+  leadId,
+  onPosted,
+}: {
+  token: string;
+  leadId: string;
+  onPosted: (item: TimelineItem) => void;
+}) {
+  const [channel, setChannel] = useState<CareChannel>("call");
+  const [outcome, setOutcome] = useState("");
+  const [note, setNote] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    if (!note.trim()) return;
+    setPosting(true);
+    setErr(null);
+    try {
+      const body: CareLogInput = {
+        channel,
+        note: note.trim(),
+        outcome: (outcome || null) as CareLogInput["outcome"],
+      };
+      const res = await addCareLog(token, leadId, body);
+      onPosted(res.item);
+      setNote("");
+      setOutcome("");
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="mb-3 rounded-xl border border-brand-100 bg-brand-50/40 p-3">
+      <div className="mb-2 flex flex-wrap gap-2">
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as CareChannel)}
+          className="rounded-lg border border-brand-100 bg-white px-2 py-1.5 text-sm text-brand-900 outline-none focus:border-orange-400"
+        >
+          {CARE_CHANNELS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value)}
+          className="rounded-lg border border-brand-100 bg-white px-2 py-1.5 text-sm text-brand-900 outline-none focus:border-orange-400"
+        >
+          {CARE_OUTCOMES.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        placeholder="Ghi lại nội dung chăm sóc khách…"
+        className="w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-900 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-300"
+      />
+      {err && <p className="mt-1 text-xs text-rose-600">{err}</p>}
+      <div className="mt-2 flex justify-end">
+        <button
+          onClick={submit}
+          disabled={posting || !note.trim()}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+        >
+          <Send size={15} />
+          {posting ? "Đang đăng…" : "Đăng"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -104,6 +237,13 @@ export function Customer360Block({
     } finally {
       setRescoring(false);
     }
+  }
+
+  /** Prepend 1 mục care vừa đăng vào dòng thời gian (hiện ngay đầu feed). */
+  function prependTimeline(item: TimelineItem) {
+    setP((prev) =>
+      prev ? { ...prev, timeline: [item, ...(prev.timeline ?? [])] } : prev,
+    );
   }
 
   if (error) {
@@ -204,15 +344,19 @@ export function Customer360Block({
         </button>
       </div>
 
-      {/* Dòng thời gian */}
+      {/* Dòng thời gian + tường hoạt động chăm sóc */}
       <div>
         <h4 className="text-sm font-bold text-brand-900">Dòng thời gian ({timeline.length})</h4>
+        <div className="mt-2">
+          <CareComposer token={token} leadId={leadId} onPosted={prependTimeline} />
+        </div>
         {timeline.length === 0 ? (
           <p className="mt-2 text-sm text-brand-400">Chưa có hoạt động nào.</p>
         ) : (
           <ol className="relative mt-3 border-l border-brand-100 pl-5">
             {timeline.map((item, i) => {
               const { Icon, color } = timelineIcon(item);
+              const who = actorName(item);
               return (
                 <li key={i} className="mb-4 last:mb-0">
                   <span className="absolute -left-[11px] flex h-5 w-5 items-center justify-center rounded-full border border-brand-100 bg-white">
@@ -220,10 +364,14 @@ export function Customer360Block({
                   </span>
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm text-brand-700">{item.summary}</span>
-                    <span className="shrink-0 text-xs text-brand-400">
-                      {formatDateTime(item.time)}
+                    <span
+                      className="shrink-0 text-xs text-brand-400"
+                      title={formatDateTime(item.time)}
+                    >
+                      {relTime(item.time)}
                     </span>
                   </div>
+                  {who && <p className="mt-0.5 text-xs text-brand-400">— {who}</p>}
                 </li>
               );
             })}

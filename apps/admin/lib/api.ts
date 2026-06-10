@@ -13,6 +13,9 @@ import type {
   ConversationDetail,
   ConversationSummary,
   CrmLead,
+  CrmLeadUpdate,
+  CareLogInput,
+  CareLogResult,
   DriveSyncConfig,
   DriveSyncJob,
   DriveSyncResult,
@@ -635,6 +638,14 @@ export function getCrmLead(id: string) {
   return apiFetch<CrmLeadDetail>(`/admin/crm/leads/${id}`);
 }
 
+/** Sửa thông tin khách (admin): name/phone/email/source/status/note/assigned. */
+export function updateCrmLead(id: string, body: CrmLeadUpdate) {
+  return apiFetch<CrmLead>(`/admin/crm/leads/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
 export function assignCrmLead(id: string, saleId: string) {
   return apiFetch<CrmLead>(`/admin/crm/leads/${id}/assign`, {
     method: "PATCH",
@@ -808,6 +819,15 @@ export function getProfile360(id: string, rescore = false) {
   return apiFetch<Profile360>(
     `/crm/leads/${id}/profile-360${rescore ? "?rescore=true" : ""}`,
   );
+}
+
+/** Đăng 1 hoạt động chăm sóc (care feed) lên dòng thời gian hồ sơ 360°.
+ *  Trả { item } đúng hình dạng 1 mục timeline để prepend ngay. */
+export function addCareLog(id: string, body: CareLogInput) {
+  return apiFetch<CareLogResult>(`/crm/leads/${id}/care`, {
+    method: "POST",
+    body,
+  });
 }
 
 /** Leads nhóm theo giai đoạn pipeline (kanban). Admin lọc theo 1 sale + auto-advance. */

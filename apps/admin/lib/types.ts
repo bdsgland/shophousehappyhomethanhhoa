@@ -455,7 +455,9 @@ export type CrmLeadSource =
   | "fb_ads"
   | "zalo"
   | "email"
-  | "manual";
+  | "manual"
+  | "google_sheet"
+  | "file_upload";
 
 export type CrmLeadStatus = "cold" | "warm" | "hot" | "customer" | "lost";
 
@@ -496,11 +498,33 @@ export interface CrmContactLog {
   channel: CrmContactChannel;
   note: string;
   outcome: string;
+  created_by_name?: string | null;
   created_at: string;
 }
 
 export interface CrmLeadDetail extends CrmLead {
   contact_logs: CrmContactLog[];
+}
+
+/** Payload sửa thông tin khách (admin) — đồng bộ app/schemas/crm.py LeadAdminUpdate. */
+export interface CrmLeadUpdate {
+  name?: string;
+  phone?: string;
+  email?: string | null;
+  source?: CrmLeadSource;
+  status?: CrmLeadStatus;
+  note?: string | null;
+  assigned_sale_id?: string | null;
+}
+
+/** Kênh care feed = kênh liên hệ + 'note' (ghi chú thuần). */
+export type CrmCareChannel = CrmContactChannel | "note";
+
+/** Payload đăng 1 hoạt động chăm sóc (care feed). */
+export interface CareLogInput {
+  channel: CrmCareChannel;
+  note: string;
+  outcome?: string | null;
 }
 
 export interface CrmLeadPage {
@@ -655,13 +679,20 @@ export interface Profile360Pipeline {
   stages: PipelineStageMeta[];
 }
 
-/** Mục dòng thời gian gộp đa nguồn (contact/booking/quote/ai/stage/note/created). */
+/** Mục dòng thời gian gộp đa nguồn (contact/booking/quote/ai/stage/note/created/update).
+ *  `ref` chứa actor_id/actor_name cho mục contact/update (care feed kiểu mạng xã hội). */
 export interface TimelineItem {
   type: string;
   channel: string;
   time: string | null;
   summary: string;
   ref: Record<string, unknown>;
+}
+
+/** Kết quả POST care: item timeline để prepend + log thô. */
+export interface CareLogResult {
+  item: TimelineItem;
+  log: CrmContactLog;
 }
 
 export interface ChannelInteraction {

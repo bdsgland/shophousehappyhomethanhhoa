@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, LayoutGrid, Phone, Sparkles, UserSquare2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Calendar, LayoutGrid, Pencil, Phone, Sparkles, UserSquare2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -12,7 +12,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AiInsightCard } from "@/components/crm/AiInsightCard";
 import { Customer360 } from "@/components/crm/Customer360";
+import { EditLeadModal } from "@/components/crm/EditLeadModal";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
@@ -53,7 +55,9 @@ const OUTCOME_LABEL: Record<string, string> = {
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"overview" | "profile360">("overview");
+  const [editOpen, setEditOpen] = useState(false);
   const leadQ = useQuery({ queryKey: ["crm-lead", id], queryFn: () => getCrmLead(id) });
   const salesQ = useQuery({ queryKey: ["sales"], queryFn: listSales });
 
@@ -120,10 +124,27 @@ export default function CustomerDetailPage() {
             title={lead.name}
             description={`${SOURCE_LABEL[lead.source] ?? lead.source} · phụ trách: ${saleName}`}
             action={
-              <Badge variant={lead.status === "hot" ? "danger" : lead.status === "customer" ? "success" : "muted"}>
-                {STATUS_LABEL[lead.status] ?? lead.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-4 w-4" /> Sửa thông tin
+                </Button>
+                <Badge variant={lead.status === "hot" ? "danger" : lead.status === "customer" ? "success" : "muted"}>
+                  {STATUS_LABEL[lead.status] ?? lead.status}
+                </Badge>
+              </div>
             }
+          />
+
+          <EditLeadModal
+            lead={lead}
+            sales={salesQ.data?.sales ?? []}
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            onSaved={() => {
+              leadQ.refetch();
+              qc.invalidateQueries({ queryKey: ["crm-360", id] });
+              qc.invalidateQueries({ queryKey: ["crm-leads"] });
+            }}
           />
 
           <Tabs

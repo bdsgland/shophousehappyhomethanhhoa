@@ -32,6 +32,7 @@ _CHANNEL_LABELS: dict[str, str] = {
     "facebook": "Facebook",
     "email": "Email",
     "inperson": "Gặp trực tiếp",
+    "note": "Ghi chú",
     "booking": "Đặt lịch",
     "quote": "Báo giá",
     "web": "Chat web",
@@ -118,6 +119,44 @@ def _item(type_: str, channel: str, time, summary: str, ref: dict) -> dict:
     }
 
 
+# Nhãn kết quả (outcome) cho dòng chăm sóc — cho summary đẹp kiểu mạng xã hội.
+_OUTCOME_LABELS: dict[str, str] = {
+    "no_answer": "Không nghe máy",
+    "interested": "Quan tâm",
+    "not_interested": "Không quan tâm",
+    "callback": "Hẹn gọi lại",
+    "booked": "Đã đặt lịch",
+}
+
+
+def outcome_label(outcome: Optional[str]) -> str:
+    return _OUTCOME_LABELS.get(outcome or "", outcome or "")
+
+
+def contact_log_item(log: dict) -> dict:
+    """Dựng 1 mục timeline type='contact' từ 1 contact log (đa kênh / dòng chăm sóc).
+
+    DÙNG CHUNG giữa build_timeline và endpoint POST care để FE prepend ĐÚNG hình
+    dạng. Giữ hợp đồng 5 khoá {type, channel, time, summary, ref}; thông tin người
+    đăng (actor_id/actor_name) nằm TRONG `ref` (mạng xã hội: hiện tên + thời gian).
+    """
+    ch = log.get("channel") or "system"
+    outcome = log.get("outcome") or ""
+    lnote = (log.get("note") or "").strip()
+    olabel = outcome_label(outcome)
+    summary = f"[{channel_label(ch)}] {olabel}".rstrip()
+    if lnote:
+        summary = f"{summary} — {lnote[:160]}"
+    return _item(
+        "contact", ch, log.get("created_at"), summary,
+        {"kind": "contact_log", "id": log.get("id"),
+         "outcome": outcome, "sale_id": log.get("sale_id"),
+         "actor_id": log.get("sale_id"),
+         "actor_name": log.get("created_by_name"),
+         "note": lnote or None},
+    )
+
+
 def build_timeline(
     lead: dict,
     contact_logs: list[dict],
@@ -154,18 +193,20 @@ def build_timeline(
                   f"Ghi chú: {note[:200]}", {"kind": "note"})
         )
 
-    # Contact logs (đa kênh).
+    # Contact logs (đa kênh) + dòng chăm sóc kiểu mạng xã hội.
     for log in contact_logs or []:
-        ch = log.get("channel") or "system"
-        outcome = log.get("outcome") or ""
-        lnote = (log.get("note") or "").strip()
-        summary = f"[{channel_label(ch)}] {outcome}".rstrip()
-        if lnote:
-            summary = f"{summary} — {lnote[:160]}"
+        items.append(contact_log_item(log))
+
+    # Nhật ký hoạt động (vd "đã cập nhật thông tin") — nguồn riêng, không phải
+    # contact log nên KHÔNG ảnh hưởng contact_count.
+    for act in lead.get("activity_log") or []:
+        by_name = act.get("by_name")
         items.append(
-            _item("contact", ch, log.get("created_at"), summary,
-                  {"kind": "contact_log", "id": log.get("id"),
-                   "outcome": outcome, "sale_id": log.get("sale_id")})
+            _item("update", "system", act.get("at"),
+                  act.get("summary") or "Cập nhật hồ sơ",
+                  {"kind": "activity", "id": act.get("id"),
+                   "activity_kind": act.get("kind"),
+                   "actor_id": act.get("by"), "actor_name": by_name})
         )
 
     # Bookings.

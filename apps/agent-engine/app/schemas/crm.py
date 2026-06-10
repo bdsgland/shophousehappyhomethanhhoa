@@ -50,6 +50,7 @@ class ContactChannel(str, Enum):
     FACEBOOK = "facebook"
     EMAIL = "email"
     INPERSON = "inperson"
+    NOTE = "note"  # ghi chú chăm sóc (không gắn kênh cụ thể)
 
 
 ContactOutcome = Literal[
@@ -86,6 +87,22 @@ class LeadUpdate(BaseModel):
     email: Optional[EmailStr] = None
     status: Optional[LeadStatus] = None
     note: Optional[str] = None
+
+
+class LeadAdminUpdate(BaseModel):
+    """Payload SỬA thông tin khách (admin) — đầy đủ trường hồ sơ.
+
+    Mọi field Optional: chỉ field gửi lên (exclude_unset) mới được cập nhật.
+    `assigned_sale_id` cho phép admin đổi người phụ trách ngay tại form sửa.
+    """
+
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    source: Optional[LeadSource] = None
+    status: Optional[LeadStatus] = None
+    note: Optional[str] = None
+    assigned_sale_id: Optional[str] = None
 
 
 class Lead(BaseModel):
@@ -129,6 +146,18 @@ class ContactLogCreate(BaseModel):
     outcome: ContactOutcome
 
 
+class CareLogCreate(BaseModel):
+    """Payload "đăng 1 hoạt động chăm sóc" lên dòng thời gian (care feed).
+
+    Giống ContactLogCreate nhưng `outcome` TUỲ CHỌN (ghi chú thuần không cần kết
+    quả) và `note` là nội dung bài đăng. created_by lấy từ user hiện tại ở endpoint.
+    """
+
+    channel: ContactChannel = ContactChannel.NOTE
+    note: str
+    outcome: Optional[ContactOutcome] = None
+
+
 class ContactLog(BaseModel):
     id: str
     lead_id: str
@@ -136,6 +165,7 @@ class ContactLog(BaseModel):
     channel: ContactChannel
     note: str
     outcome: ContactOutcome
+    created_by_name: Optional[str] = None
     created_at: datetime
 
 
