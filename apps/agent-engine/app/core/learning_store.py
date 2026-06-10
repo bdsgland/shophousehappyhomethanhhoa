@@ -454,3 +454,9 @@ def get_quote(quote_id: str) -> Optional[dict]:
             if q["quote_id"] == quote_id:
                 return q
     return None
+
+
+def list_quotes() -> list[dict]:
+    """Toàn bộ phiếu báo giá (metadata) — Hồ sơ 360° nối theo SĐT khách."""
+    with _LOCK:
+        return list(_load_meta().get("quotes", []))

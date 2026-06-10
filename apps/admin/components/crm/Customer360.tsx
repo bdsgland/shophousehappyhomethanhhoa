@@ -1,0 +1,304 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Calendar,
+  Clock,
+  FileText,
+  GitBranch,
+  Lightbulb,
+  Mail,
+  MapPin,
+  MessageCircle,
+  MessageSquare,
+  Phone,
+  RefreshCw,
+  Share2,
+  Sparkles,
+  StickyNote,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
+
+import { getProfile360 } from "@/lib/api";
+import type {
+  ChannelInteraction,
+  Profile360,
+  TimelineItem,
+} from "@/lib/types";
+import { shortDate } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const SOURCE_LABEL: Record<string, string> = {
+  imported: "Danh bạ",
+  registered: "Tự đăng ký",
+  referral: "Giới thiệu",
+  fb_ads: "FB Ads",
+  zalo: "Zalo",
+  email: "Email",
+  manual: "Nhập tay",
+  google_sheet: "Google Sheet",
+  file_upload: "Tải file",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  cold: "Lạnh",
+  warm: "Ấm",
+  hot: "Nóng",
+  customer: "Khách hàng",
+  lost: "Đã mất",
+};
+
+const TIER_LABEL: Record<string, string> = { cold: "Lạnh", warm: "Ấm", hot: "Nóng" };
+const TIER_VARIANT: Record<string, "default" | "warning" | "danger"> = {
+  cold: "default",
+  warm: "warning",
+  hot: "danger",
+};
+
+function dt(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("vi-VN");
+}
+
+function money(v: unknown): string {
+  return typeof v === "number" ? `${v.toLocaleString("vi-VN")} đ` : "—";
+}
+
+/** Icon + màu cho 1 mục dòng thời gian theo type/channel. */
+function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
+  if (item.type === "ai") return { Icon: Sparkles, color: "text-warning" };
+  if (item.type === "stage") return { Icon: GitBranch, color: "text-primary" };
+  if (item.type === "booking") return { Icon: Calendar, color: "text-success" };
+  if (item.type === "quote") return { Icon: FileText, color: "text-primary" };
+  if (item.type === "note") return { Icon: StickyNote, color: "text-muted-foreground" };
+  if (item.type === "created") return { Icon: UserPlus, color: "text-muted-foreground" };
+  switch (item.channel) {
+    case "call":
+      return { Icon: Phone, color: "text-success" };
+    case "sms":
+      return { Icon: MessageSquare, color: "text-primary" };
+    case "zalo":
+      return { Icon: MessageCircle, color: "text-sky-500" };
+    case "facebook":
+      return { Icon: Share2, color: "text-blue-500" };
+    case "email":
+      return { Icon: Mail, color: "text-primary" };
+    case "inperson":
+      return { Icon: MapPin, color: "text-warning" };
+    default:
+      return { Icon: Clock, color: "text-muted-foreground" };
+  }
+}
+
+/**
+ * Hồ sơ 360° 1 khách: header + khối AI + dòng thời gian đa nguồn + kênh đã
+ * tương tác + giao dịch. Lấy dữ liệu qua /crm/leads/{id}/profile-360; nút "Chấm
+ * điểm lại bằng AI" gọi lại với rescore=true rồi cập nhật cache.
+ */
+export function Customer360({ leadId }: { leadId: string }) {
+  const qc = useQueryClient();
+  const profileQ = useQuery({
+    queryKey: ["crm-360", leadId],
+    queryFn: () => getProfile360(leadId),
+  });
+
+  const rescoreMut = useMutation({
+    mutationFn: () => getProfile360(leadId, true),
+    onSuccess: (res) => {
+      qc.setQueryData(["crm-360", leadId], res);
+      qc.invalidateQueries({ queryKey: ["ai-insight", leadId] });
+      qc.invalidateQueries({ queryKey: ["crm-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["crm-leads"] });
+    },
+  });
+
+  if (profileQ.isLoading) return <Skeleton className="h-96 w-full" />;
+  if (profileQ.isError || !profileQ.data) {
+    return (
+      <Card className="p-5">
+        <p className="text-sm text-danger">
+          Không tải được hồ sơ 360°: {(profileQ.error as Error)?.message}
+        </p>
+      </Card>
+    );
+  }
+
+  const p: Profile360 = profileQ.data;
+  const { basic, ai, pipeline, timeline, channels, deals } = p;
+  const tierKey = (ai.tier ?? "").toString().toLowerCase();
+  const nba = ai.next_action;
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <Card className="p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold">{basic.name}</h3>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <a href={`tel:${basic.phone}`} className="inline-flex items-center gap-1 text-primary">
+                <Phone className="h-3.5 w-3.5" />
+                {basic.phone}
+              </a>
+              <span className="inline-flex items-center gap-1">
+                <Mail className="h-3.5 w-3.5" />
+                {basic.email ?? "—"}
+              </span>
+              <span>Nguồn: {SOURCE_LABEL[basic.source ?? ""] ?? basic.source ?? "—"}</span>
+              <span>Sale: {basic.assigned_sale_name ?? "Chưa phân bổ"}</span>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="muted">{STATUS_LABEL[basic.status ?? ""] ?? basic.status}</Badge>
+            <Badge variant="default" className="bg-primary/15">
+              Giai đoạn: {pipeline.label}
+            </Badge>
+          </div>
+        </div>
+      </Card>
+
+      {/* Khối AI */}
+      <Card className="p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <Sparkles className="h-4 w-4 text-warning" /> Phân tích AI
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => rescoreMut.mutate()}
+            disabled={rescoreMut.isPending}
+          >
+            <RefreshCw className={rescoreMut.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            {rescoreMut.isPending ? "Đang chấm…" : "Chấm điểm lại bằng AI"}
+          </Button>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="leading-none">
+              <span className="text-3xl font-bold text-primary">{ai.score ?? 0}</span>
+              <span className="text-sm text-muted-foreground">/100</span>
+            </div>
+            <Badge variant={TIER_VARIANT[tierKey] ?? "default"} className="text-xs">
+              {TIER_LABEL[tierKey] ?? "Chưa xếp"}
+            </Badge>
+          </div>
+          {ai.reason && <p className="text-sm text-muted-foreground">{ai.reason}</p>}
+          {ai.best_time && (
+            <div className="flex items-start gap-2 text-sm">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                <span className="font-medium">Thời điểm liên hệ tốt nhất:</span> {ai.best_time}
+              </span>
+            </div>
+          )}
+          {(nba?.summary || nba?.suggested_action) && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+              <div className="mb-1 flex items-center gap-1.5 font-medium">
+                <Lightbulb className="h-4 w-4 text-warning" /> Gợi ý hành động (AI)
+              </div>
+              {nba?.summary && <p className="text-muted-foreground">{nba.summary}</p>}
+              {nba?.suggested_action && <p className="mt-1 font-medium">{nba.suggested_action}</p>}
+            </div>
+          )}
+          {ai.scored_at && (
+            <p className="text-xs text-muted-foreground">Chấm lúc: {dt(ai.scored_at)}</p>
+          )}
+        </div>
+      </Card>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Dòng thời gian */}
+        <Card className="p-5 lg:col-span-2">
+          <h3 className="mb-4 text-sm font-semibold">Dòng thời gian ({timeline.length})</h3>
+          {timeline.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Chưa có hoạt động nào.</p>
+          ) : (
+            <ol className="relative border-l border-border pl-6">
+              {timeline.map((item, i) => {
+                const { Icon, color } = timelineIcon(item);
+                return (
+                  <li key={i} className="mb-5 last:mb-0">
+                    <span className="absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card">
+                      <Icon className={`h-3.5 w-3.5 ${color}`} />
+                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm">{item.summary}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{dt(item.time)}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Card>
+
+        <div className="space-y-5">
+          {/* Kênh đã tương tác */}
+          <Card className="p-5">
+            <h3 className="mb-3 text-sm font-semibold">Kênh đã tương tác</h3>
+            <ul className="space-y-2 text-sm">
+              {channels.map((c: ChannelInteraction) => (
+                <li key={c.channel} className="flex items-center justify-between gap-2">
+                  <span className={c.linked ? "text-foreground" : "text-muted-foreground"}>
+                    {c.label}
+                    {!c.linked && (
+                      <span className="ml-1 text-xs italic text-muted-foreground">
+                        (sắp tích hợp)
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {c.linked ? (c.last_at ? shortDate(c.last_at) : "—") : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
+              Chatwoot / Tổng đài: sắp tích hợp.
+            </p>
+          </Card>
+
+          {/* Giao dịch */}
+          <Card className="p-5">
+            <h3 className="mb-3 text-sm font-semibold">
+              Giao dịch ({deals.bookings.length + deals.quotes.length})
+            </h3>
+            {deals.bookings.length + deals.quotes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Chưa có giao dịch.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {deals.bookings.map((b, i) => (
+                  <li key={`bk-${i}`} className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-success" />
+                      Lịch xem {String(b.unit_summary ?? b.unit_id ?? "căn hộ")}
+                    </span>
+                    <Badge variant="muted" className="text-xs">
+                      {String(b.status ?? "pending")}
+                    </Badge>
+                  </li>
+                ))}
+                {deals.quotes.map((q, i) => (
+                  <li key={`qt-${i}`} className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      Báo giá {String(q.unit_id ?? "")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{money(q.total_price)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

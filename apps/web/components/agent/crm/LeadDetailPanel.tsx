@@ -31,6 +31,7 @@ import {
   type LeadStatus,
 } from "@/lib/crm";
 import { ContactLogModal } from "./ContactLogModal";
+import { Customer360Block } from "./Customer360Block";
 
 const STATUSES: LeadStatus[] = ["cold", "warm", "hot", "customer", "lost"];
 
@@ -53,6 +54,7 @@ export function LeadDetailPanel({
   const [logOpen, setLogOpen] = useState(false);
   const [insight, setInsight] = useState<LeadInsight | null>(null);
   const [rescoring, setRescoring] = useState(false);
+  const [view, setView] = useState<"detail" | "profile360">("detail");
 
   function load() {
     getLeadDetail(token, leadId).then((d) => {
@@ -115,6 +117,33 @@ export function LeadDetailPanel({
         </button>
       </div>
 
+      {/* Tab: Chi tiết / Hồ sơ 360° */}
+      <div className="flex gap-1 border-b border-brand-100 px-5 pt-3">
+        {([
+          { key: "detail", label: "Chi tiết" },
+          { key: "profile360", label: "Hồ sơ 360°" },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setView(t.key)}
+            className={`border-b-2 px-3 py-2 text-sm font-medium transition ${
+              view === t.key
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-brand-500 hover:text-brand-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "profile360" && (
+        <div className="p-5">
+          <Customer360Block token={token} leadId={leadId} />
+        </div>
+      )}
+
+      {view === "detail" && (
       <div className="space-y-4 p-5">
         {/* AI insight: điểm thật + tier + lý do + best time + next action */}
         <div className="rounded-xl bg-brand-50 p-4">
@@ -273,6 +302,7 @@ export function LeadDetailPanel({
           </ul>
         </div>
       </div>
+      )}
 
       {logOpen && (
         <ContactLogModal

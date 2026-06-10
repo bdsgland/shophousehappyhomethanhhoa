@@ -139,6 +139,76 @@ export type LeadInsight = {
   status?: string | null;
 };
 
+// ---- Hồ sơ 360° (đồng bộ app/core/customer_360.py build_profile) ----
+
+export type Profile360Basic = {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  source: string | null;
+  status: string | null;
+  assigned_sale_id: string | null;
+  assigned_sale_name: string | null;
+  registered: boolean;
+  note: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type Profile360Ai = {
+  score: number;
+  tier?: AiTier | string | null;
+  reason?: string | null;
+  best_time?: string | null;
+  next_action?: AiNextAction | null;
+  scored_at?: string | null;
+};
+
+export type PipelineStageMeta = { key: string; label: string; rank: number };
+
+export type Profile360Pipeline = {
+  stage: string;
+  label: string;
+  rank: number;
+  stages: PipelineStageMeta[];
+};
+
+export type TimelineItem = {
+  type: string;
+  channel: string;
+  time: string | null;
+  summary: string;
+  ref: Record<string, unknown>;
+};
+
+export type ChannelInteraction = {
+  channel: string;
+  label: string;
+  count: number;
+  last_at: string | null;
+  linked: boolean;
+};
+
+export type Profile360 = {
+  lead_id: string;
+  basic: Profile360Basic;
+  ai: Profile360Ai;
+  pipeline: Profile360Pipeline;
+  timeline: TimelineItem[];
+  deals: {
+    bookings: Record<string, unknown>[];
+    quotes: Record<string, unknown>[];
+  };
+  channels: ChannelInteraction[];
+  stats: {
+    contact_count: number;
+    effective_contact_count: number;
+    booking_count: number;
+    quote_count: number;
+    days_since_contact: number | null;
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Fetch wrapper (tự gắn Bearer, parse lỗi tiếng Việt)
 // ---------------------------------------------------------------------------
@@ -258,6 +328,19 @@ export function rescoreLead(token: string, id: string): Promise<LeadInsight> {
     method: "POST",
     token,
   });
+}
+
+/** Hồ sơ 360° 1 khách (sale chỉ xem khách của mình).
+ *  rescore=true → AI chấm lại trước khi dựng hồ sơ. */
+export function getProfile360(
+  token: string,
+  id: string,
+  rescore = false,
+): Promise<Profile360> {
+  return req<Profile360>(
+    `/crm/leads/${id}/profile-360${rescore ? "?rescore=true" : ""}`,
+    { token },
+  );
 }
 
 // ---------------------------------------------------------------------------

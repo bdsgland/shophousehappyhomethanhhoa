@@ -35,6 +35,7 @@ from app.api import (
     chat,
     client,
     crm,
+    customer_360,
     health,
     inventory,
     leads,
@@ -43,6 +44,7 @@ from app.api import (
     me,
     n8n_stubs,
     openclaw_bridge,
+    pipeline,
     projects,
     sales_policy,
     webhook,
@@ -218,6 +220,8 @@ app.include_router(bookings.me_router)
 app.include_router(crm.sale_router)
 app.include_router(crm.admin_router)
 app.include_router(crm.internal_router)
+app.include_router(customer_360.router)
+app.include_router(pipeline.router)
 app.include_router(ai_crm.router)
 app.include_router(match.router)
 app.include_router(ws_presence.router)

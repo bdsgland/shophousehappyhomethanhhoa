@@ -614,3 +614,125 @@ export interface LeadInsight {
 export interface RescoreResult {
   scored: number;
 }
+
+// ---------------------------------------------------------------------------
+// Hồ sơ 360° (đồng bộ app/core/customer_360.py build_profile)
+// ---------------------------------------------------------------------------
+
+export interface Profile360Basic {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  source: string | null;
+  status: string | null;
+  assigned_sale_id: string | null;
+  assigned_sale_name: string | null;
+  registered: boolean;
+  note: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface Profile360Ai {
+  score: number;
+  tier?: AiTier | string | null;
+  reason?: string | null;
+  best_time?: string | null;
+  next_action?: AiNextAction | null;
+  scored_at?: string | null;
+}
+
+export interface PipelineStageMeta {
+  key: string;
+  label: string;
+  rank: number;
+}
+
+export interface Profile360Pipeline {
+  stage: string;
+  label: string;
+  rank: number;
+  stages: PipelineStageMeta[];
+}
+
+/** Mục dòng thời gian gộp đa nguồn (contact/booking/quote/ai/stage/note/created). */
+export interface TimelineItem {
+  type: string;
+  channel: string;
+  time: string | null;
+  summary: string;
+  ref: Record<string, unknown>;
+}
+
+export interface ChannelInteraction {
+  channel: string;
+  label: string;
+  count: number;
+  last_at: string | null;
+  linked: boolean;
+}
+
+export interface Profile360Deals {
+  bookings: Record<string, unknown>[];
+  quotes: Record<string, unknown>[];
+}
+
+export interface Profile360Stats {
+  contact_count: number;
+  effective_contact_count: number;
+  booking_count: number;
+  quote_count: number;
+  days_since_contact: number | null;
+}
+
+export interface Profile360 {
+  lead_id: string;
+  basic: Profile360Basic;
+  ai: Profile360Ai;
+  pipeline: Profile360Pipeline;
+  timeline: TimelineItem[];
+  deals: Profile360Deals;
+  channels: ChannelInteraction[];
+  stats: Profile360Stats;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline kanban (đồng bộ app/api/pipeline.py)
+// ---------------------------------------------------------------------------
+
+export interface PipelineCard {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  status: string | null;
+  source: string | null;
+  assigned_sale_id: string | null;
+  ai_score: number;
+  ai_tier?: AiTier | string | null;
+  stage: string;
+  suggested_stage: string | null;
+  booking_count: number;
+  quote_count: number;
+  last_contact_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PipelineColumn {
+  key: string;
+  label: string;
+  rank: number;
+  count: number;
+  leads: PipelineCard[];
+}
+
+export interface PipelineResponse {
+  stages: PipelineColumn[];
+  total: number;
+}
+
+export interface StageChangeResult {
+  lead_id: string;
+  stage: string;
+  label: string;
+  lead: CrmLead;
+}

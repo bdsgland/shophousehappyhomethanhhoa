@@ -25,7 +25,10 @@ import type {
   ImportResult,
   ImportWorkspaceStatus,
   LeadInsight,
+  PipelineResponse,
+  Profile360,
   RescoreResult,
+  StageChangeResult,
   InventoryBackupInfo,
   InventorySyncResult,
   InventoryUnit,
@@ -792,6 +795,37 @@ export function getLeadInsight(id: string) {
 export function rescoreLead(id: string) {
   return apiFetch<LeadInsight>(`/ai-crm/leads/${id}/rescore`, {
     method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Hồ sơ 360° + Pipeline kanban (/crm/*)
+// ---------------------------------------------------------------------------
+
+/** Hồ sơ 360° 1 khách: cơ bản + AI + timeline + giao dịch + kênh.
+ *  rescore=true → trigger AI chấm lại trước khi dựng hồ sơ. */
+export function getProfile360(id: string, rescore = false) {
+  return apiFetch<Profile360>(
+    `/crm/leads/${id}/profile-360${rescore ? "?rescore=true" : ""}`,
+  );
+}
+
+/** Leads nhóm theo giai đoạn pipeline (kanban). Admin lọc theo 1 sale + auto-advance. */
+export function getPipeline(
+  params: { sale_id?: string; auto_advance?: boolean } = {},
+) {
+  const qs = new URLSearchParams();
+  if (params.sale_id) qs.set("sale_id", params.sale_id);
+  if (params.auto_advance) qs.set("auto_advance", "true");
+  const q = qs.toString();
+  return apiFetch<PipelineResponse>(`/crm/pipeline${q ? `?${q}` : ""}`);
+}
+
+/** Đổi giai đoạn pipeline 1 khách (ghi log timeline). */
+export function changeLeadStage(id: string, stage: string, note?: string) {
+  return apiFetch<StageChangeResult>(`/crm/leads/${id}/stage`, {
+    method: "POST",
+    body: { stage, note },
   });
 }
 

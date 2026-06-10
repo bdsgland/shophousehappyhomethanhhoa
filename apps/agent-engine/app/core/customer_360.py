@@ -1,0 +1,353 @@
+"""HỒ SƠ 360° KHÁCH HÀNG — gộp MỌI nguồn tương tác nối được vào 1 hồ sơ.
+
+Nguồn dữ liệu & cách NỐI với 1 lead CRM (lead_store):
+  • Contact logs (lead_store)  → nối trực tiếp theo `lead_id` (đa kênh: call/sms/
+                                 zalo/facebook/email/inperson).
+  • Bookings (booking_store)   → nối theo SĐT/email chuẩn hoá (booking.lead_id là
+                                 id lead-chat in-memory, KHÁC namespace CRM).
+  • Quotes (learning_store)    → nối theo SĐT chuẩn hoá (record có customer_phone).
+  • Sự kiện AI                  → từ chính lead (ai_scored_at, hot_marker_at) +
+                                 stage_history (đổi giai đoạn pipeline).
+  • Khung sẵn (chưa nối được)  → Chatwoot / tổng đài: để placeholder, KHÔNG lỗi.
+
+Thiết kế hàm THUẦN (nhận list đã load) để test dễ + tránh IO lặp:
+  index_deals / find_deals_for_lead / build_timeline / build_channels /
+  build_profile. `load_profile` là lớp orchestrate có IO (đọc store).
+
+An toàn: sort timeline chịu được `time` None/sai định dạng (đẩy xuống cuối).
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+
+from app.core import booking_store, learning_store, lead_store, pipeline
+
+# Nhãn kênh tương tác (đa kênh).
+_CHANNEL_LABELS: dict[str, str] = {
+    "call": "Gọi điện",
+    "sms": "SMS",
+    "zalo": "Zalo",
+    "facebook": "Facebook",
+    "email": "Email",
+    "inperson": "Gặp trực tiếp",
+    "booking": "Đặt lịch",
+    "quote": "Báo giá",
+    "web": "Chat web",
+    "chatwoot": "Chatwoot",
+    "call_center": "Tổng đài",
+    "ai": "AI",
+    "system": "Hệ thống",
+}
+
+# Kênh BIẾT TRƯỚC nhưng CHƯA nối được dữ liệu theo khách → để khung sẵn (linked
+# False) cho UI hiển thị, không gây lỗi khi chưa có nguồn.
+_FRAMEWORK_CHANNELS = ("chatwoot", "call_center")
+
+_DT_MIN = datetime.min
+
+
+def channel_label(channel: Optional[str]) -> str:
+    return _CHANNEL_LABELS.get(channel or "", channel or "Khác")
+
+
+def _parse_dt(value) -> Optional[datetime]:
+    """ISO8601 (có/không hậu tố Z) → datetime naive. None nếu trống/sai."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", ""))
+    except (ValueError, TypeError):
+        return None
+
+
+def _sort_key(item: dict) -> datetime:
+    """Key sort timeline an toàn với time None/sai (đẩy xuống cuối khi desc)."""
+    return _parse_dt(item.get("time")) or _DT_MIN
+
+
+# ---------------------------------------------------------------------------
+# Nối nguồn giao dịch (booking/quote) theo SĐT/email
+# ---------------------------------------------------------------------------
+
+def _norm(phone: Optional[str]) -> str:
+    return lead_store.normalize_phone(phone or "")
+
+
+def _email(value: Optional[str]) -> str:
+    return (value or "").strip().lower()
+
+
+def find_deals_for_lead(
+    lead: dict, bookings: list[dict], quotes: list[dict]
+) -> tuple[list[dict], list[dict]]:
+    """Lọc bookings + quotes thuộc về lead theo SĐT/email chuẩn hoá.
+
+    `bookings`/`quotes` là toàn bộ list đã load (caller load 1 lần). Trả
+    (bookings_của_lead, quotes_của_lead). An toàn khi lead thiếu phone/email.
+    """
+    lphone = _norm(lead.get("phone"))
+    lemail = _email(lead.get("email"))
+
+    def _match(rec: dict) -> bool:
+        rphone = _norm(rec.get("customer_phone") or rec.get("phone"))
+        remail = _email(rec.get("customer_email") or rec.get("email"))
+        if lphone and rphone and lphone == rphone:
+            return True
+        if lemail and remail and lemail == remail:
+            return True
+        return False
+
+    my_bookings = [b for b in bookings if _match(b)]
+    my_quotes = [q for q in quotes if _match(q)]
+    return my_bookings, my_quotes
+
+
+# ---------------------------------------------------------------------------
+# Timeline — gộp mọi tương tác theo thời gian
+# ---------------------------------------------------------------------------
+
+def _item(type_: str, channel: str, time, summary: str, ref: dict) -> dict:
+    return {
+        "type": type_,
+        "channel": channel,
+        "time": time,
+        "summary": summary,
+        "ref": ref,
+    }
+
+
+def build_timeline(
+    lead: dict,
+    contact_logs: list[dict],
+    bookings: list[dict],
+    quotes: list[dict],
+) -> list[dict]:
+    """Gộp MỌI tương tác thành 1 dòng thời gian, sort thời gian GIẢM DẦN.
+
+    Mỗi mục: {type, channel, time, summary, ref}. Nguồn:
+      • created  — mốc tạo hồ sơ.
+      • contact  — contact log (đa kênh).
+      • booking  — phiếu đặt lịch.
+      • quote    — phiếu báo giá.
+      • ai       — AI chấm điểm / đánh dấu hot.
+      • stage    — đổi giai đoạn pipeline.
+      • note     — ghi chú trên hồ sơ.
+    """
+    items: list[dict] = []
+
+    # Mốc tạo hồ sơ.
+    items.append(
+        _item(
+            "created", "system", lead.get("created_at"),
+            f"Tạo hồ sơ khách (nguồn: {lead.get('source') or '—'})",
+            {"kind": "created"},
+        )
+    )
+
+    # Ghi chú hồ sơ (nếu có) — gắn mốc tạo.
+    note = (lead.get("note") or "").strip()
+    if note:
+        items.append(
+            _item("note", "system", lead.get("created_at"),
+                  f"Ghi chú: {note[:200]}", {"kind": "note"})
+        )
+
+    # Contact logs (đa kênh).
+    for log in contact_logs or []:
+        ch = log.get("channel") or "system"
+        outcome = log.get("outcome") or ""
+        lnote = (log.get("note") or "").strip()
+        summary = f"[{channel_label(ch)}] {outcome}".rstrip()
+        if lnote:
+            summary = f"{summary} — {lnote[:160]}"
+        items.append(
+            _item("contact", ch, log.get("created_at"), summary,
+                  {"kind": "contact_log", "id": log.get("id"),
+                   "outcome": outcome, "sale_id": log.get("sale_id")})
+        )
+
+    # Bookings.
+    for b in bookings or []:
+        unit = b.get("unit_summary") or b.get("unit_id") or "căn hộ"
+        when = b.get("scheduled_at") or b.get("created_at")
+        items.append(
+            _item("booking", "booking", when,
+                  f"Đặt lịch xem {unit} — {b.get('status') or 'pending'}",
+                  {"kind": "booking", "id": b.get("id"),
+                   "unit_id": b.get("unit_id"), "status": b.get("status")})
+        )
+
+    # Quotes.
+    for q in quotes or []:
+        total = q.get("total_price")
+        total_str = f" — {int(total):,} đ" if isinstance(total, (int, float)) else ""
+        items.append(
+            _item("quote", "quote", q.get("created_at"),
+                  f"Phiếu báo giá {q.get('unit_id') or ''}{total_str}".strip(),
+                  {"kind": "quote", "id": q.get("quote_id"),
+                   "unit_id": q.get("unit_id"), "total_price": total})
+        )
+
+    # Sự kiện AI.
+    if lead.get("ai_scored_at"):
+        reason = (lead.get("ai_reason") or "").strip()
+        summary = f"AI chấm điểm {lead.get('ai_score', 0)} ({lead.get('ai_tier') or '—'})"
+        if reason:
+            summary = f"{summary} — {reason[:160]}"
+        items.append(
+            _item("ai", "ai", lead.get("ai_scored_at"), summary,
+                  {"kind": "ai_score", "score": lead.get("ai_score", 0),
+                   "tier": lead.get("ai_tier")})
+        )
+    if lead.get("hot_marker_at"):
+        items.append(
+            _item("ai", "system", lead.get("hot_marker_at"),
+                  "Đánh dấu khách HOT", {"kind": "hot_marker"})
+        )
+
+    # Đổi giai đoạn pipeline.
+    for h in lead.get("stage_history") or []:
+        frm = pipeline.stage_label(h.get("from")) if h.get("from") else "—"
+        to = pipeline.stage_label(h.get("to"))
+        extra = f" ({h['note']})" if h.get("note") else ""
+        items.append(
+            _item("stage", "system", h.get("at"),
+                  f"Chuyển giai đoạn: {frm} → {to}{extra}",
+                  {"kind": "stage_change", "from": h.get("from"),
+                   "to": h.get("to"), "by": h.get("by")})
+        )
+
+    items.sort(key=_sort_key, reverse=True)
+    return items
+
+
+# ---------------------------------------------------------------------------
+# Kênh đã tương tác (đa kênh) + lần gần nhất mỗi kênh
+# ---------------------------------------------------------------------------
+
+def build_channels(contact_logs: list[dict], bookings: list[dict]) -> list[dict]:
+    """Tổng hợp các kênh đã tương tác + lần gần nhất mỗi kênh.
+
+    Dựa trên contact logs (đa kênh) + booking (kênh 'booking'). Bổ sung KHUNG SẴN
+    cho kênh biết-trước-chưa-nối (Chatwoot, tổng đài) với linked=False để UI hiển
+    thị đầy đủ khung mà không lỗi khi chưa có nguồn.
+    """
+    agg: dict[str, dict] = {}
+
+    def _touch(channel: str, when, linked: bool = True) -> None:
+        slot = agg.setdefault(
+            channel,
+            {"channel": channel, "label": channel_label(channel),
+             "count": 0, "last_at": None, "linked": linked},
+        )
+        slot["count"] += 1
+        slot["linked"] = slot["linked"] or linked
+        prev = _parse_dt(slot["last_at"])
+        cur = _parse_dt(when)
+        if cur and (prev is None or cur > prev):
+            slot["last_at"] = when
+
+    for log in contact_logs or []:
+        _touch(log.get("channel") or "system", log.get("created_at"))
+    for b in bookings or []:
+        _touch("booking", b.get("scheduled_at") or b.get("created_at"))
+
+    # Khung sẵn cho nguồn chưa nối được theo khách.
+    for ch in _FRAMEWORK_CHANNELS:
+        agg.setdefault(
+            ch,
+            {"channel": ch, "label": channel_label(ch),
+             "count": 0, "last_at": None, "linked": False},
+        )
+
+    out = list(agg.values())
+    out.sort(key=lambda c: (_parse_dt(c["last_at"]) or _DT_MIN), reverse=True)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Hồ sơ tổng hợp
+# ---------------------------------------------------------------------------
+
+def build_profile(
+    lead: dict,
+    contact_logs: list[dict],
+    all_bookings: list[dict],
+    all_quotes: list[dict],
+    *,
+    assigned_sale_name: Optional[str] = None,
+) -> dict:
+    """Dựng hồ sơ 360° từ dữ liệu đã load (hàm thuần — không IO)."""
+    my_bookings, my_quotes = find_deals_for_lead(lead, all_bookings, all_quotes)
+    timeline = build_timeline(lead, contact_logs, my_bookings, my_quotes)
+    channels = build_channels(contact_logs, my_bookings)
+    stage = pipeline.derive_stage(lead, my_bookings, my_quotes)
+
+    nba = lead.get("ai_next_action")
+    ai_block = {
+        "score": lead.get("ai_score", 0),
+        "tier": lead.get("ai_tier"),
+        "reason": lead.get("ai_reason"),
+        "best_time": lead.get("ai_best_time"),
+        "next_action": nba if isinstance(nba, dict) else None,
+        "scored_at": lead.get("ai_scored_at"),
+    }
+
+    return {
+        "lead_id": lead.get("id"),
+        "basic": {
+            "name": lead.get("name"),
+            "phone": lead.get("phone"),
+            "email": lead.get("email"),
+            "source": lead.get("source"),
+            "status": lead.get("status"),
+            "assigned_sale_id": lead.get("assigned_sale_id"),
+            "assigned_sale_name": assigned_sale_name,
+            "registered": bool(lead.get("registered")),
+            "note": lead.get("note"),
+            "created_at": lead.get("created_at"),
+            "updated_at": lead.get("updated_at"),
+        },
+        "ai": ai_block,
+        "pipeline": {
+            "stage": stage,
+            "label": pipeline.stage_label(stage),
+            "rank": pipeline.stage_rank(stage),
+            "stages": pipeline.stages_meta(),
+        },
+        "timeline": timeline,
+        "deals": {"bookings": my_bookings, "quotes": my_quotes},
+        "channels": channels,
+        "stats": {
+            "contact_count": lead.get("contact_count", 0),
+            "effective_contact_count": lead.get("effective_contact_count", 0),
+            "booking_count": len(my_bookings),
+            "quote_count": len(my_quotes),
+            "days_since_contact": lead.get("days_since_contact"),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Orchestrate có IO — đọc store rồi dựng hồ sơ
+# ---------------------------------------------------------------------------
+
+def load_profile(
+    lead_id: str, *, assigned_sale_name: Optional[str] = None
+) -> Optional[dict]:
+    """Đọc lead + mọi nguồn nối được rồi dựng hồ sơ 360°. None nếu không có lead."""
+    lead = lead_store.get_lead(lead_id)
+    if not lead:
+        return None
+    contact_logs = lead_store.list_contact_logs(lead_id)
+    all_bookings = booking_store.list_all()
+    try:
+        all_quotes = learning_store.list_quotes()
+    except Exception:  # noqa: BLE001 — thiếu nguồn quote không làm hỏng hồ sơ
+        all_quotes = []
+    return build_profile(
+        lead, contact_logs, all_bookings, all_quotes,
+        assigned_sale_name=assigned_sale_name,
+    )

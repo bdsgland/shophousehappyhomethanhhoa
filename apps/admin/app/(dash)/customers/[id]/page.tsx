@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Phone, Sparkles } from "lucide-react";
+import { ArrowLeft, Calendar, LayoutGrid, Phone, Sparkles, UserSquare2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -9,9 +10,11 @@ import { getCrmLead, listSales } from "@/lib/api";
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { AiInsightCard } from "@/components/crm/AiInsightCard";
+import { Customer360 } from "@/components/crm/Customer360";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs } from "@/components/ui/tabs";
 
 const STATUS_LABEL: Record<string, string> = {
   cold: "Lạnh",
@@ -49,6 +52,7 @@ const OUTCOME_LABEL: Record<string, string> = {
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [tab, setTab] = useState<"overview" | "profile360">("overview");
   const leadQ = useQuery({ queryKey: ["crm-lead", id], queryFn: () => getCrmLead(id) });
   const salesQ = useQuery({ queryKey: ["sales"], queryFn: listSales });
 
@@ -100,6 +104,20 @@ export default function CustomerDetailPage() {
             }
           />
 
+          <Tabs
+            className="mb-5"
+            value={tab}
+            onChange={(k) => setTab(k as "overview" | "profile360")}
+            tabs={[
+              { key: "overview", label: "Tổng quan", icon: <LayoutGrid className="h-4 w-4" /> },
+              { key: "profile360", label: "Hồ sơ 360°", icon: <UserSquare2 className="h-4 w-4" /> },
+            ]}
+          />
+
+          {tab === "profile360" ? (
+            <Customer360 leadId={lead.id} />
+          ) : (
+          <>
           <div className="grid gap-5 lg:grid-cols-3">
             {/* Info + engagement */}
             <Card className="p-5 lg:col-span-1">
@@ -180,6 +198,8 @@ export default function CustomerDetailPage() {
           <p className="mt-4 text-xs text-muted-foreground">
             Lịch sử hội thoại (chatbot/Chatwoot) & audit log đầy đủ sẽ bổ sung ở Phase 2.
           </p>
+          </>
+          )}
         </>
       )}
     </div>

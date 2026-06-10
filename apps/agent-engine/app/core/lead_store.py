@@ -108,6 +108,12 @@ def _norm_phone(phone: str) -> str:
     return digits
 
 
+def normalize_phone(phone: str) -> str:
+    """Public wrapper cho `_norm_phone` — dùng khi nối nguồn khác (booking/quote)
+    với lead theo SĐT chuẩn hoá (Hồ sơ 360°)."""
+    return _norm_phone(phone)
+
+
 # ---------------------------------------------------------------------------
 # AI scoring
 # ---------------------------------------------------------------------------
@@ -503,6 +509,34 @@ def soft_delete(lead_id: str) -> Optional[dict]:
 def mark_as_hot(lead_id: str) -> Optional[dict]:
     """Đánh dấu lead HOT + ghi mốc hot_marker_at."""
     return update_lead(lead_id, status="hot", hot_marker_at=_now())
+
+
+def set_pipeline_stage(
+    lead_id: str, stage: str, by: Optional[str] = None, note: Optional[str] = None
+) -> Optional[dict]:
+    """Đặt GIAI ĐOẠN pipeline cho lead + ghi `stage_history` (cho timeline 360).
+
+    Pipeline stage là lớp PHÁI SINH/cấu hình nằm TRÊN `status` lõi (cold/warm/hot/
+    customer/lost) — không phá enum status hiện có. Mỗi lần đổi ghi 1 bản ghi
+    {from, to, at, by, note} vào `stage_history` để Hồ sơ 360° dựng timeline.
+    Validation giá trị `stage` do tầng pipeline xử lý trước khi gọi.
+    Trả public_view của lead đã cập nhật, None nếu không tìm thấy.
+    """
+    now = _now()
+    with _LOCK:
+        data = _load_leads()
+        for l in data["leads"]:
+            if l["id"] == lead_id:
+                old = l.get("pipeline_stage")
+                l["pipeline_stage"] = stage
+                hist = l.setdefault("stage_history", [])
+                hist.append(
+                    {"from": old, "to": stage, "at": now, "by": by, "note": note}
+                )
+                l["updated_at"] = now
+                _save_leads(data)
+                return public_view(l)
+    return None
 
 
 def find_by_contact(phone: Optional[str], email: Optional[str]) -> Optional[dict]:
