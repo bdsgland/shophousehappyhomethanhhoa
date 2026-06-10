@@ -12,6 +12,7 @@ sale_task_store) — sau migrate PostgreSQL.
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -39,6 +40,26 @@ from app.schemas.crm import (
 sale_router = APIRouter(prefix="/sale", tags=["crm-sale"])
 admin_router = APIRouter(prefix="/admin/crm", tags=["crm-admin"])
 internal_router = APIRouter(prefix="/webhooks/internal", tags=["crm-internal"])
+
+log = logging.getLogger(__name__)
+
+
+def _serialize_lead(l: dict) -> dict:
+    """Chuẩn hoá 1 lead → dict cho FE, CHỊU LỖI từng record.
+
+    Lý do: trước đây danh sách build bằng `[Lead(**l) for l in ...]` trong 1
+    comprehension — chỉ 1 record cũ/lỗi schema (vd source/status không còn trong
+    enum, datetime sai định dạng) là raise → CẢ endpoint 500 → bảng rỗng dù
+    /stats (chỉ đếm len) vẫn ra số. Ở đây validate qua `Lead` khi được, lỗi thì
+    fallback trả thẳng dict gốc (đã JSON-safe từ public_view) để record VẪN HIỆN.
+    """
+    try:
+        out = Lead(**l).model_dump(mode="json")
+    except Exception as e:  # noqa: BLE001 — không để 1 record làm hỏng cả list
+        log.warning("CRM list: lead %s không khớp schema, trả raw: %s", l.get("id"), e)
+        out = dict(l)
+    out["assigned_sale_name"] = _sale_name(l.get("assigned_sale_id"))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +157,7 @@ def sale_list_leads(
         "total": total,
         "page": page,
         "page_size": page_size,
-        "items": [Lead(**l).model_dump(mode="json") for l in page_rows],
+        "items": [_serialize_lead(l) for l in page_rows],
     }
 
 
@@ -260,11 +281,7 @@ def admin_list_leads(
         page=page,
         page_size=page_size,
     )
-    result["items"] = [
-        {**Lead(**l).model_dump(mode="json"),
-         "assigned_sale_name": _sale_name(l.get("assigned_sale_id"))}
-        for l in result["items"]
-    ]
+    result["items"] = [_serialize_lead(l) for l in result["items"]]
     return result
 
 
