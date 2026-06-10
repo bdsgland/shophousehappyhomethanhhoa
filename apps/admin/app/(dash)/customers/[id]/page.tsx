@@ -93,8 +93,27 @@ export default function CustomerDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
       </Link>
 
-      {leadQ.isLoading || !lead ? (
+      {leadQ.isLoading ? (
         <Skeleton className="h-64 w-full" />
+      ) : leadQ.isError ? (
+        <div className="rounded-lg border border-danger/30 bg-danger/5 p-6 text-sm">
+          <h2 className="mb-1 text-base font-semibold text-danger">
+            Không tải được thông tin khách
+          </h2>
+          <p className="text-muted-foreground">
+            {(leadQ.error as Error)?.message ?? "Đã xảy ra lỗi khi tải dữ liệu."}
+          </p>
+          <button
+            onClick={() => leadQ.refetch()}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : !lead ? (
+        <div className="rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+          Không tìm thấy khách hàng này.
+        </div>
       ) : (
         <>
           <PageHeader

@@ -62,6 +62,29 @@ def _serialize_lead(l: dict) -> dict:
     return out
 
 
+def _serialize_lead_detail(lead: dict, logs: list[dict]) -> dict:
+    """Chi tiết 1 lead + contact log, CHỊU LỖI từng record (giống _serialize_lead).
+
+    Lý do: hai endpoint detail trước đây build thẳng
+    `LeadDetail(**lead, contact_logs=[ContactLog(**x) ...])` kèm
+    `response_model=LeadDetail` — CHỈ 1 record cũ/lệch enum (status/source/channel/
+    outcome ngoài enum, datetime sai) là raise → endpoint detail trả 500 → FE
+    getCrmLead throw → trang chi tiết kẹt skeleton / trắng. Ở đây validate khi
+    được, lỗi thì fallback dict gốc để record VẪN HIỆN.
+    """
+    out = _serialize_lead(lead)  # đã chịu lỗi + gắn assigned_sale_name
+    safe_logs: list[dict] = []
+    for x in logs:
+        try:
+            safe_logs.append(ContactLog(**x).model_dump(mode="json"))
+        except Exception as e:  # noqa: BLE001 — 1 log lệch không làm hỏng detail
+            log.warning("CRM detail: contact_log %s lệch schema, trả raw: %s",
+                        x.get("id"), e)
+            safe_logs.append(dict(x))
+    out["contact_logs"] = safe_logs
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Request bodies cục bộ (khai báo trước endpoint để FastAPI resolve type hints)
 # ---------------------------------------------------------------------------
@@ -161,16 +184,12 @@ def sale_list_leads(
     }
 
 
-@sale_router.get("/leads/{lead_id}", response_model=LeadDetail)
-def sale_get_lead(lead_id: str, user: dict = Depends(require_sale)) -> LeadDetail:
-    """Chi tiết lead + lịch sử contact log (chỉ lead của mình)."""
+@sale_router.get("/leads/{lead_id}")
+def sale_get_lead(lead_id: str, user: dict = Depends(require_sale)) -> dict:
+    """Chi tiết lead + lịch sử contact log (chỉ lead của mình). Serialize an toàn."""
     lead = _require_owned_lead(lead_id, user)
     logs = lead_store.list_contact_logs(lead_id)
-    return LeadDetail(
-        **lead,
-        contact_logs=[ContactLog(**x) for x in logs],
-        assigned_sale_name=_sale_name(lead.get("assigned_sale_id")),
-    )
+    return _serialize_lead_detail(lead, logs)
 
 
 @sale_router.patch("/leads/{lead_id}", response_model=Lead)
@@ -285,18 +304,14 @@ def admin_list_leads(
     return result
 
 
-@admin_router.get("/leads/{lead_id}", response_model=LeadDetail)
-def admin_get_lead(lead_id: str, _admin: dict = Depends(require_admin)) -> LeadDetail:
-    """Chi tiết lead + contact log + tên sale phụ trách."""
+@admin_router.get("/leads/{lead_id}")
+def admin_get_lead(lead_id: str, _admin: dict = Depends(require_admin)) -> dict:
+    """Chi tiết lead + contact log + tên sale phụ trách. Serialize an toàn."""
     lead = lead_store.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
     logs = lead_store.list_contact_logs(lead_id)
-    return LeadDetail(
-        **lead,
-        contact_logs=[ContactLog(**x) for x in logs],
-        assigned_sale_name=_sale_name(lead.get("assigned_sale_id")),
-    )
+    return _serialize_lead_detail(lead, logs)
 
 
 @admin_router.patch("/leads/{lead_id}/assign", response_model=Lead)
