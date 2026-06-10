@@ -9,6 +9,7 @@ import { useParams } from "next/navigation";
 import { getCrmLead, listSales } from "@/lib/api";
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AiInsightCard } from "@/components/crm/AiInsightCard";
 import { Customer360 } from "@/components/crm/Customer360";
 import { Badge } from "@/components/ui/badge";
@@ -57,8 +58,10 @@ export default function CustomerDetailPage() {
   const salesQ = useQuery({ queryKey: ["sales"], queryFn: listSales });
 
   const lead = leadQ.data;
+  // Guard: backend có thể không trả contact_logs → tránh `.length`/`.map` throw làm trắng trang.
+  const contactLogs = lead?.contact_logs ?? [];
   const saleName = lead?.assigned_sale_id
-    ? salesQ.data?.sales.find((s) => s.id === lead.assigned_sale_id)?.full_name ?? lead.assigned_sale_id
+    ? salesQ.data?.sales?.find((s) => s.id === lead.assigned_sale_id)?.full_name ?? lead.assigned_sale_id
     : "Chưa phân bổ";
 
   // AI scoring breakdown — phản chiếu rule ở backend compute_ai_score.
@@ -115,7 +118,9 @@ export default function CustomerDetailPage() {
           />
 
           {tab === "profile360" ? (
-            <Customer360 leadId={lead.id} />
+            <ErrorBoundary>
+              <Customer360 leadId={lead.id} />
+            </ErrorBoundary>
           ) : (
           <>
           <div className="grid gap-5 lg:grid-cols-3">
@@ -170,12 +175,12 @@ export default function CustomerDetailPage() {
 
           {/* Contact log timeline */}
           <Card className="mt-5 p-5">
-            <h3 className="mb-3 text-sm font-semibold">Lịch sử liên hệ ({lead.contact_logs.length})</h3>
-            {lead.contact_logs.length === 0 ? (
+            <h3 className="mb-3 text-sm font-semibold">Lịch sử liên hệ ({contactLogs.length})</h3>
+            {contactLogs.length === 0 ? (
               <p className="text-sm text-muted-foreground">Chưa có lượt liên hệ nào.</p>
             ) : (
               <ol className="relative border-l border-border pl-5">
-                {lead.contact_logs.map((log) => (
+                {contactLogs.map((log) => (
                   <li key={log.id} className="mb-4 last:mb-0">
                     <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full bg-primary" />
                     <div className="flex items-center justify-between text-sm">

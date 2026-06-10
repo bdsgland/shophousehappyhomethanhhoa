@@ -117,7 +117,15 @@ export function Customer360Block({
     return <div className="h-40 animate-pulse rounded-xl bg-brand-50" />;
   }
 
-  const { basic, ai, pipeline, timeline, channels, deals } = p;
+  // Guard mọi field: tránh throw làm trắng panel nếu backend trả thiếu khối.
+  const basic = p.basic ?? ({} as Profile360["basic"]);
+  const ai = p.ai ?? ({ score: 0 } as Profile360["ai"]);
+  const pipeline =
+    p.pipeline ?? ({ stage: "", label: "—", rank: 0, stages: [] } as Profile360["pipeline"]);
+  const timeline = p.timeline ?? [];
+  const channels = p.channels ?? [];
+  const bookings = p.deals?.bookings ?? [];
+  const quotes = p.deals?.quotes ?? [];
   const nba = ai.next_action;
 
   return (
@@ -247,13 +255,13 @@ export function Customer360Block({
       {/* Giao dịch */}
       <div>
         <h4 className="text-sm font-bold text-brand-900">
-          Giao dịch ({deals.bookings.length + deals.quotes.length})
+          Giao dịch ({bookings.length + quotes.length})
         </h4>
-        {deals.bookings.length + deals.quotes.length === 0 ? (
+        {bookings.length + quotes.length === 0 ? (
           <p className="mt-2 text-sm text-brand-400">Chưa có giao dịch.</p>
         ) : (
           <ul className="mt-2 space-y-1.5 text-sm">
-            {deals.bookings.map((b, i) => (
+            {bookings.map((b, i) => (
               <li key={`bk-${i}`} className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-brand-700">
                   <Calendar size={14} className="text-emerald-500" />
@@ -262,7 +270,7 @@ export function Customer360Block({
                 <span className="text-xs text-brand-500">{String(b.status ?? "pending")}</span>
               </li>
             ))}
-            {deals.quotes.map((q, i) => (
+            {quotes.map((q, i) => (
               <li key={`qt-${i}`} className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-brand-700">
                   <FileText size={14} className="text-sky-500" />

@@ -129,8 +129,16 @@ export function Customer360({ leadId }: { leadId: string }) {
     );
   }
 
+  // Guard mọi field: backend có thể trả 200 nhưng thiếu khối → tránh throw làm trắng trang.
   const p: Profile360 = profileQ.data;
-  const { basic, ai, pipeline, timeline, channels, deals } = p;
+  const basic = p.basic ?? ({} as Profile360["basic"]);
+  const ai = p.ai ?? ({ score: 0 } as Profile360["ai"]);
+  const pipeline =
+    p.pipeline ?? ({ stage: "", label: "—", rank: 0, stages: [] } as Profile360["pipeline"]);
+  const timeline = p.timeline ?? [];
+  const channels = p.channels ?? [];
+  const bookings = p.deals?.bookings ?? [];
+  const quotes = p.deals?.quotes ?? [];
   const tierKey = (ai.tier ?? "").toString().toLowerCase();
   const nba = ai.next_action;
 
@@ -268,13 +276,13 @@ export function Customer360({ leadId }: { leadId: string }) {
           {/* Giao dịch */}
           <Card className="p-5">
             <h3 className="mb-3 text-sm font-semibold">
-              Giao dịch ({deals.bookings.length + deals.quotes.length})
+              Giao dịch ({bookings.length + quotes.length})
             </h3>
-            {deals.bookings.length + deals.quotes.length === 0 ? (
+            {bookings.length + quotes.length === 0 ? (
               <p className="text-sm text-muted-foreground">Chưa có giao dịch.</p>
             ) : (
               <ul className="space-y-2 text-sm">
-                {deals.bookings.map((b, i) => (
+                {bookings.map((b, i) => (
                   <li key={`bk-${i}`} className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5 text-success" />
@@ -285,7 +293,7 @@ export function Customer360({ leadId }: { leadId: string }) {
                     </Badge>
                   </li>
                 ))}
-                {deals.quotes.map((q, i) => (
+                {quotes.map((q, i) => (
                   <li key={`qt-${i}`} className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5 text-primary" />
