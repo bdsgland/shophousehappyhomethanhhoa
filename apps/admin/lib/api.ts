@@ -3,6 +3,10 @@
 import { clearToken, getToken } from "./auth";
 import type {
   AuditEvent,
+  AutomationExecutionsResponse,
+  AutomationOverviewResponse,
+  AutomationWorkflowsResponse,
+  ToggleWorkflowResult,
   BackupEntry,
   BulkImportResult,
   ChatwootConversation,
@@ -874,4 +878,31 @@ export function rescoreAllLeads(
     method: "POST",
     body: payload,
   });
+}
+
+// ---- Automation (kiểm soát workflow n8n) ----
+
+/** Tổng quan automation: active/inactive, số chạy hôm nay, lỗi gần đây. */
+export function getAutomationOverview() {
+  return apiFetch<AutomationOverviewResponse>("/admin/automation/overview");
+}
+
+/** Danh sách workflow nhóm theo hạng mục + lần chạy gần nhất + tỉ lệ lỗi. */
+export function getAutomationWorkflows() {
+  return apiFetch<AutomationWorkflowsResponse>("/admin/automation/workflows");
+}
+
+/** Bật / tắt 1 workflow n8n. */
+export function setWorkflowActive(id: string, active: boolean) {
+  return apiFetch<ToggleWorkflowResult>(
+    `/admin/automation/workflows/${id}/${active ? "activate" : "deactivate"}`,
+    { method: "POST" },
+  );
+}
+
+/** Lịch sử chạy gần nhất của 1 workflow. */
+export function getWorkflowExecutions(id: string, limit = 20) {
+  return apiFetch<AutomationExecutionsResponse>(
+    `/admin/automation/workflows/${id}/executions?limit=${limit}`,
+  );
 }

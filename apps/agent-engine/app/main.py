@@ -183,6 +183,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("admin_commission", "router", {}),
     ("admin_commission", "sale_router", {}),
     ("n8n_stubs", "router", {}),
+    ("admin_automation", "router", {}),
     ("admin_conversations", "router", {}),
     ("admin_drive_sync", "router", {}),
     ("admin_import", "router", {}),

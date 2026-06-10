@@ -11,6 +11,7 @@ import {
   Radio,
   Server,
   Settings,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/inventory", label: "Quỹ căn", icon: Building2 },
   { href: "/kb", label: "Tài liệu RAG", icon: BookOpen },
   { href: "/conversations", label: "Hội thoại", icon: MessagesSquare },
+  { href: "/automation", label: "Automation", icon: Workflow },
   { href: "/platforms", label: "Nền tảng", icon: Server },
   { href: "/settings", label: "Cấu hình", icon: Settings },
 ];

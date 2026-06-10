@@ -786,3 +786,111 @@ export interface StageChangeResult {
   label: string;
   lead: CrmLead;
 }
+
+// ---- Automation (n8n) ----
+
+export interface N8nTag {
+  id: string | null;
+  name: string | null;
+}
+
+export interface N8nCategory {
+  key: string;
+  label: string;
+  source: "tag" | "name";
+}
+
+export interface N8nLastRun {
+  status: string | null;
+  startedAt: string | null;
+  stoppedAt: string | null;
+}
+
+export interface N8nWorkflow {
+  id: string;
+  name: string;
+  active: boolean;
+  tags: N8nTag[];
+  createdAt: string | null;
+  updatedAt: string | null;
+  category: N8nCategory;
+  open_url: string;
+  last_run: N8nLastRun | null;
+  runs_window: number;
+  errors_window: number;
+  error_rate: number;
+}
+
+export interface N8nCategoryGroup {
+  key: string;
+  label: string;
+  source: "tag" | "name";
+  workflows: N8nWorkflow[];
+}
+
+/** Hướng dẫn set key — trả về khi chưa cấu hình N8N_API_KEY. */
+export interface AutomationSetup {
+  steps: string[];
+}
+
+export interface AutomationNotConfigured {
+  configured: false;
+  n8n_url: string;
+  message: string;
+  setup: AutomationSetup;
+}
+
+export interface AutomationOverview {
+  configured: true;
+  n8n_url: string;
+  total: number;
+  active: number;
+  inactive: number;
+  categories_count: number;
+  runs_today: number;
+  errors_recent: number;
+  executions_window: number;
+  checked_at: string;
+}
+
+export interface AutomationWorkflows {
+  configured: true;
+  n8n_url: string;
+  total: number;
+  categories: N8nCategoryGroup[];
+  checked_at: string;
+}
+
+export type AutomationOverviewResponse =
+  | AutomationOverview
+  | AutomationNotConfigured;
+export type AutomationWorkflowsResponse =
+  | AutomationWorkflows
+  | AutomationNotConfigured;
+
+export interface N8nExecution {
+  id: string;
+  workflowId: string | null;
+  status: string | null;
+  mode: string | null;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  finished: boolean;
+}
+
+export interface AutomationExecutionsResponse {
+  configured: boolean;
+  workflow_id?: string;
+  count?: number;
+  executions?: N8nExecution[];
+  // khi chưa cấu hình
+  message?: string;
+  setup?: AutomationSetup;
+  n8n_url?: string;
+}
+
+export interface ToggleWorkflowResult {
+  status: string;
+  id: string;
+  active: boolean;
+}

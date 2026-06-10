@@ -81,6 +81,20 @@ class Settings(BaseSettings):
     # Trống ở dev = không bắt buộc; production NÊN đặt env INTERNAL_WEBHOOK_TOKEN.
     internal_webhook_token: str = ""
 
+    # ----- n8n REST API quản trị (trang admin "Automation") -----
+    # Dùng để LIỆT KÊ / BẬT-TẮT / xem executions của toàn bộ workflow n8n từ
+    # admin. KHÁC với webhook ở trên (webhook là n8n GỌI VÀO; đây là backend GỌI
+    # RA n8n). Base URL trống → tự suy từ platform_n8n_url. API key tạo trong
+    # n8n: Settings → n8n API → Create an API key, rồi đặt env N8N_API_KEY.
+    # Trống N8N_API_KEY → mọi endpoint /admin/automation trả "chưa cấu hình"
+    # (không 500), kèm hướng dẫn set key cho admin.
+    n8n_api_url: str = ""
+    n8n_api_key: str = ""
+
+    def n8n_api_base(self) -> str:
+        """Base URL REST API n8n (không kèm /api/v1). Fallback platform_n8n_url."""
+        return (self.n8n_api_url or self._n8n_base()).rstrip("/")
+
     # ----- OpenClaw "God-Mode Bridge" (AI Assistant riêng cho CEO) -----
     # Token đặc biệt cho dịch vụ OpenClaw gọi vào prefix /openclaw (bypass role
     # check). Trống → TẮT toàn bộ bridge (mọi endpoint /openclaw trả 403). Sinh
