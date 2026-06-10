@@ -28,6 +28,7 @@ from app.api import (
     admin_drive_sync,
     admin_import,
     admin_inventory,
+    ai_crm,
     automation,
     auth,
     bookings,
@@ -217,6 +218,7 @@ app.include_router(bookings.me_router)
 app.include_router(crm.sale_router)
 app.include_router(crm.admin_router)
 app.include_router(crm.internal_router)
+app.include_router(ai_crm.router)
 app.include_router(match.router)
 app.include_router(ws_presence.router)
 app.include_router(ws_match.router)

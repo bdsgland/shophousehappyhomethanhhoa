@@ -16,6 +16,18 @@ class Settings(BaseSettings):
     llm_model: str = "claude-opus-4-7"
     use_mock_llm: bool = True
 
+    # ----- AI CRM (Phần B) — chấm điểm / insight lead bằng Claude thật -----
+    # Model rẻ (haiku) cho scoring/insight để tiết kiệm chi phí. Trống → fallback
+    # sang llm_model. Đổi qua env AI_CRM_MODEL nếu cần.
+    ai_crm_model: str = "claude-haiku-4-5-20251001"
+    # Giới hạn số lead xử lý mỗi lần rescore (bảo vệ chi phí + tránh quá tải API).
+    ai_crm_batch_limit: int = 25
+    # Ngưỡng auto-pipeline theo ai_score: >= hot → "hot", >= warm → "warm".
+    ai_crm_hot_threshold: int = 80
+    ai_crm_warm_threshold: int = 50
+    # max_tokens mỗi lần gọi Claude (output JSON ngắn) — chặn chi phí.
+    ai_crm_max_tokens: int = 320
+
     # Embedding
     voyage_api_key: str = ""
     openai_api_key: str = ""

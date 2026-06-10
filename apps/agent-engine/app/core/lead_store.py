@@ -144,11 +144,56 @@ def _days_since_contact(lead: dict) -> Optional[int]:
 
 
 def public_view(lead: dict) -> dict:
-    """Lead dict + field computed (ai_score luôn fresh, days_since_contact)."""
+    """Lead dict + field computed (days_since_contact).
+
+    ai_score: nếu lead đã được AI chấm điểm (có `ai_scored_at`) thì GIỮ NGUYÊN
+    điểm AI đã lưu; ngược lại tính lại bằng heuristic engagement (Phần A) để
+    tương thích ngược.
+    """
     out = dict(lead)
-    out["ai_score"] = compute_ai_score(lead)
+    if not lead.get("ai_scored_at"):
+        out["ai_score"] = compute_ai_score(lead)
     out["days_since_contact"] = _days_since_contact(lead)
     return out
+
+
+def apply_ai_insight(
+    lead_id: str,
+    *,
+    ai_score: int,
+    ai_reason: Optional[str] = None,
+    ai_tier: Optional[str] = None,
+    ai_best_time: Optional[str] = None,
+    ai_next_action: Optional[dict] = None,
+    new_status: Optional[str] = None,
+) -> Optional[dict]:
+    """Lưu kết quả AI CRM (Phần B) vào lead — KHÔNG đi qua heuristic recompute.
+
+    Set ai_score/ai_reason/ai_tier/ai_best_time/ai_next_action + ai_scored_at=now.
+    `new_status` (tuỳ chọn, từ auto_pipeline) ghi đè status nếu khác hiện tại.
+    Trả public_view của lead đã cập nhật, None nếu không tìm thấy.
+    """
+    now = _now()
+    with _LOCK:
+        data = _load_leads()
+        for l in data["leads"]:
+            if l["id"] == lead_id:
+                l["ai_score"] = int(max(0, min(100, ai_score)))
+                if ai_reason is not None:
+                    l["ai_reason"] = ai_reason
+                if ai_tier is not None:
+                    l["ai_tier"] = ai_tier
+                if ai_best_time is not None:
+                    l["ai_best_time"] = ai_best_time
+                if ai_next_action is not None:
+                    l["ai_next_action"] = ai_next_action
+                l["ai_scored_at"] = now
+                if new_status and new_status != l.get("status"):
+                    l["status"] = new_status
+                    l["updated_at"] = now
+                _save_leads(data)
+                return public_view(l)
+    return None
 
 
 # ---------------------------------------------------------------------------
