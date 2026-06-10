@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Medal, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { getCrmSalesPerformance, listCrmLeads } from "@/lib/api";
+import { getCrmSalesPerformance, listAllCrmLeads } from "@/lib/api";
 import type { SalePerformance } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
@@ -55,7 +55,7 @@ export default function SalesPerformancePage() {
   });
   const leadsQ = useQuery({
     queryKey: ["crm-leads-trend"],
-    queryFn: () => listCrmLeads({ page_size: 500 }),
+    queryFn: () => listAllCrmLeads(),
   });
 
   const [sortKey, setSortKey] = useState<SortKey>("rank");

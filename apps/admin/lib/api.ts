@@ -608,6 +608,26 @@ export function listCrmLeads(params: {
   return apiFetch<CrmLeadPage>(`/admin/crm/leads?${qs.toString()}`);
 }
 
+/**
+ * Tải TOÀN BỘ lead cho master view bằng cách phân trang theo lô an toàn
+ * (page_size ≤ 200 — vừa khít cap `le=200` của backend, tránh lỗi 422 khiến
+ * danh sách rỗng dù tổng số tăng). Gộp item các trang lại rồi trả 1 page.
+ */
+export async function listAllCrmLeads(
+  params: { status?: string; sale_id?: string; source?: string; search?: string } = {},
+): Promise<CrmLeadPage> {
+  const PAGE = 200; // an toàn dưới cap backend; >200 sẽ tự lấy thêm trang
+  const first = await listCrmLeads({ ...params, page: 1, page_size: PAGE });
+  const items = [...first.items];
+  const totalPages = Math.max(1, Math.ceil((first.total ?? items.length) / PAGE));
+  for (let p = 2; p <= totalPages; p += 1) {
+    const next = await listCrmLeads({ ...params, page: p, page_size: PAGE });
+    items.push(...next.items);
+    if (next.items.length === 0) break; // phòng total lệch
+  }
+  return { total: first.total ?? items.length, page: 1, page_size: items.length, items };
+}
+
 export function getCrmLead(id: string) {
   return apiFetch<CrmLeadDetail>(`/admin/crm/leads/${id}`);
 }

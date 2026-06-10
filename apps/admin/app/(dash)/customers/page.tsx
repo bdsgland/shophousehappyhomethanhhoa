@@ -21,7 +21,7 @@ import {
   assignCrmLead,
   autoDistributeHotLeads,
   getCrmStats,
-  listCrmLeads,
+  listAllCrmLeads,
   listSales,
   markCrmLeadHot,
   rescoreAllLeads,
@@ -83,7 +83,7 @@ export default function CustomersPage() {
   const salesQ = useQuery({ queryKey: ["sales"], queryFn: listSales });
   const leadsQ = useQuery({
     queryKey: ["crm-leads"],
-    queryFn: () => listCrmLeads({ page_size: 500 }),
+    queryFn: () => listAllCrmLeads(),
   });
 
   const [status, setStatus] = useState("all");
