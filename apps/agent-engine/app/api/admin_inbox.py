@@ -114,6 +114,17 @@ async def list_inbox_conversations(
     }
 
 
+@router.get("/diagnostics")
+async def inbox_diagnostics(_admin: dict = Depends(require_admin)) -> dict:
+    """Tự kiểm tra kết nối Chatwoot cho admin.
+
+    Trả: configured, base_url, account_id, token đã che, và KẾT QUẢ GỌI THỬ
+    Chatwoot (status code / số hội thoại / lỗi / gợi ý khắc phục). Dùng để biết
+    chính xác vì sao hộp thư/360 không kéo được hội thoại mà không cần đọc log.
+    """
+    return await chatwoot_client.diagnostics()
+
+
 @router.get("/conversations/{conversation_id}/messages")
 async def get_inbox_messages(
     conversation_id: str,

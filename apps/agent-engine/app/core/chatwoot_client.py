@@ -92,6 +92,85 @@ def _account_path(suffix: str) -> str:
     return f"/api/v1/accounts/{settings.chatwoot_account_id}{suffix}"
 
 
+def _mask_token(token: str) -> str:
+    """Che token để log/diagnostics an toàn: 4 ký tự đầu + 4 cuối."""
+    if not token:
+        return ""
+    if len(token) <= 8:
+        return "***"
+    return f"{token[:4]}…{token[-4:]}"
+
+
+async def diagnostics() -> dict:
+    """Tự kiểm tra cấu hình Chatwoot — gọi THỬ API và trả kết quả chi tiết.
+
+    KHÔNG nuốt lỗi: ghi rõ status code / loại lỗi / số hội thoại lấy được để admin
+    tự chẩn đoán (token sai 401, account sai 404, URL sai/timeout...).
+    """
+    base = settings.chatwoot_base_url.rstrip("/")
+    result: dict = {
+        "configured": is_configured(),
+        "base_url": base,
+        "account_id": settings.chatwoot_account_id,
+        "token_masked": _mask_token(settings.chatwoot_api_token),
+        "request_url": f"{base}{_account_path('/conversations')}",
+        "ok": False,
+        "status_code": None,
+        "conversation_count": None,
+        "error": None,
+        "hint": None,
+    }
+    if not is_configured():
+        result["error"] = "Chưa cấu hình CHATWOOT_API_TOKEN."
+        result["hint"] = "Đặt env CHATWOOT_API_TOKEN trên backend rồi redeploy."
+        return result
+
+    import httpx
+
+    headers = {
+        "api_access_token": settings.chatwoot_api_token,
+        "Content-Type": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                result["request_url"],
+                params={"assignee_type": "all"},
+                headers=headers,
+            )
+            result["status_code"] = resp.status_code
+            if resp.status_code == 200:
+                data = resp.json() if resp.content else {}
+                payload = data.get("data", data) if isinstance(data, dict) else {}
+                raw = payload.get("payload", []) if isinstance(payload, dict) else []
+                result["ok"] = True
+                result["conversation_count"] = len(raw) if isinstance(raw, list) else 0
+                if result["conversation_count"] == 0:
+                    result["hint"] = (
+                        "Gọi API OK nhưng 0 hội thoại — kiểm tra: account_id đúng "
+                        "chưa, đã có hội thoại trong account, token có quyền xem toàn "
+                        "bộ (assignee_type=all)."
+                    )
+            elif resp.status_code in (401, 403):
+                result["error"] = "Token bị từ chối (401/403)."
+                result["hint"] = "CHATWOOT_API_TOKEN sai/hết hạn hoặc không đủ quyền."
+            elif resp.status_code == 404:
+                result["error"] = "Không tìm thấy (404)."
+                result["hint"] = (
+                    f"account_id={settings.chatwoot_account_id} hoặc base_url sai. "
+                    "Kiểm tra URL Chatwoot + CHATWOOT_ACCOUNT_ID."
+                )
+            else:
+                result["error"] = f"HTTP {resp.status_code}: {resp.text[:200]}"
+    except Exception as exc:  # noqa: BLE001 — diagnostics phải luôn trả về, không raise
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        result["hint"] = (
+            "Không kết nối được Chatwoot — kiểm tra base_url (https://, đúng domain) "
+            "và mạng outbound từ backend."
+        )
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Trích xuất / chuẩn hoá
 # ---------------------------------------------------------------------------
@@ -187,14 +266,25 @@ def normalize_conversation(conv: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 async def list_conversations(status: str = "open") -> Optional[list[dict]]:
-    """Danh sách hội thoại Chatwoot đã chuẩn hoá. None nếu chưa cấu hình/lỗi."""
-    params = {} if status == "all" else {"status": status}
+    """Danh sách hội thoại Chatwoot đã chuẩn hoá. None nếu chưa cấu hình/lỗi.
+
+    QUAN TRỌNG: endpoint /conversations của Chatwoot mặc định lọc theo
+    `assignee_type=me` → token Agent Bot (không được "assign" hội thoại nào) sẽ
+    thấy DANH SÁCH RỖNG dù token đúng. Phải truyền `assignee_type=all` để lấy mọi
+    hội thoại của account. Đây là nguyên nhân phổ biến khiến hộp thư "không kéo
+    được hội thoại" dù đã cấu hình token.
+    """
+    params: dict = {"assignee_type": "all"}
+    if status != "all":
+        params["status"] = status
     data = await _request("GET", _account_path("/conversations"), params=params)
     if data is None:
         return None
     payload = data.get("data", data) if isinstance(data, dict) else {}
     raw = payload.get("payload", []) if isinstance(payload, dict) else []
-    return [normalize_conversation(c) for c in raw if isinstance(c, dict)]
+    convos = [normalize_conversation(c) for c in raw if isinstance(c, dict)]
+    log.info("[chatwoot] list_conversations status=%s → %d hội thoại", status, len(convos))
+    return convos
 
 
 async def list_messages(conversation_id: int) -> Optional[list[dict]]:
@@ -236,22 +326,47 @@ async def send_message(conversation_id: int, content: str) -> Optional[dict]:
     )
 
 
+def _phone_suffix(normalized: str) -> str:
+    """9 số cuối của SĐT đã chuẩn hoá — dùng so khớp bền vững giữa các định dạng
+    (0xxx, +84xxx, 84xxx, có/không mã vùng). VN: số di động 9 chữ số sau '0'."""
+    return normalized[-9:] if len(normalized) >= 9 else normalized
+
+
+def _phone_match(a: Optional[str], b: Optional[str]) -> bool:
+    """So khớp 2 SĐT bất kể định dạng. Chuẩn hoá (+84/84 → 0) rồi so khớp tuyệt
+    đối; nếu lệch (vd thiếu/thừa mã vùng) thì so 9 số cuối để vẫn bắt được."""
+    na = lead_store.normalize_phone(a or "")
+    nb = lead_store.normalize_phone(b or "")
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    return _phone_suffix(na) == _phone_suffix(nb)
+
+
 async def conversations_for_lead(lead: dict, status: str = "all") -> list[dict]:
     """Các hội thoại Chatwoot khớp 1 lead theo SĐT/email (cho Customer 360).
 
     Trả [] khi chưa cấu hình / lỗi / không khớp — KHÔNG raise.
+
+    Khớp SĐT qua `_phone_match`: Chatwoot thường lưu '+84901234567' còn lead lưu
+    '0901234567' — cả hai chuẩn hoá về '0901234567' nên khớp; thêm fallback 9 số
+    cuối để bền với các sai khác mã vùng.
     """
     convos = await list_conversations(status=status)
     if not convos:
         return []
-    nphone = lead_store.normalize_phone(lead.get("phone") or "")
+    lphone = lead.get("phone") or ""
     nemail = (lead.get("email") or "").strip().lower()
     matched: list[dict] = []
     for c in convos:
-        cphone = lead_store.normalize_phone((c["contact"].get("phone") or ""))
         cemail = (c["contact"].get("email") or "").strip().lower()
-        if (nphone and cphone and nphone == cphone) or (
+        if _phone_match(lphone, c["contact"].get("phone")) or (
             nemail and cemail and nemail == cemail
         ):
             matched.append(c)
+    log.info(
+        "[chatwoot] conversations_for_lead lead=%s → %d/%d khớp",
+        lead.get("id"), len(matched), len(convos),
+    )
     return matched
