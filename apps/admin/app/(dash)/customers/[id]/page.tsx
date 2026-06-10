@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { getCrmLead, listSales } from "@/lib/api";
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { AiInsightCard } from "@/components/crm/AiInsightCard";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -123,7 +124,7 @@ export default function CustomerDetailPage() {
             <Card className="p-5 lg:col-span-2">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <Sparkles className="h-4 w-4 text-warning" /> Phân tích AI score
+                  <Sparkles className="h-4 w-4 text-warning" /> Điểm quy tắc (tham khảo)
                 </h3>
                 <span className="text-2xl font-bold text-primary">{lead.ai_score}/100</span>
               </div>
@@ -140,6 +141,11 @@ export default function CustomerDetailPage() {
                 ))}
               </ul>
             </Card>
+          </div>
+
+          {/* Phân tích AI thật (điểm + tier + lý do + best time + next action) */}
+          <div className="mt-5">
+            <AiInsightCard leadId={lead.id} />
           </div>
 
           {/* Contact log timeline */}

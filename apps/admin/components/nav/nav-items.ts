@@ -10,6 +10,7 @@ import {
   Radio,
   Server,
   Settings,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/live", label: "Live Match", icon: Radio },
   { href: "/customers", label: "Khách hàng", icon: UserSquare2 },
   { href: "/customers/performance", label: "Hiệu suất Sale", icon: Medal },
+  { href: "/import", label: "Nhập dữ liệu", icon: Upload },
   { href: "/users", label: "Người dùng", icon: Users },
   { href: "/sales", label: "Sale & Hoa hồng", icon: BadgeDollarSign },
   { href: "/inventory", label: "Quỹ căn", icon: Building2 },

@@ -7,6 +7,7 @@ import {
   Flame,
   RefreshCw,
   Search,
+  Sparkles,
   Trash2,
   UserCog,
   Users2,
@@ -22,6 +23,7 @@ import {
   listCrmLeads,
   listSales,
   markCrmLeadHot,
+  rescoreAllLeads,
   softDeleteCrmLead,
 } from "@/lib/api";
 import type { CrmLead } from "@/lib/types";
@@ -121,6 +123,13 @@ export default function CustomersPage() {
       setBanner(`Đã phân bổ ${res.distributed} khách nét cho các sale top.`);
     },
   });
+  const rescoreAllMut = useMutation({
+    mutationFn: () => rescoreAllLeads({ scope: "all" }),
+    onSuccess: (res) => {
+      invalidate();
+      setBanner(`AI đã chấm điểm lại ${res.scored} khách hàng.`);
+    },
+  });
 
   const sales = salesQ.data?.sales ?? [];
   const saleName = (id: string | null) =>
@@ -195,6 +204,15 @@ export default function CustomersPage() {
             <Button variant="outline" size="sm" onClick={exportCsv}>
               <Download className="h-4 w-4" />
               Xuất CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => rescoreAllMut.mutate()}
+              disabled={rescoreAllMut.isPending}
+            >
+              <Sparkles className={rescoreAllMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+              {rescoreAllMut.isPending ? "Đang chấm…" : "Chấm điểm lại toàn bộ (AI)"}
             </Button>
             <Button
               size="sm"

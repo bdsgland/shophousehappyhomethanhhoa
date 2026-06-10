@@ -20,6 +20,12 @@ import type {
   CrmLeadPage,
   CrmStats,
   DashboardKpi,
+  ImportCommitPayload,
+  ImportParsePreview,
+  ImportResult,
+  ImportWorkspaceStatus,
+  LeadInsight,
+  RescoreResult,
   InventoryBackupInfo,
   InventorySyncResult,
   InventoryUnit,
@@ -716,4 +722,67 @@ export function workspaceConnectUrl(): string {
   return `${API_URL}/admin/google-workspace/connect?token=${encodeURIComponent(
     token ?? "",
   )}`;
+}
+
+// ---------------------------------------------------------------------------
+// Import khách CRM đa nguồn (Google Trang tính + file CSV/XLSX) — /admin/import
+// ---------------------------------------------------------------------------
+
+/** Đã Connect Google Workspace chưa + có scope Sheets chưa (bật/tắt nút import). */
+export function getImportWorkspaceStatus() {
+  return apiFetch<ImportWorkspaceStatus>("/admin/import/workspace-status");
+}
+
+/** Đọc Google Trang tính → headers + rows + gợi ý mapping (xem trước). */
+export function parseImportGoogleSheet(payload: {
+  sheet_url: string;
+  sheet_name?: string | null;
+}) {
+  return apiFetch<ImportParsePreview>("/admin/import/google-sheet/parse", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/** Upload CSV/XLSX (multipart) → headers + rows + gợi ý mapping. */
+export function parseImportFile(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiUpload<ImportParsePreview>("/admin/import/file/parse", form);
+}
+
+/** Tạo lead từ rows + mapping admin đã chỉnh (dedupe + auto-care + AI). */
+export function commitImport(payload: ImportCommitPayload) {
+  return apiFetch<ImportResult>("/admin/import/commit", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// AI CRM — insight + rescore (/ai-crm/*)
+// ---------------------------------------------------------------------------
+
+/** Insight 1 lead (tự chấm nếu chưa có / đã cũ). */
+export function getLeadInsight(id: string) {
+  return apiFetch<LeadInsight>(`/ai-crm/leads/${id}/insight`);
+}
+
+/** Chấm điểm lại 1 lead bằng AI (force). */
+export function rescoreLead(id: string) {
+  return apiFetch<LeadInsight>(`/ai-crm/leads/${id}/rescore`, {
+    method: "POST",
+  });
+}
+
+/** Chấm điểm AI hàng loạt (admin). Mặc định toàn bộ (scope='all'). */
+export function rescoreAllLeads(
+  payload: { scope?: string; lead_ids?: string[]; force?: boolean } = {
+    scope: "all",
+  },
+) {
+  return apiFetch<RescoreResult>("/ai-crm/rescore", {
+    method: "POST",
+    body: payload,
+  });
 }

@@ -117,6 +117,26 @@ export type LeadInput = {
   source?: LeadSource;
 };
 
+// ---- AI CRM (đồng bộ app/api/ai_crm.py) ----
+
+export type AiTier = "cold" | "warm" | "hot";
+
+export type AiNextAction = {
+  summary?: string | null;
+  suggested_action?: string | null;
+};
+
+export type LeadInsight = {
+  lead_id: string;
+  ai_score: number;
+  ai_tier?: AiTier | string | null;
+  ai_reason?: string | null;
+  ai_best_time?: string | null;
+  ai_next_action?: AiNextAction | null;
+  ai_scored_at?: string | null;
+  status?: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Fetch wrapper (tự gắn Bearer, parse lỗi tiếng Việt)
 // ---------------------------------------------------------------------------
@@ -225,6 +245,19 @@ export function fetchLeaderboard(token: string): Promise<SalePerformance[]> {
   return req<SalePerformance[]>("/sale/leaderboard", { token });
 }
 
+/** Insight AI 1 lead (tự chấm nếu chưa có / đã cũ). */
+export function getLeadInsight(token: string, id: string): Promise<LeadInsight> {
+  return req<LeadInsight>(`/ai-crm/leads/${id}/insight`, { token });
+}
+
+/** Chấm điểm lại 1 lead bằng AI (force). */
+export function rescoreLead(token: string, id: string): Promise<LeadInsight> {
+  return req<LeadInsight>(`/ai-crm/leads/${id}/rescore`, {
+    method: "POST",
+    token,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // UI helpers — nhãn + màu badge tiếng Việt
 // ---------------------------------------------------------------------------
@@ -276,6 +309,30 @@ export function scoreColor(score: number): string {
   if (score >= 70) return "text-rose-600";
   if (score >= 40) return "text-amber-600";
   return "text-sky-600";
+}
+
+export const TIER_LABEL: Record<string, string> = {
+  cold: "Lạnh",
+  warm: "Ấm",
+  hot: "Nóng",
+};
+
+/** Màu badge cho tier AI (cold/warm/hot) — đồng bộ tông màu STATUS_BADGE. */
+export const TIER_BADGE: Record<string, string> = {
+  cold: "bg-sky-50 text-sky-700 ring-sky-200",
+  warm: "bg-amber-50 text-amber-700 ring-amber-200",
+  hot: "bg-rose-50 text-rose-700 ring-rose-200",
+};
+
+export function tierLabel(tier?: string | null): string {
+  return TIER_LABEL[(tier ?? "").toLowerCase()] ?? "Chưa xếp";
+}
+
+export function tierBadge(tier?: string | null): string {
+  return (
+    TIER_BADGE[(tier ?? "").toLowerCase()] ??
+    "bg-brand-100 text-brand-600 ring-brand-200"
+  );
 }
 
 export function formatDate(iso: string | null): string {

@@ -532,3 +532,85 @@ export interface SalePerformance {
   eligibility_score: number;
   rank: number;
 }
+
+// ---------------------------------------------------------------------------
+// Import khách CRM đa nguồn (đồng bộ app/schemas/customer_import.py)
+// ---------------------------------------------------------------------------
+
+/** Map trường hệ thống ↔ tên cột (header) trong nguồn dữ liệu. */
+export interface ImportColumnMapping {
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  source?: string | null;
+  note?: string | null;
+  demand?: string | null;
+}
+
+/** Khoá field map được + nhãn tiếng Việt (dựng UI map cột). */
+export type ImportMappingField = keyof ImportColumnMapping;
+
+export interface ImportParsePreview {
+  headers: string[];
+  rows: Record<string, unknown>[];
+  total: number;
+  suggested_mapping: ImportColumnMapping;
+  sheet_names?: string[] | null; // với Google Sheet
+  source_label?: string | null; // "google_sheet" | "file_upload"
+}
+
+export interface ImportCommitPayload {
+  rows: Record<string, unknown>[];
+  mapping: ImportColumnMapping;
+  source?: string; // LeadSource value (google_sheet | file_upload | …)
+  assigned_sale_id?: string | null;
+  auto_assign?: boolean;
+  skip_duplicates?: boolean;
+  auto_care?: boolean;
+  default_status?: string; // LeadStatus value
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: Record<string, unknown>[];
+  duplicates: Record<string, unknown>[];
+  created_ids: string[];
+  ai_scored: number;
+}
+
+export interface ImportWorkspaceStatus {
+  connected: boolean;
+  scopes: string[];
+  email: string | null;
+  connected_at: string | null;
+  updated_at: string | null;
+  redirect_uri: string;
+  sheets_ready: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// AI CRM — insight + rescore (đồng bộ app/api/ai_crm.py)
+// ---------------------------------------------------------------------------
+
+export type AiTier = "cold" | "warm" | "hot";
+
+export interface AiNextAction {
+  summary?: string | null;
+  suggested_action?: string | null;
+}
+
+export interface LeadInsight {
+  lead_id: string;
+  ai_score: number;
+  ai_tier?: AiTier | string | null;
+  ai_reason?: string | null;
+  ai_best_time?: string | null;
+  ai_next_action?: AiNextAction | null;
+  ai_scored_at?: string | null;
+  status?: string | null;
+}
+
+export interface RescoreResult {
+  scored: number;
+}

@@ -2,19 +2,32 @@
 
 import { useEffect, useState } from "react";
 
-import { MessageCircle, Phone, Sparkles, X } from "@/components/dashboard/icons";
+import {
+  Clock,
+  Lightbulb,
+  MessageCircle,
+  Phone,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "@/components/dashboard/icons";
 import {
   CHANNEL_LABEL,
   formatDateTime,
   getLeadDetail,
+  getLeadInsight,
   OUTCOME_LABEL,
+  rescoreLead,
   scoreColor,
   SOURCE_LABEL,
   STATUS_BADGE,
   STATUS_LABEL,
+  tierBadge,
+  tierLabel,
   updateLead,
   type ContactLog,
   type CrmLeadDetail,
+  type LeadInsight,
   type LeadStatus,
 } from "@/lib/crm";
 import { ContactLogModal } from "./ContactLogModal";
@@ -38,6 +51,8 @@ export function LeadDetailPanel({
   const [status, setStatus] = useState<LeadStatus>("cold");
   const [saving, setSaving] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [insight, setInsight] = useState<LeadInsight | null>(null);
+  const [rescoring, setRescoring] = useState(false);
 
   function load() {
     getLeadDetail(token, leadId).then((d) => {
@@ -46,9 +61,23 @@ export function LeadDetailPanel({
       setNote(d.note ?? "");
       setStatus(d.status);
     });
+    getLeadInsight(token, leadId)
+      .then(setInsight)
+      .catch(() => setInsight(null));
   }
 
   useEffect(load, [token, leadId]);
+
+  async function rescore() {
+    setRescoring(true);
+    try {
+      const res = await rescoreLead(token, leadId);
+      setInsight(res);
+      onChanged();
+    } finally {
+      setRescoring(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -87,15 +116,73 @@ export function LeadDetailPanel({
       </div>
 
       <div className="space-y-4 p-5">
-        {/* AI score + meta */}
-        <div className="flex items-center justify-between rounded-xl bg-brand-50 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-brand-700">
-            <Sparkles size={16} className="text-amber-500" />
-            AI score
+        {/* AI insight: điểm thật + tier + lý do + best time + next action */}
+        <div className="rounded-xl bg-brand-50 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-brand-700">
+              <Sparkles size={16} className="text-amber-500" />
+              Phân tích AI
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-2xl font-extrabold ${scoreColor(
+                  insight?.ai_score ?? lead.ai_score,
+                )}`}
+              >
+                {insight?.ai_score ?? lead.ai_score}
+              </span>
+              {insight?.ai_tier && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${tierBadge(
+                    insight.ai_tier,
+                  )}`}
+                >
+                  {tierLabel(insight.ai_tier)}
+                </span>
+              )}
+            </div>
           </div>
-          <span className={`text-2xl font-extrabold ${scoreColor(lead.ai_score)}`}>
-            {lead.ai_score}
-          </span>
+
+          {insight?.ai_reason && (
+            <p className="mt-2 text-sm text-brand-700">{insight.ai_reason}</p>
+          )}
+
+          {insight?.ai_best_time && (
+            <div className="mt-2 flex items-start gap-1.5 text-sm text-brand-700">
+              <Clock size={15} className="mt-0.5 shrink-0 text-brand-500" />
+              <span>
+                <b>Thời điểm liên hệ tốt nhất:</b> {insight.ai_best_time}
+              </span>
+            </div>
+          )}
+
+          {(insight?.ai_next_action?.summary ||
+            insight?.ai_next_action?.suggested_action) && (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-sm">
+              <div className="flex items-center gap-1.5 font-semibold text-amber-700">
+                <Lightbulb size={15} /> Gợi ý hành động (AI)
+              </div>
+              {insight?.ai_next_action?.summary && (
+                <p className="mt-0.5 text-brand-700">
+                  {insight.ai_next_action.summary}
+                </p>
+              )}
+              {insight?.ai_next_action?.suggested_action && (
+                <p className="mt-0.5 font-medium text-brand-900">
+                  {insight.ai_next_action.suggested_action}
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={rescore}
+            disabled={rescoring}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-700 transition hover:border-amber-300 hover:text-amber-600 disabled:opacity-60"
+          >
+            <RefreshCw size={15} className={rescoring ? "animate-spin" : ""} />
+            {rescoring ? "Đang chấm…" : "Chấm điểm lại bằng AI"}
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs text-brand-600">
           <div>Nguồn: <b className="text-brand-800">{SOURCE_LABEL[lead.source]}</b></div>

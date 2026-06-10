@@ -420,3 +420,31 @@ export function Radio(p: IconProps) {
     </svg>
   );
 }
+
+export function Clock(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+export function RefreshCw(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5M3 21v-5h5" />
+    </svg>
+  );
+}
+
+export function Lightbulb(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M9 18h6M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.9 1 1 1.7l.1.5h5l.1-.5c.1-.7.5-1.3 1-1.7A6 6 0 0 0 12 3Z" />
+    </svg>
+  );
+}
