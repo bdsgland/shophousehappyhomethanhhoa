@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
@@ -8,6 +9,7 @@ import {
   Edit3,
   FileText,
   GitBranch,
+  Inbox,
   Lightbulb,
   Mail,
   MapPin,
@@ -141,6 +143,8 @@ function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
       return { Icon: Mail, color: "text-primary" };
     case "inperson":
       return { Icon: MapPin, color: "text-warning" };
+    case "chatwoot":
+      return { Icon: MessageCircle, color: "text-emerald-600" };
     default:
       return { Icon: Clock, color: "text-muted-foreground" };
   }
@@ -392,25 +396,61 @@ export function Customer360({ leadId }: { leadId: string }) {
           <Card className="p-5">
             <h3 className="mb-3 text-sm font-semibold">Kênh đã tương tác</h3>
             <ul className="space-y-2 text-sm">
-              {channels.map((c: ChannelInteraction) => (
-                <li key={c.channel} className="flex items-center justify-between gap-2">
-                  <span className={c.linked ? "text-foreground" : "text-muted-foreground"}>
-                    {c.label}
-                    {!c.linked && (
-                      <span className="ml-1 text-xs italic text-muted-foreground">
-                        (sắp tích hợp)
+              {channels.map((c: ChannelInteraction) => {
+                const isChatwoot = c.channel === "chatwoot";
+                if (c.linked) {
+                  return (
+                    <li
+                      key={c.channel}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="text-foreground">
+                        {c.label}
+                        {c.count > 0 && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            · {c.count} {isChatwoot ? "hội thoại" : "lần"}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {c.linked ? (c.last_at ? shortDate(c.last_at) : "—") : ""}
-                  </span>
-                </li>
-              ))}
+                      <span className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {c.last_at ? shortDate(c.last_at) : "—"}
+                        </span>
+                        {isChatwoot && (
+                          <Link
+                            href="/inbox"
+                            className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
+                          >
+                            <Inbox className="h-3 w-3" /> Xem trong Hộp thư
+                          </Link>
+                        )}
+                      </span>
+                    </li>
+                  );
+                }
+                return (
+                  <li
+                    key={c.channel}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-muted-foreground">{c.label}</span>
+                    <span className="text-xs italic text-muted-foreground">
+                      {isChatwoot ? "Chưa kết nối" : "Chưa tích hợp"}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
-            <p className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
-              Chatwoot / Tổng đài: sắp tích hợp.
-            </p>
+            {!channels.some((c) => c.channel === "chatwoot" && c.linked) && (
+              <p className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
+                Chưa kết nối Chatwoot — cấu hình{" "}
+                <code className="rounded bg-muted px-1 py-0.5">
+                  CHATWOOT_API_TOKEN
+                </code>{" "}
+                trên server để đồng bộ hội thoại đa kênh (web/Facebook/Zalo/email)
+                vào hồ sơ.
+              </p>
+            )}
           </Card>
 
           {/* Giao dịch */}

@@ -105,6 +105,8 @@ function timelineIcon(item: TimelineItem): { Icon: IconCmp; color: string } {
       return { Icon: Send, color: "text-sky-600" };
     case "inperson":
       return { Icon: MapPin, color: "text-amber-500" };
+    case "chatwoot":
+      return { Icon: MessageCircle, color: "text-emerald-500" };
     default:
       return { Icon: Clock, color: "text-brand-400" };
   }
@@ -383,21 +385,47 @@ export function Customer360Block({
       <div>
         <h4 className="text-sm font-bold text-brand-900">Kênh đã tương tác</h4>
         <ul className="mt-2 space-y-1.5 text-sm">
-          {channels.map((c: ChannelInteraction) => (
-            <li key={c.channel} className="flex items-center justify-between gap-2">
-              <span className={c.linked ? "text-brand-700" : "text-brand-400"}>
-                {c.label}
-                {!c.linked && <span className="ml-1 text-xs italic">(sắp tích hợp)</span>}
-              </span>
-              <span className="text-xs text-brand-400">
-                {c.linked ? (c.last_at ? formatDate(c.last_at) : "—") : ""}
-              </span>
-            </li>
-          ))}
+          {channels.map((c: ChannelInteraction) => {
+            const isChatwoot = c.channel === "chatwoot";
+            if (c.linked) {
+              return (
+                <li
+                  key={c.channel}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="text-brand-700">
+                    {c.label}
+                    {c.count > 0 && (
+                      <span className="ml-1 text-xs text-brand-400">
+                        · {c.count} {isChatwoot ? "hội thoại" : "lần"}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-brand-400">
+                    {c.last_at ? formatDate(c.last_at) : "—"}
+                  </span>
+                </li>
+              );
+            }
+            return (
+              <li
+                key={c.channel}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="text-brand-400">{c.label}</span>
+                <span className="text-xs italic text-brand-400">
+                  {isChatwoot ? "Chưa kết nối" : "Chưa tích hợp"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
-        <p className="mt-2 border-t border-brand-50 pt-2 text-xs text-brand-400">
-          Chatwoot / Tổng đài: sắp tích hợp.
-        </p>
+        {!channels.some((c) => c.channel === "chatwoot" && c.linked) && (
+          <p className="mt-2 border-t border-brand-50 pt-2 text-xs text-brand-400">
+            Chưa kết nối Chatwoot — cấu hình CHATWOOT_API_TOKEN trên server để đồng
+            bộ hội thoại đa kênh (web/Facebook/Zalo/email) vào hồ sơ.
+          </p>
+        )}
       </div>
 
       {/* Giao dịch */}
