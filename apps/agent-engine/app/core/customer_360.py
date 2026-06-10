@@ -309,6 +309,79 @@ def build_channels(contact_logs: list[dict], bookings: list[dict]) -> list[dict]
 
 
 # ---------------------------------------------------------------------------
+# Nối hội thoại Chatwoot thật (thay khung placeholder)
+# ---------------------------------------------------------------------------
+
+def _to_iso(value) -> Optional[str]:
+    """Chuẩn hoá thời gian về ISO.
+
+    Chatwoot trả epoch giây (int) cho created_at/last_activity_at trong khi CRM
+    dùng ISO8601. Đổi epoch → ISO để timeline/khối kênh sort nhất quán. Giá trị
+    đã là ISO thì giữ nguyên.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        ts = float(value)
+        return datetime.utcfromtimestamp(ts).isoformat() + "Z"
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def apply_chatwoot(profile: dict, convos: list[dict]) -> dict:
+    """Nối các hội thoại Chatwoot (đã match theo SĐT/email) vào hồ sơ 360.
+
+    Thay KHUNG placeholder 'chatwoot' (linked=False) bằng dữ liệu thật:
+      • Khối kênh : chatwoot → linked=True + count + last_at (lần gần nhất).
+      • Timeline  : thêm 1 mục cho mỗi hội thoại (tin nhắn cuối), gắn link inbox.
+    Sửa `profile` tại chỗ và trả về. `convos` rỗng → giữ nguyên placeholder.
+    """
+    if not convos:
+        return profile
+
+    iso_dates = [d for d in (_to_iso(c.get("last_at")) for c in convos) if d]
+    latest = (
+        max(iso_dates, key=lambda d: _parse_dt(d) or _DT_MIN) if iso_dates else None
+    )
+
+    # 1) Khối kênh: bật linked cho slot 'chatwoot'.
+    channels = profile.setdefault("channels", [])
+    slot = next((c for c in channels if c.get("channel") == "chatwoot"), None)
+    if slot is None:
+        slot = {"channel": "chatwoot", "label": channel_label("chatwoot")}
+        channels.append(slot)
+    slot["label"] = channel_label("chatwoot")
+    slot["linked"] = True
+    slot["count"] = len(convos)
+    slot["last_at"] = latest
+    channels.sort(key=lambda c: (_parse_dt(c.get("last_at")) or _DT_MIN), reverse=True)
+
+    # 2) Timeline: thêm mục cho mỗi hội thoại Chatwoot.
+    timeline = profile.setdefault("timeline", [])
+    for c in convos:
+        when = _to_iso(c.get("last_at"))
+        sub = channel_label(c.get("channel")) if c.get("channel") else ""
+        prefix = f"[Chatwoot · {sub}]" if sub and sub != "Chatwoot" else "[Chatwoot]"
+        last_msg = c.get("last_message") or "Hội thoại Chatwoot"
+        timeline.append(
+            _item(
+                "message",
+                "chatwoot",
+                when,
+                f"{prefix} {last_msg}".strip(),
+                {
+                    "conversation_id": c.get("id"),
+                    "channel": c.get("channel"),
+                    "status": c.get("status"),
+                    "contact": c.get("contact"),
+                },
+            )
+        )
+    timeline.sort(key=_sort_key, reverse=True)
+    return profile
+
+
+# ---------------------------------------------------------------------------
 # Hồ sơ tổng hợp
 # ---------------------------------------------------------------------------
 

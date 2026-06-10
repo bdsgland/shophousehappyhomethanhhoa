@@ -330,6 +330,58 @@ export interface ChatwootConversation {
   created_at?: number;
 }
 
+// ---- Omnichannel Inbox (Hộp thư đa kênh) ----
+
+export interface InboxContact {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface InboxConversation {
+  id: string; // "cw:<id>" | "web:<id>"
+  raw_id: number | string;
+  source: "chatwoot" | "web";
+  channel: string; // web | facebook | zalo | email | ...
+  contact: InboxContact;
+  last_message: string;
+  last_at?: string | null;
+  status: string;
+  assignee?: string | null;
+  crm_lead_id?: string | null;
+  crm_lead_name?: string | null;
+  is_hot?: boolean;
+  intent_score?: number;
+}
+
+export interface InboxChatwootStatus {
+  configured: boolean;
+  error: boolean;
+  detail?: string | null;
+}
+
+export interface InboxListResponse {
+  conversations: InboxConversation[];
+  count: number;
+  chatwoot: InboxChatwootStatus;
+}
+
+export interface InboxMessage {
+  role: "user" | "assistant";
+  content: string;
+  at?: string | null;
+  sender?: string | null;
+}
+
+export interface InboxMessagesResponse {
+  id: string;
+  source: "chatwoot" | "web";
+  configured: boolean;
+  messages: InboxMessage[];
+  status?: string;
+  detail?: string;
+}
+
 // ---- Phase 2: Settings ----
 
 export interface SystemConfig {

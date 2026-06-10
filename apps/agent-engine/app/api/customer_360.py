@@ -13,9 +13,20 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+import logging
+
 from app.api.deps import require_sale
-from app.core import ai_crm, customer_360, lead_store, sale_task_store, user_store
+from app.core import (
+    ai_crm,
+    chatwoot_client,
+    customer_360,
+    lead_store,
+    sale_task_store,
+    user_store,
+)
 from app.schemas.crm import CareLogCreate, ContactLog
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm", tags=["crm-360"])
 
@@ -52,6 +63,14 @@ async def get_profile_360(
     )
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    # Nối hội thoại Chatwoot match theo SĐT/email (thay khung placeholder). An
+    # toàn: chưa cấu hình / Chatwoot down → trả [] → giữ nguyên placeholder.
+    try:
+        convos = await chatwoot_client.conversations_for_lead(lead)
+        if convos:
+            customer_360.apply_chatwoot(profile, convos)
+    except Exception as exc:  # noqa: BLE001 — không để Chatwoot làm sập hồ sơ 360
+        log.warning("[360] nối Chatwoot lỗi cho lead %s: %s", lead_id, exc)
     return profile
 
 

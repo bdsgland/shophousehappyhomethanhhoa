@@ -16,6 +16,8 @@ import type {
   CommissionRow,
   ConversationDetail,
   ConversationSummary,
+  InboxListResponse,
+  InboxMessagesResponse,
   CrmLead,
   CrmLeadUpdate,
   CareLogInput,
@@ -526,6 +528,26 @@ export function listChatwootConversations(status = "open") {
     conversations: ChatwootConversation[];
     detail?: string;
   }>(`/admin/conversations/chatwoot?status=${status}`);
+}
+
+// ---- Omnichannel Inbox (Hộp thư đa kênh) ----
+
+export function listInboxConversations(channel = "all", status = "open") {
+  const qs = new URLSearchParams({ channel, status }).toString();
+  return apiFetch<InboxListResponse>(`/admin/inbox/conversations?${qs}`);
+}
+
+export function getInboxMessages(id: string) {
+  return apiFetch<InboxMessagesResponse>(
+    `/admin/inbox/conversations/${encodeURIComponent(id)}/messages`,
+  );
+}
+
+export function replyInboxConversation(id: string, content: string) {
+  return apiFetch<{ ok: boolean; source: string }>(
+    `/admin/inbox/conversations/${encodeURIComponent(id)}/reply`,
+    { method: "POST", body: { content } },
+  );
 }
 
 // ---- Phase 2: Settings ----
