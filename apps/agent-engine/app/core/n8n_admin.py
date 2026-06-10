@@ -153,15 +153,16 @@ def categorize(name: str, tags: list[dict] | None) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def is_configured() -> bool:
-    """True nếu đã có API key để gọi n8n REST API."""
-    return bool(settings.n8n_api_key)
+    """True nếu đã có API key (kể cả fallback N8N_API_KEY_TEMP / N8N_API_TOKEN)."""
+    return bool(settings.n8n_api_key_resolved())
 
 
 def _headers() -> dict[str, str]:
-    if not settings.n8n_api_key:
+    key = settings.n8n_api_key_resolved()
+    if not key:
         raise N8nNotConfigured("Chưa cấu hình N8N_API_KEY")
     return {
-        "X-N8N-API-KEY": settings.n8n_api_key,
+        "X-N8N-API-KEY": key,
         "Accept": "application/json",
     }
 

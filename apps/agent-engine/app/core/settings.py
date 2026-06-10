@@ -90,10 +90,18 @@ class Settings(BaseSettings):
     # (không 500), kèm hướng dẫn set key cho admin.
     n8n_api_url: str = ""
     n8n_api_key: str = ""
+    # Fallback key: hệ thống có thể đã set sẵn N8N_API_KEY_TEMP / N8N_API_TOKEN.
+    # Resolve theo thứ tự ưu tiên: N8N_API_KEY → N8N_API_KEY_TEMP → N8N_API_TOKEN.
+    n8n_api_key_temp: str = ""
+    n8n_api_token: str = ""
 
     def n8n_api_base(self) -> str:
         """Base URL REST API n8n (không kèm /api/v1). Fallback platform_n8n_url."""
         return (self.n8n_api_url or self._n8n_base()).rstrip("/")
+
+    def n8n_api_key_resolved(self) -> str:
+        """Key dùng để gọi n8n — ưu tiên N8N_API_KEY, fallback TEMP rồi TOKEN."""
+        return self.n8n_api_key or self.n8n_api_key_temp or self.n8n_api_token
 
     # ----- OpenClaw "God-Mode Bridge" (AI Assistant riêng cho CEO) -----
     # Token đặc biệt cho dịch vụ OpenClaw gọi vào prefix /openclaw (bypass role
