@@ -592,17 +592,38 @@ export async function fetchProjectDocuments(
   }
 }
 
-/** Tải 1 tài liệu dự án kèm Bearer rồi tạo blob URL để trigger download. */
-export async function downloadProjectDocument(
+// Đuôi file xem inline được; còn lại (Office…) → tải về.
+const VIEWABLE_DOC_EXTS = new Set([
+  "pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md",
+]);
+const DOC_NOT_READY =
+  "Tài liệu chưa sẵn sàng trên máy chủ (cần đồng bộ lại / kiểm tra lưu trữ).";
+
+async function fetchProjectDocBlob(
   doc: ProjectDocument,
   token?: string,
-): Promise<void> {
+): Promise<Blob> {
   const res = await fetch(`${AGENT_ENGINE_URL}${doc.download_url}`, {
     cache: "no-store",
     headers: authHeaders(token),
   });
-  if (!res.ok) throw new Error(`Tải tài liệu lỗi ${res.status}`);
-  const blob = await res.blob();
+  if (res.status === 404) throw new Error(DOC_NOT_READY);
+  if (!res.ok) throw new Error(`Lỗi tải tài liệu (${res.status})`);
+  const ct = res.headers.get("content-type") || undefined;
+  const buf = await res.arrayBuffer();
+  return new Blob([buf], ct ? { type: ct } : undefined);
+}
+
+function docExt(doc: ProjectDocument): string {
+  return (doc.type || doc.download_url.split(".").pop() || "").toLowerCase();
+}
+
+/** Tải 1 tài liệu dự án (Bearer → blob MIME đúng → trigger download). */
+export async function downloadProjectDocument(
+  doc: ProjectDocument,
+  token?: string,
+): Promise<void> {
+  const blob = await fetchProjectDocBlob(doc, token);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -614,24 +635,27 @@ export async function downloadProjectDocument(
 }
 
 /**
- * Xem (preview) 1 tài liệu dự án: fetch kèm Bearer → blob → mở tab mới bằng
- * blob URL (KHÔNG điều hướng thẳng tới API nên không dính lỗi thiếu token).
- * PDF/ảnh sẽ hiển thị inline trong trình xem của trình duyệt.
+ * Xem tài liệu dự án theo ĐÚNG loại: PDF/ảnh/text → mở tab mới (inline, MIME
+ * đúng); Office (xlsx/docx…) → tải về. 404 → báo rõ "chưa sẵn sàng trên máy chủ".
  */
 export async function viewProjectDocument(
   doc: ProjectDocument,
   token?: string,
 ): Promise<void> {
-  const res = await fetch(`${AGENT_ENGINE_URL}${doc.download_url}`, {
-    cache: "no-store",
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`Mở tài liệu lỗi ${res.status}`);
-  const blob = await res.blob();
+  const blob = await fetchProjectDocBlob(doc, token);
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
-  // Thu hồi sau 1 phút để tab mới kịp tải nội dung.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  if (VIEWABLE_DOC_EXTS.has(docExt(doc))) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.type ? `${doc.title}.${doc.type}` : doc.title;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export async function postChat(args: {

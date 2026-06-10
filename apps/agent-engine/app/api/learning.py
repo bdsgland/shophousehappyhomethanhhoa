@@ -186,11 +186,48 @@ def delete_document(
     return {"ok": True, "deleted": doc_id}
 
 
+# Map đuôi file → (media_type, xem-inline-được). Quyết định Content-Type + Disposition.
+_FILE_MEDIA: dict[str, tuple[str, bool]] = {
+    "pdf": ("application/pdf", True),
+    "png": ("image/png", True),
+    "jpg": ("image/jpeg", True),
+    "jpeg": ("image/jpeg", True),
+    "gif": ("image/gif", True),
+    "webp": ("image/webp", True),
+    "svg": ("image/svg+xml", True),
+    "txt": ("text/plain; charset=utf-8", True),
+    "md": ("text/markdown; charset=utf-8", True),
+    "csv": ("text/csv; charset=utf-8", False),
+    "xlsx": (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", False),
+    "xls": ("application/vnd.ms-excel", False),
+    "docx": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", False),
+    "doc": ("application/msword", False),
+    "pptx": (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        False),
+}
+
+
+def _media_for(ext: str) -> tuple[str, bool]:
+    """Trả (media_type, inline?) theo đuôi file. Mặc định octet-stream + attachment."""
+    e = (ext or "").lower().lstrip(".")
+    if e in _FILE_MEDIA:
+        return _FILE_MEDIA[e]
+    import mimetypes
+
+    guess, _ = mimetypes.guess_type(f"x.{e}")
+    return (guess or "application/octet-stream", False)
+
+
 @router.get("/documents/{doc_id}/download")
 def download_document(
     doc_id: str,
     _user: dict = Depends(require_sale_or_admin),
 ) -> FileResponse:
+    from urllib.parse import quote
+
     doc = learning_store.get_document(doc_id)
     if not doc:
         raise HTTPException(404, "Không tìm thấy tài liệu")
@@ -198,7 +235,13 @@ def download_document(
     if not path.exists():
         raise HTTPException(404, "File không tồn tại trên máy chủ")
     filename = doc.get("original_name") or f"{doc['title']}.{doc.get('type', 'bin')}"
-    return FileResponse(path, filename=filename)
+    media_type, inline = _media_for(doc.get("type") or filename.rsplit(".", 1)[-1])
+    disposition = "inline" if inline else "attachment"
+    # filename* (RFC 5987) để hỗ trợ tên có dấu tiếng Việt.
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(filename)}"
+    }
+    return FileResponse(path, media_type=media_type, headers=headers)
 
 
 # ============================================================

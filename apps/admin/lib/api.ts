@@ -349,17 +349,35 @@ export function listLearningDocuments(category?: string, group?: string) {
  * Dùng thay cho <a href> trực tiếp (link trực tiếp không gắn được header → 401
  * "Thiếu token Bearer"). Token KHÔNG bị đưa lên URL.
  */
+// Đuôi file xem inline được trong trình duyệt (PDF/ảnh/text). Còn lại → tải về.
+const VIEWABLE_EXTS = new Set([
+  "pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md",
+]);
+
+const DOC_NOT_READY =
+  "Tài liệu chưa sẵn sàng trên máy chủ (cần đồng bộ lại / kiểm tra lưu trữ).";
+
+function docExt(doc: { download_url: string; type?: string | null }): string {
+  return (doc.type || doc.download_url.split(".").pop() || "").toLowerCase();
+}
+
+async function fetchDocBlob(downloadUrl: string): Promise<Blob> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${downloadUrl}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.status === 404) throw new ApiError(DOC_NOT_READY, 404);
+  if (!res.ok) throw new ApiError(`Lỗi tải tài liệu (${res.status})`, res.status);
+  const ct = res.headers.get("content-type") || undefined;
+  const buf = await res.arrayBuffer();
+  // Giữ đúng MIME từ server để PDF/ảnh render đúng (không bị "Không tải được PDF").
+  return new Blob([buf], ct ? { type: ct } : undefined);
+}
+
 export async function downloadLearningDocument(
   doc: Pick<LearningDocument, "download_url" | "title" | "type">,
 ): Promise<void> {
-  const token = getToken();
-  const res = await fetch(`${API_URL}${doc.download_url}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    throw new ApiError(`Tải tài liệu lỗi ${res.status}`, res.status);
-  }
-  const blob = await res.blob();
+  const blob = await fetchDocBlob(doc.download_url);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -371,24 +389,27 @@ export async function downloadLearningDocument(
 }
 
 /**
- * Xem (preview) tài liệu: fetch kèm Bearer → blob → mở tab mới bằng blob URL.
- * Không điều hướng thẳng tới API nên không dính lỗi "Thiếu token Bearer";
- * PDF/ảnh hiển thị inline trong trình xem của trình duyệt.
+ * Xem tài liệu theo ĐÚNG loại: PDF/ảnh/text → blob MIME đúng → mở tab mới (inline);
+ * file Office (xlsx/docx/…) không xem inline được → TẢI VỀ thay vì mở blob PDF lỗi.
+ * 404 → báo rõ "chưa sẵn sàng trên máy chủ".
  */
 export async function viewLearningDocument(
-  doc: Pick<LearningDocument, "download_url">,
+  doc: Pick<LearningDocument, "download_url" | "title" | "type">,
 ): Promise<void> {
-  const token = getToken();
-  const res = await fetch(`${API_URL}${doc.download_url}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    throw new ApiError(`Mở tài liệu lỗi ${res.status}`, res.status);
-  }
-  const blob = await res.blob();
+  const blob = await fetchDocBlob(doc.download_url);
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  if (VIEWABLE_EXTS.has(docExt(doc))) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.type ? `${doc.title}.${doc.type}` : doc.title;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function uploadLearningDocument(

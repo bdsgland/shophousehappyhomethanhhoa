@@ -59,5 +59,14 @@ def download_project_document(
     path = learning_store.file_abspath(doc)
     if not path.exists():
         raise HTTPException(404, "File không tồn tại trên máy chủ")
+    from urllib.parse import quote
+
+    from app.api.learning import _media_for
+
     filename = doc.get("original_name") or f"{doc.get('title', 'tai-lieu')}.{doc.get('type', 'bin')}"
-    return FileResponse(path, filename=filename)
+    media_type, inline = _media_for(doc.get("type") or filename.rsplit(".", 1)[-1])
+    disposition = "inline" if inline else "attachment"
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(filename)}"
+    }
+    return FileResponse(path, media_type=media_type, headers=headers)

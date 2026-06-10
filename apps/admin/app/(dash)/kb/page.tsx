@@ -110,16 +110,16 @@ export default function KbPage() {
   const handleDownload = async (d: LearningDocument) => {
     try {
       await downloadLearningDocument(d);
-    } catch {
-      setBanner("Tải tài liệu thất bại — thử lại sau.");
+    } catch (e) {
+      setBanner((e as Error).message || "Tải tài liệu thất bại — thử lại sau.");
     }
   };
 
   const handleView = async (d: LearningDocument) => {
     try {
       await viewLearningDocument(d);
-    } catch {
-      setBanner("Mở tài liệu thất bại — thử lại sau.");
+    } catch (e) {
+      setBanner((e as Error).message || "Mở tài liệu thất bại — thử lại sau.");
     }
   };
 

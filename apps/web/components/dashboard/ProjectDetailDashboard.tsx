@@ -1151,8 +1151,8 @@ function DocumentsTab({ slug }: { slug: string }) {
     setDownloading(doc.id);
     try {
       await downloadProjectDocument(doc, readToken() ?? undefined);
-    } catch {
-      setErr("Tải tài liệu thất bại — thử lại sau.");
+    } catch (e) {
+      setErr((e as Error).message || "Tải tài liệu thất bại — thử lại sau.");
     } finally {
       setDownloading(null);
     }
@@ -1163,8 +1163,8 @@ function DocumentsTab({ slug }: { slug: string }) {
     setViewing(doc.id);
     try {
       await viewProjectDocument(doc, readToken() ?? undefined);
-    } catch {
-      setErr("Mở tài liệu thất bại — thử lại sau.");
+    } catch (e) {
+      setErr((e as Error).message || "Mở tài liệu thất bại — thử lại sau.");
     } finally {
       setViewing(null);
     }
