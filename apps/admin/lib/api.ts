@@ -43,6 +43,12 @@ import type {
   InventoryUnit,
   KbStats,
   LearningDocument,
+  ManagerOverview,
+  ManagerBroadcastPayload,
+  ManagerBroadcastResult,
+  ManagerAssignHotResult,
+  ManagerCommandPayload,
+  ManagerCommandResult,
   PlatformsHealthResponse,
   ReferralNode,
   ResetPasswordResult,
@@ -905,4 +911,38 @@ export function getWorkflowExecutions(id: string, limit = 20) {
   return apiFetch<AutomationExecutionsResponse>(
     `/admin/automation/workflows/${id}/executions?limit=${limit}`,
   );
+}
+
+// ---- Manager / Trung tâm điều hành ----
+
+export function getManagerOverview() {
+  return apiFetch<ManagerOverview>("/admin/manager/overview");
+}
+
+export function managerBroadcast(payload: ManagerBroadcastPayload) {
+  return apiFetch<ManagerBroadcastResult>("/admin/manager/broadcast", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function managerAssignHotLeads(dryRun = false) {
+  return apiFetch<ManagerAssignHotResult>("/admin/manager/assign-hot-leads", {
+    method: "POST",
+    body: { dry_run: dryRun },
+  });
+}
+
+export function managerRestartPlatform(service: string) {
+  return apiFetch<{ ok: boolean; service: string }>(
+    `/admin/manager/platforms/${service}/restart`,
+    { method: "POST" },
+  );
+}
+
+export function managerCommand(payload: ManagerCommandPayload) {
+  return apiFetch<ManagerCommandResult>("/admin/manager/command", {
+    method: "POST",
+    body: payload,
+  });
 }

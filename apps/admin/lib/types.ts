@@ -894,3 +894,128 @@ export interface ToggleWorkflowResult {
   id: string;
   active: boolean;
 }
+
+// ---- Manager / Trung tâm điều hành (/admin/manager) ----
+
+export interface ManagerInventoryKpi {
+  total: number;
+  available: number;
+  sold: number;
+  reserved: number;
+  is_demo: boolean;
+}
+
+export interface ManagerSalesKpi {
+  orders_reserved: number;
+  revenue_projection_ty: number;
+  commission_rate: number;
+  inventory: ManagerInventoryKpi;
+}
+
+export interface ManagerLeadsKpi {
+  total_leads?: number;
+  hot_leads?: number;
+  customers?: number;
+  cold_leads?: number;
+  warm_leads?: number;
+  lost_leads?: number;
+  conversion_rate?: number;
+  top_sources?: { source: string; count: number }[];
+}
+
+export interface ManagerTopSale {
+  sale_id: string;
+  sale_name?: string;
+  eligibility_score?: number;
+  [key: string]: unknown;
+}
+
+export interface ManagerCommissionKpi {
+  deals: number;
+  total_amount: number;
+  by_status: Record<string, { count: number; amount: number }>;
+}
+
+export interface ManagerAutomationKpi {
+  configured: boolean;
+  total?: number;
+  active?: number;
+  inactive?: number;
+  runs_today?: number;
+  errors_recent?: number;
+  error?: string;
+}
+
+export interface ManagerPlatform {
+  key: string;
+  name: string;
+  url: string;
+  status?: "up" | "down";
+  code?: number | null;
+  error?: string;
+}
+
+export interface ManagerOpenClawStatus {
+  configured: boolean;
+  telegram_configured: boolean;
+  bot_url: string;
+}
+
+export interface ManagerOverview {
+  generated_at: string;
+  sales: ManagerSalesKpi;
+  leads: ManagerLeadsKpi;
+  top_sales: ManagerTopSale[];
+  commission: ManagerCommissionKpi;
+  automation: ManagerAutomationKpi;
+  platforms: ManagerPlatform[];
+  openclaw: ManagerOpenClawStatus;
+}
+
+export type ManagerBroadcastChannel = "inapp" | "telegram";
+export type ManagerAudience = "all_sales" | "all_admins" | "selected";
+
+export interface ManagerBroadcastPayload {
+  message: string;
+  audience: ManagerAudience;
+  user_ids?: string[];
+  channels: ManagerBroadcastChannel[];
+  title?: string;
+}
+
+export interface ManagerBroadcastResult {
+  ok: boolean;
+  audience: string;
+  recipients: number;
+  channels: string[];
+  results: {
+    inapp: { created: boolean; error?: string };
+    telegram: { sent: number; skipped: number; errors: number; error?: string };
+  };
+}
+
+export interface ManagerAssignHotResult {
+  ok: boolean;
+  dry_run?: boolean;
+  pending?: number;
+  distributed?: number;
+  leads?: { lead_id: string; sale_id: string }[];
+}
+
+export interface ManagerCommandPayload {
+  text: string;
+  confirm?: boolean;
+  action?: string | null;
+  params?: Record<string, unknown>;
+}
+
+export interface ManagerCommandResult {
+  ok: boolean;
+  executed: boolean;
+  action: string | null;
+  params?: Record<string, unknown>;
+  requires_confirmation?: boolean;
+  summary?: string;
+  message?: string;
+  result?: { type: string; data?: unknown; message?: string };
+}

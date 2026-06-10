@@ -12,6 +12,7 @@ import {
   Server,
   Settings,
   Workflow,
+  Command,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/manager", label: "Điều hành", icon: Command },
   { href: "/live", label: "Live Match", icon: Radio },
   { href: "/customers", label: "Khách hàng", icon: UserSquare2 },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
