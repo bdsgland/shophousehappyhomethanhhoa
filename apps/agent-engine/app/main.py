@@ -26,6 +26,7 @@ from app.api import (
     admin_commission,
     admin_conversations,
     admin_drive_sync,
+    admin_import,
     admin_inventory,
     automation,
     auth,
@@ -206,6 +207,7 @@ app.include_router(admin_commission.sale_router)
 app.include_router(n8n_stubs.router)
 app.include_router(admin_conversations.router)
 app.include_router(admin_drive_sync.router)
+app.include_router(admin_import.router)
 app.include_router(learning.router)
 app.include_router(projects.router)
 app.include_router(sales_policy.router)

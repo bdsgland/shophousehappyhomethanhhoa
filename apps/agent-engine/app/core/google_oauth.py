@@ -39,7 +39,8 @@ _ALGORITHM = "HS256"
 # access_type=offline + prompt=consent để Google trả refresh_token.
 _WORKSPACE_SCOPES = (
     "https://www.googleapis.com/auth/calendar.events "
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly "
+    "https://www.googleapis.com/auth/spreadsheets.readonly"
 )
 _WORKSPACE_STATE_PURPOSE = "google_workspace_connect"
 _WORKSPACE_STATE_TTL_SECONDS = 10 * 60  # 10 phút (đủ thời gian admin đăng nhập + allow)

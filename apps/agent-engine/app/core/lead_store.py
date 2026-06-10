@@ -275,6 +275,85 @@ def bulk_import_leads(
     return {"imported": imported, "skipped": skipped, "duplicates": duplicates}
 
 
+def import_customers(
+    leads_data: list[dict],
+    *,
+    source: str = "imported",
+    imported_by_sale_id: Optional[str] = None,
+    assigned_sale_id: Optional[str] = None,
+    auto_assign: bool = False,
+    skip_duplicates: bool = True,
+    default_status: str = "cold",
+    auto_care: bool = True,
+) -> dict:
+    """Import khách đa nguồn (Google Sheet / file). Tổng quát hơn bulk_import_leads.
+
+    - Dedupe theo SĐT chuẩn hoá / email (trong store + trong batch).
+    - `source` mặc định cho cả batch; mỗi dòng có thể tự ghi đè qua key 'row_source'.
+    - `assigned_sale_id`: gán cứng cho 1 sale. Nếu None và `auto_assign` → chia
+      vòng tròn (round-robin) cho các sale đang hoạt động.
+    - `auto_care`: đánh dấu lead vào hàng đợi chăm sóc AI (cờ trên lead) — Phần B
+      (AI scoring + insight) sẽ dùng created_ids / cờ này để chấm điểm.
+
+    Trả {imported, skipped, errors, duplicates, created_ids}.
+    """
+    imported = 0
+    skipped = 0
+    errors: list[dict] = []
+    duplicates: list[dict] = []
+    created_ids: list[str] = []
+
+    rr_pool: list[str] = []
+    if auto_assign and assigned_sale_id is None:
+        from app.core import user_store
+
+        rr_pool = [s["id"] for s in user_store.list_active_sales()]
+    rr_index = 0
+
+    with _LOCK:
+        data = _load_leads()
+        leads = data["leads"]
+        for raw in leads_data:
+            name = (raw.get("name") or "").strip()
+            phone = (raw.get("phone") or "").strip()
+            email = raw.get("email")
+            if not phone and not (email or "").strip():
+                errors.append({"name": name, "reason": "Thiếu cả SĐT lẫn email"})
+                continue
+            dupe = _find_dupe(leads, phone, email)
+            if dupe is not None:
+                if skip_duplicates:
+                    skipped += 1
+                    duplicates.append({"name": name, "phone": phone})
+                    continue
+            assigned = assigned_sale_id
+            if assigned is None and rr_pool:
+                assigned = rr_pool[rr_index % len(rr_pool)]
+                rr_index += 1
+            lead = _new_lead(
+                name=name,
+                phone=phone,
+                email=email,
+                note=raw.get("note"),
+                source=raw.get("row_source") or source,
+                imported_by_sale_id=imported_by_sale_id,
+                assigned_sale_id=assigned,
+                status=default_status,
+            )
+            lead["auto_care"] = bool(auto_care)
+            leads.append(lead)
+            created_ids.append(lead["id"])
+            imported += 1
+        _save_leads(data)
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors,
+        "duplicates": duplicates,
+        "created_ids": created_ids,
+    }
+
+
 def get_lead(lead_id: str) -> Optional[dict]:
     with _LOCK:
         data = _load_leads()

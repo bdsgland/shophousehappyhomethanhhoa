@@ -27,6 +27,8 @@ class LeadSource(str, Enum):
     ZALO = "zalo"
     EMAIL = "email"
     MANUAL = "manual"  # admin nhập tay
+    GOOGLE_SHEET = "google_sheet"  # admin import từ Google Trang tính
+    FILE_UPLOAD = "file_upload"  # admin import từ file CSV/XLSX
 
 
 class LeadStatus(str, Enum):
