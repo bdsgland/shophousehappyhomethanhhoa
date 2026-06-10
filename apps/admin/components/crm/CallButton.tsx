@@ -63,6 +63,7 @@ export function CallButton({
   const callRef = useRef<any>(null);
   const logIdRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finalizedRef = useRef(false);
 
@@ -117,8 +118,26 @@ export function CallButton({
     [seconds, stopTimer, cleanup, onEnded],
   );
 
+  const startTimerOnce = useCallback(() => {
+    if (timerRef.current) return;
+    setSeconds(0);
+    timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+  }, []);
+
   const wireCall = useCallback(
     (call: any) => {
+      // Call2 Web SDK: audio nhận qua 'addremotetrack' → track.attach() trả element.
+      call.on?.("addremotetrack", (track: any) => {
+        try {
+          const el = track.attach();
+          el.autoplay = true;
+          el.style.display = "none";
+          mediaRef.current?.appendChild(el);
+        } catch {
+          /* ignore */
+        }
+      });
+      // Fallback cho SDK cũ (nếu emit stream thay vì track).
       call.on?.("addremotestream", (stream: MediaStream) => {
         if (audioRef.current) {
           audioRef.current.srcObject = stream;
@@ -126,24 +145,19 @@ export function CallButton({
         }
       });
       call.on?.("signalingstate", (state: any) => {
-        // StringeeCall2 signaling code: 0 calling,1 ringing,2 answered,3 busy,4 ended,5 error
+        // StringeeCallState: 1 CALLING, 2 RINGING, 3 ANSWERED, 4 CONNECTED, 5 BUSY, 6 ENDED
         const code = state?.code;
-        if (code === 1) {
+        if (code === 2) {
           setPhase("ringing");
-        } else if (code === 2) {
+        } else if (code === 3 || code === 4) {
           finalizedRef.current = false;
           setPhase("answered");
-          setSeconds(0);
-          stopTimer();
-          timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-        } else if (code === 3) {
-          setErr("Máy bận");
-          finalize("no_answer");
-        } else if (code === 4) {
-          finalize("ended");
+          startTimerOnce();
         } else if (code === 5) {
-          setErr(state?.reason || "Lỗi tín hiệu");
-          finalize("failed");
+          setErr("Máy bận / từ chối");
+          finalize("no_answer");
+        } else if (code === 6) {
+          finalize("ended");
         }
       });
       call.on?.("error", (e: any) => {
@@ -151,7 +165,7 @@ export function CallButton({
         setPhase("error");
       });
     },
-    [finalize, stopTimer],
+    [finalize, startTimerOnce],
   );
 
   const start = useCallback(async () => {
@@ -244,6 +258,7 @@ export function CallButton({
   return (
     <div className="flex items-center gap-2">
       <audio ref={audioRef} autoPlay className="hidden" />
+      <div ref={mediaRef} className="hidden" />
       {active ? (
         <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1.5">
           <span className="relative flex h-2 w-2">
