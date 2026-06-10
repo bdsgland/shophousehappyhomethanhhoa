@@ -122,6 +122,7 @@ export default function CustomerDetailPage() {
               <Customer360 leadId={lead.id} />
             </ErrorBoundary>
           ) : (
+          <ErrorBoundary>
           <>
           <div className="grid gap-5 lg:grid-cols-3">
             {/* Info + engagement */}
@@ -135,7 +136,7 @@ export default function CustomerDetailPage() {
                 <Row label="Số lịch hẹn" value={String(lead.booking_count)} />
                 <Row label="Số lượt liên hệ" value={String(lead.contact_count)} />
                 <Row label="Liên hệ gần nhất" value={lead.last_contact_at ? shortDate(lead.last_contact_at) : "Chưa"} />
-                <Row label="Ngày tạo" value={shortDate(lead.created_at)} />
+                <Row label="Ngày tạo" value={lead.created_at ? shortDate(lead.created_at) : "—"} />
               </dl>
               {lead.note && (
                 <div className="mt-3 rounded-md bg-muted/40 p-3 text-sm">
@@ -204,6 +205,7 @@ export default function CustomerDetailPage() {
             Lịch sử hội thoại (chatbot/Chatwoot) & audit log đầy đủ sẽ bổ sung ở Phase 2.
           </p>
           </>
+          </ErrorBoundary>
           )}
         </>
       )}

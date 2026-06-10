@@ -20,6 +20,11 @@ export class ErrorBoundary extends React.Component<
     return { hasError: true, message: (error as Error)?.message };
   }
 
+  componentDidCatch(error: unknown, info: unknown) {
+    // Log để lộ lỗi trên console (dev + prod) thay vì nuốt im lặng.
+    console.error("[ErrorBoundary] render error:", error, info);
+  }
+
   render() {
     if (this.state.hasError) {
       return (

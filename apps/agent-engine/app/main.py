@@ -21,38 +21,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import (
-    admin,
-    admin_commission,
-    admin_conversations,
-    admin_drive_sync,
-    admin_import,
-    admin_inventory,
-    ai_crm,
-    automation,
-    auth,
-    bookings,
-    chat,
-    client,
-    crm,
-    customer_360,
-    health,
-    inventory,
-    leads,
-    learning,
-    match,
-    me,
-    n8n_stubs,
-    openclaw_bridge,
-    pipeline,
-    projects,
-    sales_policy,
-    webhook,
-    workspace_oauth,
-    ws_admin,
-    ws_match,
-    ws_presence,
-)
 from app.core.settings import settings
 
 
@@ -196,40 +164,77 @@ async def openclaw_audit_middleware(request, call_next):
         pass
     return response
 
-app.include_router(health.router)
-app.include_router(auth.router)
-app.include_router(me.router)
-app.include_router(client.router)
-app.include_router(chat.router)
-app.include_router(leads.router)
-app.include_router(inventory.router)
-app.include_router(admin.router)
-app.include_router(admin_inventory.router)
-app.include_router(admin_commission.router)
-app.include_router(admin_commission.sale_router)
-app.include_router(n8n_stubs.router)
-app.include_router(admin_conversations.router)
-app.include_router(admin_drive_sync.router)
-app.include_router(admin_import.router)
-app.include_router(learning.router)
-app.include_router(projects.router)
-app.include_router(sales_policy.router)
-app.include_router(automation.router)
-app.include_router(bookings.router)
-app.include_router(bookings.me_router)
-app.include_router(crm.sale_router)
-app.include_router(crm.admin_router)
-app.include_router(crm.internal_router)
-app.include_router(customer_360.router)
-app.include_router(pipeline.router)
-app.include_router(ai_crm.router)
-app.include_router(match.router)
-app.include_router(ws_presence.router)
-app.include_router(ws_match.router)
-app.include_router(ws_admin.router)
-app.include_router(workspace_oauth.router)
-app.include_router(openclaw_bridge.router)
-app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
+# --- Đăng ký router: import + include TỪNG router, KHÔNG nuốt lỗi âm thầm. ---
+# Mỗi entry = (module, attr_router, kwargs_include). Lỗi import/include của 1
+# router được LOG RÕ (traceback đầy đủ ra stdout → Railway logs) nhưng KHÔNG
+# làm chết cả app, để các route còn lại vẫn phục vụ và lỗi luôn hiện ra.
+import importlib
+
+_ROUTER_SPECS: list[tuple[str, str, dict]] = [
+    ("health", "router", {}),
+    ("auth", "router", {}),
+    ("me", "router", {}),
+    ("client", "router", {}),
+    ("chat", "router", {}),
+    ("leads", "router", {}),
+    ("inventory", "router", {}),
+    ("admin", "router", {}),
+    ("admin_inventory", "router", {}),
+    ("admin_commission", "router", {}),
+    ("admin_commission", "sale_router", {}),
+    ("n8n_stubs", "router", {}),
+    ("admin_conversations", "router", {}),
+    ("admin_drive_sync", "router", {}),
+    ("admin_import", "router", {}),
+    ("learning", "router", {}),
+    ("projects", "router", {}),
+    ("sales_policy", "router", {}),
+    ("automation", "router", {}),
+    ("bookings", "router", {}),
+    ("bookings", "me_router", {}),
+    ("crm", "sale_router", {}),
+    ("crm", "admin_router", {}),
+    ("crm", "internal_router", {}),
+    ("customer_360", "router", {}),
+    ("pipeline", "router", {}),
+    ("ai_crm", "router", {}),
+    ("match", "router", {}),
+    ("ws_presence", "router", {}),
+    ("ws_match", "router", {}),
+    ("ws_admin", "router", {}),
+    ("workspace_oauth", "router", {}),
+    ("openclaw_bridge", "router", {}),
+    ("webhook", "router", {"prefix": "/webhook", "tags": ["webhook"]}),
+]
+
+_router_failures: list[str] = []
+for _mod_name, _attr, _kwargs in _ROUTER_SPECS:
+    try:
+        _mod = importlib.import_module(f"app.api.{_mod_name}")
+        _router = getattr(_mod, _attr)
+        app.include_router(_router, **_kwargs)
+    except Exception as _exc:  # noqa: BLE001 — LOG RÕ, không nuốt im lặng
+        _router_failures.append(f"{_mod_name}.{_attr}: {type(_exc).__name__}: {_exc}")
+        print(f"[ROUTER][FAIL] app.api.{_mod_name}.{_attr} KHÔNG đăng ký được:")
+        traceback.print_exc()
+
+# --- Audit khởi động: in các route đã đăng ký + KIỂM 3 route 360/pipeline. ---
+_registered_paths = sorted(
+    {getattr(r, "path", "") for r in app.routes if getattr(r, "path", "")}
+)
+print(f"[ROUTER] Đã đăng ký {len(_registered_paths)} route. "
+      f"Lỗi: {len(_router_failures)}.")
+if _router_failures:
+    for _f in _router_failures:
+        print(f"[ROUTER][FAIL] {_f}")
+_CRITICAL_ROUTES = [
+    "/crm/leads/{lead_id}/profile-360",
+    "/crm/pipeline",
+    "/crm/leads/{lead_id}/stage",
+]
+for _cr in _CRITICAL_ROUTES:
+    _ok = "✅" if _cr in _registered_paths else "❌ THIẾU"
+    print(f"[ROUTER] route 360/pipeline {_cr}: {_ok}")
 
 
 @app.get("/", tags=["root"])
