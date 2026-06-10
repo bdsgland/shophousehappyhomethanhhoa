@@ -240,6 +240,21 @@ for _cr in _CRITICAL_ROUTES:
     print(f"[ROUTER] route 360/pipeline {_cr}: {_ok}")
 
 
+# --- MCP server (streamable-http) cho bot OpenClaw ---------------------------
+# OpenClaw CHỈ tiêu thụ MCP server (không gọi REST thường). Module openclaw_mcp
+# bọc các thao tác /openclaw thành MCP tools va expose ASGI app, mount tại /mcp.
+# URL production: https://api.eurowindowlightcity.net/mcp
+# Lỗi import KHÔNG làm chết app (log rõ, các route khác vẫn phục vụ).
+try:
+    from app.api.openclaw_mcp import mcp_asgi_app
+
+    app.mount("/mcp", mcp_asgi_app)
+    print("[MCP] OpenClaw MCP mounted tại /mcp (streamable-http, JSON-RPC).")
+except Exception as _mcp_exc:  # noqa: BLE001
+    print(f"[MCP][FAIL] Không mount được /mcp: {type(_mcp_exc).__name__}: {_mcp_exc}")
+    traceback.print_exc()
+
+
 @app.get("/", tags=["root"])
 def root() -> dict:
     return {
