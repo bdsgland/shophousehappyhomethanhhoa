@@ -14,7 +14,9 @@ export type LeadSource =
   | "fb_ads"
   | "zalo"
   | "email"
-  | "manual";
+  | "manual"
+  | "google_sheet"
+  | "file_upload";
 
 export type LeadStatus = "cold" | "warm" | "hot" | "customer" | "lost";
 
@@ -286,6 +288,8 @@ export const SOURCE_LABEL: Record<LeadSource, string> = {
   zalo: "Zalo",
   email: "Email",
   manual: "Nhập tay",
+  google_sheet: "Google Sheet",
+  file_upload: "Tải file",
 };
 
 export const CHANNEL_LABEL: Record<ContactChannel, string> = {

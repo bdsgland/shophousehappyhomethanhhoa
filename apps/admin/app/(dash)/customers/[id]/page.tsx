@@ -28,6 +28,8 @@ const SOURCE_LABEL: Record<string, string> = {
   zalo: "Zalo",
   email: "Email",
   manual: "Nhập tay",
+  google_sheet: "Google Sheet",
+  file_upload: "Tải file",
 };
 const CHANNEL_LABEL: Record<string, string> = {
   call: "Gọi điện",

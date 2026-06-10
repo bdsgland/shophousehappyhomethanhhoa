@@ -244,10 +244,14 @@ def admin_list_leads(
     source: Optional[str] = Query(default=None),
     search: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=50, ge=1, le=200),
+    page_size: int = Query(default=50, ge=1, le=1000),
     _admin: dict = Depends(require_admin),
 ) -> dict:
-    """Master CRM — toàn bộ lead (có lọc theo status/sale/source/search)."""
+    """Master CRM — toàn bộ lead (có lọc theo status/sale/source/search).
+
+    page_size cap = 1000: FE master view tải 1 lô lớn rồi lọc/phân trang ở client
+    (tránh 422 khi FE xin page_size=500 — vốn làm danh sách rỗng dù số lượng tăng).
+    """
     result = lead_store.list_all_leads(
         status=status_filter,
         sale_id=sale_id,

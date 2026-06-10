@@ -9,6 +9,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Upload,
   UserCog,
   Users2,
   Zap,
@@ -29,6 +30,7 @@ import {
 import type { CrmLead } from "@/lib/types";
 import { cn, shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { ImportPanel } from "@/components/import/ImportPanel";
 import { StatCard } from "@/components/kpi/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,8 @@ const SOURCE_LABEL: Record<string, string> = {
   zalo: "Zalo",
   email: "Email",
   manual: "Nhập tay",
+  google_sheet: "Google Sheet",
+  file_upload: "Tải file",
 };
 const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "muted"> = {
   cold: "default",
@@ -91,6 +95,7 @@ export default function CustomersPage() {
   const [reassignTo, setReassignTo] = useState("");
   const [confirmDel, setConfirmDel] = useState<CrmLead | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["crm-leads"] });
@@ -204,6 +209,10 @@ export default function CustomersPage() {
             <Button variant="outline" size="sm" onClick={exportCsv}>
               <Download className="h-4 w-4" />
               Xuất CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Nhập khách hàng
             </Button>
             <Button
               variant="outline"
@@ -436,6 +445,32 @@ export default function CustomersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Import khách hàng modal */}
+      <Dialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        className="max-w-4xl"
+      >
+        <DialogHeader
+          title="Nhập khách hàng"
+          description="Nhập hàng loạt từ Google Trang tính hoặc file CSV/XLSX — xem trước, ghép cột rồi nhập."
+          onClose={() => setImportOpen(false)}
+        />
+        <DialogBody>
+          <ImportPanel
+            onImported={() => {
+              invalidate();
+              leadsQ.refetch();
+            }}
+          />
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setImportOpen(false)}>
+            Đóng
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* Reassign modal */}
       <Dialog open={Boolean(reassign)} onClose={() => setReassign(null)}>
