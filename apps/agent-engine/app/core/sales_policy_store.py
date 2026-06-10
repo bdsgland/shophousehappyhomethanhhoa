@@ -88,14 +88,27 @@ def validate_config(config: SalesPolicyConfig) -> None:
 
 
 def get_current() -> SalesPolicyConfig:
-    """Load config hiện tại. Auto-tạo default (version 1) nếu chưa có file."""
+    """Load config hiện tại. Auto-tạo default nếu chưa có file HOẶC file lỗi schema.
+
+    File trên volume có thể được ghi bằng SCHEMA CŨ (phiên bản trước) → model_validate
+    sẽ raise. Khi đó tự backup file hỏng + ghi đè bằng default mới (KHÔNG để 500).
+    """
     with _LOCK:
         raw = _read_raw()
         if raw is None:
             cfg = default_config()
             _write_atomic(cfg.model_dump(mode="json"))
             return cfg
-        return SalesPolicyConfig.model_validate(raw)
+        try:
+            return SalesPolicyConfig.model_validate(raw)
+        except Exception:  # noqa: BLE001 — schema cũ/hỏng → tái tạo default, không crash
+            try:
+                _backup(raw)  # giữ lại bản cũ để đối chiếu
+            except Exception:  # noqa: BLE001
+                pass
+            cfg = default_config()
+            _write_atomic(cfg.model_dump(mode="json"))
+            return cfg
 
 
 def update(config: SalesPolicyConfig, by_admin_id: Optional[str]) -> SalesPolicyConfig:

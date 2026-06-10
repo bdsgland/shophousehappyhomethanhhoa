@@ -469,11 +469,22 @@ def create_policy_quote(
             "vui lòng cập nhật bảng hàng hoặc nhập trong trang Quỹ căn.",
         )
 
+    try:
+        dien_tich = float(unit.get("dien_tich") or 0)
+    except (TypeError, ValueError):
+        dien_tich = 0.0
+    if dien_tich <= 0:
+        raise HTTPException(
+            400,
+            f"Căn '{req.unit_id}' chưa có diện tích hợp lệ để tính đơn giá — "
+            "vui lòng cập nhật bảng hàng.",
+        )
+
     config = sales_policy_store.get_current()
     try:
         computed = pricing_policy.compute_policy_quote(
             prices=prices,
-            dien_tich=float(unit.get("dien_tich") or 0),
+            dien_tich=dien_tich,
             base_key=req.base_plan,
             addon_keys=req.addons,
             gift_cash=req.gift_cash,
@@ -481,6 +492,9 @@ def create_policy_quote(
         )
     except ValueError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001 — lỗi tính toán bất ngờ → báo rõ, không 500 trần
+        log.exception("policy_quote compute error unit=%s", req.unit_id)
+        raise HTTPException(500, f"Lỗi tính giá: {type(e).__name__}: {e}")
 
     if not req.sale_name:
         req.sale_name = user.get("full_name", "")
@@ -488,9 +502,13 @@ def create_policy_quote(
         req.sale_phone = user.get("phone") or ""
 
     quote_id = str(uuid.uuid4())
-    pdf_bytes = quote_pdf.build_policy_quote_pdf(
-        quote_id=quote_id, unit=unit, req=req, computed=computed
-    )
+    try:
+        pdf_bytes = quote_pdf.build_policy_quote_pdf(
+            quote_id=quote_id, unit=unit, req=req, computed=computed
+        )
+    except Exception as e:  # noqa: BLE001 — lỗi render PDF → báo rõ
+        log.exception("policy_quote pdf error unit=%s", req.unit_id)
+        raise HTTPException(500, f"Lỗi tạo PDF phiếu: {type(e).__name__}: {e}")
     created_at = datetime.utcnow()
     record = {
         "quote_id": quote_id,
