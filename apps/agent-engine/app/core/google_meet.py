@@ -13,13 +13,17 @@ lỗi và fallback "sale sẽ gọi điện" thay vì hard-code link.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from app.core.settings import settings
+
+log = logging.getLogger("google_meet")
 
 _TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 _CALENDAR_EVENTS_ENDPOINT = (
@@ -121,9 +125,9 @@ async def create_meet_event(
         },
     }
 
-    url = _CALENDAR_EVENTS_ENDPOINT.format(
-        calendar=settings.google_workspace_calendar_email or "primary"
-    )
+    # URL-encode an toàn cho cả "primary" lẫn email (vd có ký tự @, +).
+    calendar = settings.google_workspace_calendar_email or "primary"
+    url = _CALENDAR_EVENTS_ENDPOINT.format(calendar=quote(calendar, safe=""))
     async with httpx.AsyncClient(timeout=20.0) as http:
         res = await http.post(
             url,
@@ -135,6 +139,12 @@ async def create_meet_event(
             json=event_body,
         )
     if res.status_code not in (200, 201):
+        # Log nguyên văn lỗi Google (403 Calendar API tắt / thiếu scope / sai lịch…)
+        # để soi trong Railway log trước khi raise.
+        log.error(
+            "Google Calendar tạo sự kiện lỗi %s (calendar=%s): %s",
+            res.status_code, calendar, res.text,
+        )
         raise RuntimeError(f"Google Calendar tạo sự kiện lỗi {res.status_code}: {res.text}")
 
     event = res.json()

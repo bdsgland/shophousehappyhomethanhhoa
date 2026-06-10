@@ -12,11 +12,14 @@ Luồng chuẩn:
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from app.core import google_meet, match_store, presence, user_store
 from app.core.settings import settings
+
+log = logging.getLogger("match_service")
 
 
 def _now() -> datetime:
@@ -171,6 +174,7 @@ async def accept_match(match_id: str, sale_id: str) -> dict:
             sale_email=sale_email,
         )
     except Exception as exc:  # noqa: BLE001 — Meet lỗi không được làm crash service
+        log.exception("Meet creation failed match=%s", match_id)
         match = match_store.update(match_id, status="accepted") or match
         await presence.send_to_sale(
             sale_id,

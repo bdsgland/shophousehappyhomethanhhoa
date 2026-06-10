@@ -182,8 +182,10 @@ class Settings(BaseSettings):
     # hoặc từ credential n8n. Để trống → tạo Meet trả lỗi, hệ thống fallback
     # "sale sẽ gọi điện". KHÔNG commit token vào code — đặt env trên Railway.
     google_workspace_refresh_token: str = ""
-    # Email lịch Workspace tạo sự kiện Meet (thường = tài khoản đã cấp refresh token).
-    google_workspace_calendar_email: str = "info@eurowindowlightcity.net"
+    # Lịch tạo sự kiện Meet. Mặc định "primary" = lịch của CHÍNH tài khoản đã
+    # Connect (luôn có quyền ghi → tránh 403/404). Override bằng email cụ thể nếu
+    # muốn tạo trên lịch khác (tài khoản Connect phải có quyền ghi lịch đó).
+    google_workspace_calendar_email: str = "primary"
     # Store bền refresh token Workspace lấy qua luồng "Connect" trên admin (ưu tiên
     # hơn env google_workspace_refresh_token). Resolve giống users_file.
     google_workspace_token_file: str = "data/_runtime/google_workspace.json"
