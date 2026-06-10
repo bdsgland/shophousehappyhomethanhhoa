@@ -41,7 +41,6 @@ export const PLATFORMS: PlatformMeta[] = [
     description: "Agent đa năng (browser automation).",
     url: "https://bot.eurowindowlightcity.net",
     embeddable: false,
-    warning: "Login UI lỗi — chờ fix",
   },
   {
     key: "chat",
