@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { addCareLog, getProfile360 } from "@/lib/api";
+import { CallButton, RecordingPlayer } from "./CallButton";
 import type {
   CareLogInput,
   ChannelInteraction,
@@ -132,6 +133,7 @@ function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
   if (item.type === "created") return { Icon: UserPlus, color: "text-muted-foreground" };
   switch (item.channel) {
     case "call":
+    case "call_center":
       return { Icon: Phone, color: "text-success" };
     case "sms":
       return { Icon: MessageSquare, color: "text-primary" };
@@ -296,11 +298,18 @@ export function Customer360({ leadId }: { leadId: string }) {
               <span>Sale: {basic.assigned_sale_name ?? "Chưa phân bổ"}</span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="muted">{STATUS_LABEL[basic.status ?? ""] ?? basic.status}</Badge>
-            <Badge variant="default" className="bg-primary/15">
-              Giai đoạn: {pipeline.label}
-            </Badge>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="muted">{STATUS_LABEL[basic.status ?? ""] ?? basic.status}</Badge>
+              <Badge variant="default" className="bg-primary/15">
+                Giai đoạn: {pipeline.label}
+              </Badge>
+            </div>
+            <CallButton
+              leadId={leadId}
+              phone={basic.phone}
+              onEnded={() => qc.invalidateQueries({ queryKey: ["crm-360", leadId] })}
+            />
           </div>
         </div>
       </Card>
@@ -367,6 +376,10 @@ export function Customer360({ leadId }: { leadId: string }) {
               {timeline.map((item, i) => {
                 const { Icon, color } = timelineIcon(item);
                 const who = actorName(item);
+                const recId = (item.ref as { recording_url?: unknown; id?: unknown })
+                  ?.recording_url
+                  ? String((item.ref as { id?: unknown })?.id ?? "")
+                  : "";
                 return (
                   <li key={i} className="mb-5 last:mb-0">
                     <span className="absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card">
@@ -384,6 +397,7 @@ export function Customer360({ leadId }: { leadId: string }) {
                     {who && (
                       <p className="mt-0.5 text-xs text-muted-foreground">— {who}</p>
                     )}
+                    {recId && <RecordingPlayer logId={recId} />}
                   </li>
                 );
               })}

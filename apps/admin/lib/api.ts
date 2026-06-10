@@ -877,6 +877,88 @@ export function addCareLog(id: string, body: CareLogInput) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Tổng đài (Call Center / Stringee) — click-to-call + ghi âm (/crm/call/*)
+// ---------------------------------------------------------------------------
+
+export interface CallConfig {
+  configured: boolean;
+  from_number: string | null;
+  user_id: string;
+}
+
+export interface CallStartResult {
+  mode: string; // "web_sdk" | "server_callout"
+  log_id: string;
+  to_number: string;
+  from_number: string | null;
+  user_id: string;
+  custom_data: string;
+  call_id?: string | null;
+}
+
+/** Trạng thái cấu hình tổng đài (ẩn/hiện nút Gọi). */
+export function getCallConfig() {
+  return apiFetch<CallConfig>("/crm/call/config");
+}
+
+/** Cấp client access token cho Web SDK (userId = sale hiện tại). */
+export function getCallToken() {
+  return apiFetch<{ access_token: string; user_id: string; expires_in: number }>(
+    "/crm/call/token",
+  );
+}
+
+/** Bắt đầu gọi 1 khách → ghi contact log "đang gọi" + trả thông tin gọi. */
+export function startCall(leadId: string, serverCallout = false) {
+  return apiFetch<CallStartResult>("/crm/call/start", {
+    method: "POST",
+    body: { lead_id: leadId, server_callout: serverCallout },
+  });
+}
+
+/** Gắn call_id (Web SDK sinh) vào log để webhook ghi âm khớp được. */
+export function attachCall(logId: string, callId: string) {
+  return apiFetch<{ ok: boolean }>("/crm/call/attach", {
+    method: "POST",
+    body: { log_id: logId, call_id: callId },
+  });
+}
+
+/** Cập nhật trạng thái cuối cuộc gọi (fallback khi webhook chưa tới — dev). */
+export function updateCallStatus(
+  logId: string,
+  callStatus: string,
+  duration?: number,
+  outcome?: string,
+) {
+  return apiFetch<{ ok: boolean }>("/crm/call/status", {
+    method: "POST",
+    body: { log_id: logId, call_status: callStatus, duration, outcome },
+  });
+}
+
+/** Tải blob ghi âm qua proxy backend (gắn JWT) để phát lại trong trình duyệt. */
+export async function getCallRecordingBlob(logId: string): Promise<Blob> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/crm/call/recording/${encodeURIComponent(logId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let detail = `Lỗi tải ghi âm (${res.status})`;
+    try {
+      const d = await res.json();
+      if (d?.detail && typeof d.detail === "string") detail = d.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, res.status);
+  }
+  const ct = res.headers.get("content-type") || undefined;
+  const buf = await res.arrayBuffer();
+  return new Blob([buf], ct ? { type: ct } : undefined);
+}
+
 /** Leads nhóm theo giai đoạn pipeline (kanban). Admin lọc theo 1 sale + auto-advance. */
 export function getPipeline(
   params: { sale_id?: string; auto_advance?: boolean } = {},

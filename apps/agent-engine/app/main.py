@@ -199,6 +199,8 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("crm", "admin_router", {}),
     ("crm", "internal_router", {}),
     ("customer_360", "router", {}),
+    ("call", "router", {}),
+    ("call", "webhook_router", {}),
     ("pipeline", "router", {}),
     ("ai_crm", "router", {}),
     ("match", "router", {}),

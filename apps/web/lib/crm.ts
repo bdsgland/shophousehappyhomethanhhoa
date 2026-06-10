@@ -375,6 +375,98 @@ export function addCareLog(
 }
 
 // ---------------------------------------------------------------------------
+// Tổng đài (Call Center / Stringee) — click-to-call + ghi âm (/crm/call/*)
+// ---------------------------------------------------------------------------
+
+export type CallConfig = {
+  configured: boolean;
+  from_number: string | null;
+  user_id: string;
+};
+
+export type CallStartResult = {
+  mode: string;
+  log_id: string;
+  to_number: string;
+  from_number: string | null;
+  user_id: string;
+  custom_data: string;
+  call_id?: string | null;
+};
+
+export function getCallConfig(token: string): Promise<CallConfig> {
+  return req<CallConfig>("/crm/call/config", { token });
+}
+
+export function getCallToken(
+  token: string,
+): Promise<{ access_token: string; user_id: string; expires_in: number }> {
+  return req<{ access_token: string; user_id: string; expires_in: number }>(
+    "/crm/call/token",
+    { token },
+  );
+}
+
+export function startCall(
+  token: string,
+  leadId: string,
+  serverCallout = false,
+): Promise<CallStartResult> {
+  return req<CallStartResult>("/crm/call/start", {
+    method: "POST",
+    token,
+    body: { lead_id: leadId, server_callout: serverCallout },
+  });
+}
+
+export function attachCall(
+  token: string,
+  logId: string,
+  callId: string,
+): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("/crm/call/attach", {
+    method: "POST",
+    token,
+    body: { log_id: logId, call_id: callId },
+  });
+}
+
+export function updateCallStatus(
+  token: string,
+  logId: string,
+  callStatus: string,
+  duration?: number,
+  outcome?: string,
+): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("/crm/call/status", {
+    method: "POST",
+    token,
+    body: { log_id: logId, call_status: callStatus, duration, outcome },
+  });
+}
+
+/** Tải blob ghi âm qua proxy backend (gắn JWT) để phát lại trong trình duyệt. */
+export async function getCallRecordingBlob(
+  token: string,
+  logId: string,
+): Promise<Blob> {
+  const res = await fetch(
+    `${AGENT_ENGINE_URL}/crm/call/recording/${encodeURIComponent(logId)}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" },
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+    const detail = (data as { detail?: unknown }).detail;
+    throw new Error(
+      typeof detail === "string" ? detail : `Lỗi tải ghi âm (${res.status})`,
+    );
+  }
+  const ct = res.headers.get("content-type") || undefined;
+  const buf = await res.arrayBuffer();
+  return new Blob([buf], ct ? { type: ct } : undefined);
+}
+
+// ---------------------------------------------------------------------------
 // UI helpers — nhãn + màu badge tiếng Việt
 // ---------------------------------------------------------------------------
 

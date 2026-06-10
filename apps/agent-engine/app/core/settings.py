@@ -227,5 +227,20 @@ class Settings(BaseSettings):
     # google_oauth_redirect_uri (đổi path → /auth/workspace/callback).
     google_workspace_redirect_uri: str = ""
 
+    # ----- Stringee (Tổng đài / Call Center) -----
+    # API Key của project Stringee: SID + Secret tạo trong Stringee Dashboard
+    # (Project → API key). Secret KÝ JWT access token — TUYỆT ĐỐI không lộ ra FE,
+    # không commit vào code (đặt env trên Railway). Trống → tính năng tổng đài tự
+    # TẮT (endpoint /crm/call/* trả 503 "chưa cấu hình", nút Gọi ẩn trên FE).
+    stringee_api_key_sid: str = ""
+    stringee_api_key_secret: str = ""
+    # Số tổng đài (Stringee number) dùng làm số gọi đi (from) khi callout server.
+    stringee_from_number: str = ""
+    # TTL (giây) cho client access token cấp cho Web SDK của sale — token tạm thời.
+    stringee_token_ttl: int = 3600
+    # Base URL CÔNG KHAI để Stringee gọi webhook (answer_url/event_url) + dựng
+    # eventUrl ghi âm trong SCCO. Phải là domain Stringee truy cập được từ ngoài.
+    stringee_webhook_base: str = "https://api.eurowindowlightcity.net"
+
 
 settings = Settings()

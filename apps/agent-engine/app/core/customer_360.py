@@ -133,28 +133,73 @@ def outcome_label(outcome: Optional[str]) -> str:
     return _OUTCOME_LABELS.get(outcome or "", outcome or "")
 
 
+# Nhãn trạng thái cuộc gọi tổng đài (Stringee) cho dòng timeline.
+_CALL_STATUS_LABELS: dict[str, str] = {
+    "calling": "Đang gọi",
+    "ringing": "Đang đổ chuông",
+    "answered": "Đã kết nối",
+    "ended": "Đã kết thúc",
+    "no_answer": "Không nghe máy",
+    "busy": "Máy bận",
+    "failed": "Gọi thất bại",
+}
+
+
+def _fmt_duration(seconds) -> Optional[str]:
+    """Đổi giây → 'm:ss'. None nếu trống/không hợp lệ/<=0."""
+    try:
+        s = int(seconds)
+    except (TypeError, ValueError):
+        return None
+    if s <= 0:
+        return None
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def _call_summary(log: dict) -> str:
+    """Tóm tắt 1 cuộc gọi tổng đài: trạng thái + thời lượng (nếu có)."""
+    label = _CALL_STATUS_LABELS.get(log.get("call_status") or "", "Cuộc gọi")
+    dur = _fmt_duration(log.get("duration"))
+    summary = f"[{channel_label('call_center')}] {label}"
+    if dur:
+        summary = f"{summary} · {dur}"
+    return summary
+
+
 def contact_log_item(log: dict) -> dict:
     """Dựng 1 mục timeline type='contact' từ 1 contact log (đa kênh / dòng chăm sóc).
 
     DÙNG CHUNG giữa build_timeline và endpoint POST care để FE prepend ĐÚNG hình
     dạng. Giữ hợp đồng 5 khoá {type, channel, time, summary, ref}; thông tin người
     đăng (actor_id/actor_name) nằm TRONG `ref` (mạng xã hội: hiện tên + thời gian).
+
+    Cuộc gọi tổng đài (channel='call_center'): summary hiện trạng thái + thời lượng;
+    `ref` kèm call_status/duration/recording_url để FE render nút nghe ghi âm.
     """
     ch = log.get("channel") or "system"
     outcome = log.get("outcome") or ""
     lnote = (log.get("note") or "").strip()
-    olabel = outcome_label(outcome)
-    summary = f"[{channel_label(ch)}] {olabel}".rstrip()
-    if lnote:
-        summary = f"{summary} — {lnote[:160]}"
-    return _item(
-        "contact", ch, log.get("created_at"), summary,
-        {"kind": "contact_log", "id": log.get("id"),
-         "outcome": outcome, "sale_id": log.get("sale_id"),
-         "actor_id": log.get("sale_id"),
-         "actor_name": log.get("created_by_name"),
-         "note": lnote or None},
-    )
+    if ch == "call_center":
+        summary = _call_summary(log)
+        if lnote:
+            summary = f"{summary} — {lnote[:160]}"
+    else:
+        olabel = outcome_label(outcome)
+        summary = f"[{channel_label(ch)}] {olabel}".rstrip()
+        if lnote:
+            summary = f"{summary} — {lnote[:160]}"
+    ref = {
+        "kind": "contact_log", "id": log.get("id"),
+        "outcome": outcome, "sale_id": log.get("sale_id"),
+        "actor_id": log.get("sale_id"),
+        "actor_name": log.get("created_by_name"),
+        "note": lnote or None,
+    }
+    # Bổ sung dữ liệu cuộc gọi (cho FE: nút nghe ghi âm + thời lượng + trạng thái).
+    for key in ("call_status", "duration", "recording_url", "direction", "call_id"):
+        if log.get(key) is not None:
+            ref[key] = log.get(key)
+    return _item("contact", ch, log.get("created_at"), summary, ref)
 
 
 def build_timeline(

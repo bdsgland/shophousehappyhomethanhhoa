@@ -614,12 +614,17 @@ def add_contact_log(
     outcome: str,
     *,
     created_by_name: Optional[str] = None,
+    extra: Optional[dict] = None,
 ) -> Optional[dict]:
     """Ghi 1 contact log + cập nhật last_contact_at / contact_count của lead.
 
     `created_by_name` (tuỳ chọn) là tên người đăng — DENORMALIZE để Hồ sơ 360°
     dựng "dòng chăm sóc" kiểu mạng xã hội (hiện tên người + thời gian) mà không
-    phải join user_store ở tầng timeline thuần. Trả contact log dict, None nếu
+    phải join user_store ở tầng timeline thuần.
+
+    `extra` (tuỳ chọn) là các field bổ sung gắn vào log — dùng cho cuộc gọi tổng
+    đài (call_id, call_status, duration, recording_url, direction...). KHÔNG cho
+    `extra` ghi đè các khoá lõi (id/lead_id/...). Trả contact log dict, None nếu
     lead không tồn tại.
     """
     now = _now()
@@ -633,6 +638,9 @@ def add_contact_log(
         "created_by_name": created_by_name,
         "created_at": now,
     }
+    if extra:
+        for k, v in extra.items():
+            log.setdefault(k, v)  # không ghi đè khoá lõi
     with _LOCK:
         leads = _load_leads()
         target = None
@@ -667,6 +675,55 @@ def list_contact_logs(lead_id: str) -> list[dict]:
         rows = [x for x in logs["logs"] if x["lead_id"] == lead_id]
     rows.sort(key=lambda x: x.get("created_at") or "", reverse=True)
     return rows
+
+
+def get_contact_log(log_id: str) -> Optional[dict]:
+    """Đọc 1 contact log theo id. None nếu không có."""
+    with _LOCK:
+        logs = _load_logs()
+        for x in logs["logs"]:
+            if x.get("id") == log_id:
+                return dict(x)
+    return None
+
+
+def update_contact_log(log_id: str, **fields) -> Optional[dict]:
+    """Cập nhật field tuỳ ý của 1 contact log (trạng thái cuộc gọi / ghi âm...).
+
+    Dùng cho tổng đài: cập nhật call_id / call_status / duration / recording_url /
+    outcome khi nhận webhook sự kiện cuộc gọi. BỎ QUA giá trị None (không ghi đè
+    dữ liệu cũ bằng None). Trả log đã cập nhật, None nếu không tìm thấy.
+    """
+    with _LOCK:
+        logs = _load_logs()
+        for x in logs["logs"]:
+            if x.get("id") == log_id:
+                for k, v in fields.items():
+                    if v is not None:
+                        x[k] = v
+                _save_logs(logs)
+                return dict(x)
+    return None
+
+
+def update_contact_log_by_call_id(call_id: str, **fields) -> Optional[dict]:
+    """Như update_contact_log nhưng tìm theo `call_id` (sự kiện ghi âm chỉ có call_id).
+
+    Stringee gửi sự kiện ghi âm (type=recording) chỉ kèm call_id — khớp log theo
+    call_id đã lưu trước đó. Trả log đã cập nhật, None nếu chưa khớp được.
+    """
+    if not call_id:
+        return None
+    with _LOCK:
+        logs = _load_logs()
+        for x in logs["logs"]:
+            if x.get("call_id") == call_id:
+                for k, v in fields.items():
+                    if v is not None:
+                        x[k] = v
+                _save_logs(logs)
+                return dict(x)
+    return None
 
 
 # ---------------------------------------------------------------------------

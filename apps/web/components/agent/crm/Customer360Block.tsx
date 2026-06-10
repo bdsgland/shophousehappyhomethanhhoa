@@ -36,6 +36,7 @@ import {
   type Profile360,
   type TimelineItem,
 } from "@/lib/crm";
+import { CallButton, RecordingPlayer } from "./CallButton";
 
 type IconCmp = (props: { size?: number; className?: string }) => JSX.Element;
 
@@ -95,6 +96,7 @@ function timelineIcon(item: TimelineItem): { Icon: IconCmp; color: string } {
   if (item.type === "created") return { Icon: User, color: "text-brand-400" };
   switch (item.channel) {
     case "call":
+    case "call_center":
       return { Icon: Phone, color: "text-emerald-500" };
     case "sms":
     case "zalo":
@@ -297,6 +299,14 @@ export function Customer360Block({
             Giai đoạn: {pipeline.label}
           </span>
         </div>
+        <div className="mt-3">
+          <CallButton
+            token={token}
+            leadId={leadId}
+            phone={basic.phone}
+            onEnded={() => load()}
+          />
+        </div>
       </div>
 
       {/* AI */}
@@ -359,6 +369,10 @@ export function Customer360Block({
             {timeline.map((item, i) => {
               const { Icon, color } = timelineIcon(item);
               const who = actorName(item);
+              const recLogId = (item.ref as { recording_url?: unknown; id?: unknown })
+                ?.recording_url
+                ? String((item.ref as { id?: unknown })?.id ?? "")
+                : "";
               return (
                 <li key={i} className="mb-4 last:mb-0">
                   <span className="absolute -left-[11px] flex h-5 w-5 items-center justify-center rounded-full border border-brand-100 bg-white">
@@ -374,6 +388,7 @@ export function Customer360Block({
                     </span>
                   </div>
                   {who && <p className="mt-0.5 text-xs text-brand-400">— {who}</p>}
+                  {recLogId && <RecordingPlayer token={token} logId={recLogId} />}
                 </li>
               );
             })}
