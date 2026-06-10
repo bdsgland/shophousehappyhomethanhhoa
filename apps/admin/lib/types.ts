@@ -527,6 +527,25 @@ export interface CareLogInput {
   outcome?: string | null;
 }
 
+/** Gợi ý sale khi phân công chăm sóc — đồng bộ app/schemas/crm.py SaleSuggestion. */
+export interface SaleSuggestion {
+  sale_id: string;
+  sale_name: string;
+  eligibility_score: number;
+  avg_daily_score: number;
+  total_deals_closed: number;
+  rank: number;
+  online: boolean;
+  availability?: string | null;
+  active_calls: number;
+}
+
+/** Payload phân công chăm sóc cho sale (+ kênh tuỳ chọn). */
+export interface AssignCareInput {
+  sale_id: string;
+  channel?: CrmContactChannel | null;
+}
+
 export interface CrmLeadPage {
   total: number;
   page: number;

@@ -200,6 +200,25 @@ class SalePerformance(BaseModel):
     rank: int
 
 
+class SaleSuggestion(BaseModel):
+    """Gợi ý sale khi PHÂN CÔNG chăm sóc 1 khách (trong hồ sơ 360°).
+
+    Gộp hiệu suất (sale_task_store) + trạng thái online realtime (presence của
+    Live Match) để admin chọn người MẠNH hoặc đang TRỰC. FE sắp xếp online + điểm
+    cao lên trên (đã sort sẵn từ backend).
+    """
+
+    sale_id: str
+    sale_name: str
+    eligibility_score: float
+    avg_daily_score: float
+    total_deals_closed: int
+    rank: int
+    online: bool = False
+    availability: Optional[str] = None  # online / busy / away / None
+    active_calls: int = 0
+
+
 # ---------------------------------------------------------------------------
 # Admin dashboard stats
 # ---------------------------------------------------------------------------

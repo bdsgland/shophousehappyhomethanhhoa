@@ -23,8 +23,9 @@ from app.api.deps import (
     require_admin,
     require_sale,
 )
-from app.core import lead_store, sale_task_store, user_store
+from app.core import customer_360, lead_store, presence, sale_task_store, user_store
 from app.schemas.crm import (
+    ContactChannel,
     ContactLog,
     ContactLogCreate,
     CrmStats,
@@ -35,6 +36,7 @@ from app.schemas.crm import (
     LeadDetail,
     LeadStatus,
     SalePerformance,
+    SaleSuggestion,
     SaleTaskDaily,
 )
 
@@ -100,6 +102,13 @@ class LeadUpdateBody(BaseModel):
 
 class AssignBody(BaseModel):
     sale_id: str
+
+
+class AssignCareBody(BaseModel):
+    """Phân công chăm sóc: chọn sale + (tuỳ chọn) kênh chăm sóc."""
+
+    sale_id: str
+    channel: Optional[ContactChannel] = None
 
 
 class LeadEngagedBody(BaseModel):
@@ -402,6 +411,67 @@ def admin_assign_lead(
     updated = lead_store.assign_lead(lead_id, payload.sale_id, by_admin_id=admin["id"])
     if not updated:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    return Lead(**updated)
+
+
+@admin_router.get("/sale-suggestions", response_model=list[SaleSuggestion])
+def admin_sale_suggestions(_admin: dict = Depends(require_admin)) -> list[SaleSuggestion]:
+    """Gợi ý sale để PHÂN CÔNG chăm sóc: hiệu suất + online (presence Live Match).
+
+    Gộp eligibility/điểm tuần (sale_task_store) với trạng thái presence realtime,
+    sắp xếp ƯU TIÊN online rồi điểm cao để admin chọn người mạnh / đang trực.
+    """
+    ranking = sale_task_store.rank_sales_by_eligibility()
+    pres = {p.get("sale_id"): p for p in presence.list_all_presence()}
+    out: list[SaleSuggestion] = []
+    for p in ranking:
+        pr = pres.get(p["sale_id"])
+        availability = pr.get("availability") if pr else None
+        out.append(
+            SaleSuggestion(
+                sale_id=p["sale_id"],
+                sale_name=p["sale_name"],
+                eligibility_score=p["eligibility_score"],
+                avg_daily_score=p["avg_daily_score"],
+                total_deals_closed=p["total_deals_closed"],
+                rank=p["rank"],
+                online=(availability == "online"),
+                availability=availability,
+                active_calls=int(pr.get("active_calls", 0)) if pr else 0,
+            )
+        )
+    # Online (True>False) trước, rồi eligibility_score giảm dần.
+    out.sort(key=lambda s: (s.online, s.eligibility_score), reverse=True)
+    return out
+
+
+@admin_router.post("/leads/{lead_id}/assign-care", response_model=Lead)
+def admin_assign_care(
+    lead_id: str,
+    payload: AssignCareBody,
+    admin: dict = Depends(require_admin),
+) -> Lead:
+    """PHÂN CÔNG chăm sóc 1 khách cho sale + (tuỳ chọn) kênh chăm sóc.
+
+    Tái dùng assign_lead (set assigned_sale + updated_at) rồi ghi 1 mục timeline
+    "Đã giao [sale] chăm sóc qua [kênh]" để hiện trên dòng thời gian hồ sơ 360°.
+    """
+    lead = lead_store.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    sale = user_store.find_by_id(payload.sale_id)
+    if not sale or sale.get("role") not in ("sale", "admin"):
+        raise HTTPException(status_code=400, detail="Sale không hợp lệ")
+    updated = lead_store.assign_lead(lead_id, payload.sale_id, by_admin_id=admin["id"])
+    if not updated:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    sale_name = sale.get("full_name") or "sale"
+    summary = f"Đã giao {sale_name} chăm sóc"
+    if payload.channel is not None:
+        summary += f" qua {customer_360.channel_label(payload.channel.value)}"
+    lead_store.add_activity_log(
+        lead_id, summary=summary, by=admin.get("id"), by_name=admin.get("full_name"),
+    )
     return Lead(**updated)
 
 

@@ -16,6 +16,8 @@ import type {
   CrmLeadUpdate,
   CareLogInput,
   CareLogResult,
+  SaleSuggestion,
+  AssignCareInput,
   DriveSyncConfig,
   DriveSyncJob,
   DriveSyncResult,
@@ -650,6 +652,19 @@ export function assignCrmLead(id: string, saleId: string) {
   return apiFetch<CrmLead>(`/admin/crm/leads/${id}/assign`, {
     method: "PATCH",
     body: { sale_id: saleId },
+  });
+}
+
+/** Gợi ý sale để phân công chăm sóc (điểm hiệu suất + online presence). */
+export function getSaleSuggestions() {
+  return apiFetch<SaleSuggestion[]>("/admin/crm/sale-suggestions");
+}
+
+/** Phân công chăm sóc 1 khách cho sale + (tuỳ chọn) kênh → ghi feed timeline. */
+export function assignCareLead(id: string, body: AssignCareInput) {
+  return apiFetch<CrmLead>(`/admin/crm/leads/${id}/assign-care`, {
+    method: "POST",
+    body,
   });
 }
 

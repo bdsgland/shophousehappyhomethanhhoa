@@ -2,15 +2,27 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, LayoutGrid, Pencil, Phone, Sparkles, UserSquare2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Pencil,
+  Phone,
+  Sparkles,
+  UserCheck,
+  UserSquare2,
+} from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
-import { getCrmLead, listSales } from "@/lib/api";
+import { getCrmLead, listAllCrmLeads, listSales } from "@/lib/api";
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AiInsightCard } from "@/components/crm/AiInsightCard";
+import { AssignCareModal } from "@/components/crm/AssignCareModal";
 import { Customer360 } from "@/components/crm/Customer360";
 import { EditLeadModal } from "@/components/crm/EditLeadModal";
 import { Badge } from "@/components/ui/badge";
@@ -55,11 +67,22 @@ const OUTCOME_LABEL: Record<string, string> = {
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const qc = useQueryClient();
   const [tab, setTab] = useState<"overview" | "profile360">("overview");
   const [editOpen, setEditOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const leadQ = useQuery({ queryKey: ["crm-lead", id], queryFn: () => getCrmLead(id) });
   const salesQ = useQuery({ queryKey: ["sales"], queryFn: listSales });
+  // Dùng CHUNG cache với trang danh sách (thứ tự mặc định) để lướt trước/sau.
+  const orderQ = useQuery({ queryKey: ["crm-leads"], queryFn: () => listAllCrmLeads() });
+
+  // Vị trí khách hiện tại trong danh sách → id trước/sau (ẩn ở đầu/cuối).
+  const orderIds = orderQ.data?.items?.map((l) => l.id) ?? [];
+  const curIndex = orderIds.indexOf(id);
+  const prevId = curIndex > 0 ? orderIds[curIndex - 1] : null;
+  const nextId =
+    curIndex >= 0 && curIndex < orderIds.length - 1 ? orderIds[curIndex + 1] : null;
 
   const lead = leadQ.data;
   // Guard: backend có thể không trả contact_logs → tránh `.length`/`.map` throw làm trắng trang.
@@ -90,12 +113,39 @@ export default function CustomerDetailPage() {
 
   return (
     <div>
-      <Link
-        href="/customers"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
-      </Link>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href="/customers"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+        </Link>
+
+        {/* Lướt qua khách trước/sau theo thứ tự danh sách (không cần về list). */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!prevId}
+            onClick={() => prevId && router.push(`/customers/${prevId}`)}
+          >
+            <ChevronLeft className="h-4 w-4" /> Khách trước
+          </Button>
+          {curIndex >= 0 && orderIds.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {curIndex + 1} / {orderIds.length}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!nextId}
+            onClick={() => nextId && router.push(`/customers/${nextId}`)}
+          >
+            Khách sau <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {leadQ.isLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -125,6 +175,9 @@ export default function CustomerDetailPage() {
             description={`${SOURCE_LABEL[lead.source] ?? lead.source} · phụ trách: ${saleName}`}
             action={
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
+                  <UserCheck className="h-4 w-4" /> Phân công chăm sóc
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-4 w-4" /> Sửa thông tin
                 </Button>
@@ -140,6 +193,18 @@ export default function CustomerDetailPage() {
             sales={salesQ.data?.sales ?? []}
             open={editOpen}
             onClose={() => setEditOpen(false)}
+            onSaved={() => {
+              leadQ.refetch();
+              qc.invalidateQueries({ queryKey: ["crm-360", id] });
+              qc.invalidateQueries({ queryKey: ["crm-leads"] });
+            }}
+          />
+
+          <AssignCareModal
+            leadId={lead.id}
+            currentSaleId={lead.assigned_sale_id}
+            open={assignOpen}
+            onClose={() => setAssignOpen(false)}
             onSaved={() => {
               leadQ.refetch();
               qc.invalidateQueries({ queryKey: ["crm-360", id] });
