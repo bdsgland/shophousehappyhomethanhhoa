@@ -40,7 +40,11 @@ _ALGORITHM = "HS256"
 _WORKSPACE_SCOPES = (
     "https://www.googleapis.com/auth/calendar.events "
     "https://www.googleapis.com/auth/drive.readonly "
-    "https://www.googleapis.com/auth/spreadsheets.readonly"
+    "https://www.googleapis.com/auth/spreadsheets.readonly "
+    # gmail.send: gửi email qua Gmail API (HTTPS) thay SMTP — Railway chặn cổng
+    # SMTP outbound. Thêm scope này nên admin cần bấm "Kết nối Google Workspace"
+    # LẠI 1 lần để cấp quyền gửi mail (refresh token cũ chưa có scope này).
+    "https://www.googleapis.com/auth/gmail.send"
 )
 _WORKSPACE_STATE_PURPOSE = "google_workspace_connect"
 _WORKSPACE_STATE_TTL_SECONDS = 10 * 60  # 10 phút (đủ thời gian admin đăng nhập + allow)

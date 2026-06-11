@@ -131,6 +131,20 @@ SERVICES: list[dict[str, Any]] = [
         "guide_url": "https://support.google.com/accounts/answer/185833",
     },
     {
+        "key": "email_google",
+        "name": "Email — Gmail API (qua Google Workspace)",
+        "group": "channel",
+        "fields": [],
+        "required": [],
+        "managed": True,  # Kết nối qua OAuth Google Workspace (nút Connect), không nhập tay.
+        "priority": True,  # Ưu tiên hơn SMTP (Railway chặn cổng SMTP outbound).
+        "guide": "Phương án gửi email ƯU TIÊN: gửi qua Gmail API (HTTPS) nên KHÔNG "
+        "bị Railway chặn cổng SMTP. Dùng chung kết nối Google Workspace. Nếu mục này "
+        "chưa bật, hãy KẾT NỐI LẠI Google Workspace ở thẻ 'Google Workspace' để cấp "
+        "quyền gửi mail (scope gmail.send).",
+        "guide_url": "",
+    },
+    {
         "key": "tiktok",
         "name": "TikTok (tùy chọn)",
         "group": "channel",
@@ -389,6 +403,14 @@ def is_connected(service: str) -> bool:
                 return bool(workspace_token_store.get_status().get("connected"))
             except Exception:  # noqa: BLE001
                 return False
+        if service == "email_google":
+            # "Đã kết nối" = Workspace connect + có scope gmail.send (gửi được mail).
+            try:
+                from app.core import gmail_sender
+
+                return gmail_sender.is_available()
+            except Exception:  # noqa: BLE001
+                return False
         return False
     creds = get_credential(service)
     required = svc.get("required") or [f["key"] for f in svc["fields"]]
@@ -463,6 +485,25 @@ def public_view(service: str) -> dict:
 
             st = workspace_token_store.get_status()
             view["detail"] = st.get("email") or ""
+        except Exception:  # noqa: BLE001
+            view["detail"] = ""
+    if svc.get("managed") and service == "email_google":
+        view["priority"] = bool(svc.get("priority"))
+        try:
+            from app.core import gmail_sender
+
+            connected = gmail_sender.is_connected()
+            has_scope = gmail_sender.has_send_scope()
+            if connected and has_scope:
+                view["detail"] = "Sẵn sàng gửi qua Gmail API."
+            elif connected and not has_scope:
+                view["detail"] = (
+                    "Đã kết nối Workspace nhưng THIẾU quyền gửi mail — hãy KẾT NỐI LẠI "
+                    "Google Workspace để cấp scope gmail.send."
+                )
+            else:
+                view["detail"] = "Chưa kết nối Google Workspace."
+            view["needs_reconnect"] = bool(connected and not has_scope)
         except Exception:  # noqa: BLE001
             view["detail"] = ""
     return view
@@ -630,6 +671,55 @@ async def _test_smtp() -> dict:
         return {"ok": False, "detail": f"SMTP lỗi: {smtp_ipv4.classify_error(exc)}"}
 
 
+async def _test_email_google() -> dict:
+    """Test gửi email qua Gmail API (qua Google Workspace).
+
+    Nếu có địa chỉ nhận (email tài khoản Workspace hoặc SMTP From) → gửi 1 mail thử
+    cho chính mình. Nếu không có địa chỉ nhận → chỉ kiểm tra token + scope hợp lệ.
+    """
+    import asyncio
+
+    from app.core import gmail_sender
+
+    if not gmail_sender.is_connected():
+        return {
+            "ok": False,
+            "detail": "Chưa kết nối Google Workspace. Bấm 'Kết nối Google Workspace'.",
+        }
+    if not gmail_sender.has_send_scope():
+        return {
+            "ok": False,
+            "detail": "Đã kết nối nhưng thiếu quyền gửi mail — KẾT NỐI LẠI Google "
+            "Workspace để cấp scope gmail.send.",
+        }
+    recipient = gmail_sender.connected_email() or settings.smtp_from
+    if not recipient:
+        # Không có địa chỉ nhận để gửi thử → kiểm tra token + scope là đủ.
+        try:
+            await asyncio.to_thread(gmail_sender.verify_access)
+            return {
+                "ok": True,
+                "detail": "Token + scope gmail.send hợp lệ (chưa gửi mail thử vì "
+                "thiếu địa chỉ nhận — đặt SMTP From hoặc kết nối lại để lưu email).",
+            }
+        except gmail_sender.GmailSenderError as exc:
+            return {"ok": False, "detail": str(exc)}
+    try:
+        res = await asyncio.to_thread(
+            gmail_sender.send_email,
+            recipient,
+            "ELC — Test gửi email qua Gmail API",
+            "Đây là email kiểm tra kết nối Gmail API (qua Google Workspace) của hệ thống ELC.",
+        )
+        return {
+            "ok": True,
+            "detail": f"Đã gửi email thử tới {recipient} qua Gmail API.",
+            "info": {"message_id": res.get("id")},
+        }
+    except gmail_sender.GmailSenderError as exc:
+        return {"ok": False, "detail": str(exc)}
+
+
 async def _test_n8n() -> dict:
     from app.core import n8n_admin
 
@@ -713,6 +803,7 @@ _TEST_HANDLERS: dict[str, Callable] = {
     "chatwoot": _test_chatwoot,
     "stringee": _test_stringee,
     "email_smtp": _test_smtp,
+    "email_google": _test_email_google,
     "n8n": _test_n8n,
     "facebook": _test_facebook,
     "zalo": _test_zalo,

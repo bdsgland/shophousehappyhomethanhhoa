@@ -211,7 +211,15 @@ def _smtp_cfg() -> dict:
     return integrations_store.get_credential("email_smtp")
 
 
-def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> None:
+def _email_ready() -> bool:
+    """Có thể gửi email không: ƯU TIÊN Gmail API (Workspace) → fallback SMTP host."""
+    from app.core import gmail_sender
+
+    return gmail_sender.is_available() or bool(_smtp_cfg().get("host"))
+
+
+def _send_email_smtp(to: List[str], subject: str, body: str, html: bool = False) -> None:
+    """Gửi qua SMTP (ép IPv4). Phương án phụ cho ai dùng provider SMTP riêng."""
     cfg = _smtp_cfg()
     msg = EmailMessage()
     msg["From"] = cfg.get("from") or cfg.get("user")
@@ -235,6 +243,37 @@ def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> N
         if cfg.get("user"):
             server.login(cfg.get("user"), cfg.get("password") or "")
         server.send_message(msg)
+
+
+def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> None:
+    """Gửi email: ƯU TIÊN Gmail API (qua Google Workspace, HTTPS — không bị Railway
+    chặn cổng SMTP), FALLBACK SMTP nếu Gmail API chưa sẵn sàng hoặc gặp lỗi.
+
+    Railway chặn cổng SMTP outbound nên Gmail API là phương án chính. SMTP (đã ép
+    IPv4) giữ lại cho ai cấu hình provider SMTP riêng.
+    """
+    from app.core import gmail_sender
+
+    has_smtp = bool(_smtp_cfg().get("host"))
+
+    # 1) Ưu tiên Gmail API khi Workspace đã kết nối + có scope gmail.send.
+    if gmail_sender.is_available():
+        try:
+            gmail_sender.send_email(to, subject, body, html=html)
+            return
+        except gmail_sender.GmailSenderError as exc:
+            if not has_smtp:
+                # Không có SMTP để fallback → ném lỗi rõ ràng của Gmail API.
+                raise RuntimeError(str(exc))
+            log.warning("Gmail API gửi lỗi, fallback SMTP: %s", exc)
+
+    # 2) Fallback SMTP (provider khác / chưa cấp scope gmail.send).
+    if not has_smtp:
+        raise RuntimeError(
+            "Chưa cấu hình kênh gửi email: chưa kết nối Google Workspace với quyền "
+            "gmail.send và cũng chưa cấu hình SMTP."
+        )
+    _send_email_smtp(to, subject, body, html=html)
 
 
 # ===========================================================================
@@ -582,8 +621,12 @@ def telegram_send(body: OpenClawTelegramSend, actor: str = GodActor) -> Dict[str
 
 @router.post("/email/send")
 def email_send(body: OpenClawEmailSend, actor: str = GodActor) -> Dict[str, Any]:
-    if not _smtp_cfg().get("host"):
-        raise HTTPException(503, "SMTP chưa cấu hình (SMTP_HOST trống).")
+    if not _email_ready():
+        raise HTTPException(
+            503,
+            "Chưa có kênh gửi email: kết nối Google Workspace (cấp quyền gmail.send) "
+            "hoặc cấu hình SMTP.",
+        )
     try:
         _send_email([str(t) for t in body.to], body.subject, body.body, html=body.html)
     except Exception as exc:  # noqa: BLE001
@@ -621,7 +664,7 @@ def announce(body: OpenClawAnnounce, actor: str = GodActor) -> Dict[str, Any]:
                     results["telegram"]["errors"] += 1
         if "email" in body.channels:
             email = u.get("email")
-            if not _smtp_cfg().get("host") or not email:
+            if not _email_ready() or not email:
                 results["email"]["skipped"] += 1
             else:
                 try:
@@ -684,6 +727,18 @@ def platforms_health(actor: str = GodActor) -> Dict[str, Any]:
     # Cấu hình kênh (không gọi mạng — chỉ báo đã cấu hình hay chưa).
     checks.append({"name": "telegram", "configured": bool(_telegram_token())})
     checks.append({"name": "smtp", "configured": bool(_smtp_cfg().get("host"))})
+    # Email qua Gmail API (ưu tiên hơn SMTP vì Railway chặn cổng SMTP outbound).
+    try:
+        from app.core import gmail_sender
+
+        checks.append({
+            "name": "email_google",
+            "configured": gmail_sender.is_available(),
+            "connected": gmail_sender.is_connected(),
+            "has_send_scope": gmail_sender.has_send_scope(),
+        })
+    except Exception as exc:  # noqa: BLE001
+        checks.append({"name": "email_google", "configured": False, "error": str(exc)})
     checks.append({"name": "railway", "configured": bool(settings.railway_api_token)})
 
     overall = all(c.get("ok", True) for c in checks)
