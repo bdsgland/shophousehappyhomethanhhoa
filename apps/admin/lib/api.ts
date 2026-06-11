@@ -92,6 +92,10 @@ import type {
   PipelineRunAllPayload,
   PipelinePublishPayload,
   PipelineStage,
+  CrewStatus,
+  CrewAgentsResponse,
+  CrewRunResult,
+  CrewRunPayload,
 } from "./types";
 
 export const API_URL =
@@ -1469,5 +1473,28 @@ export function publishPipeline(id: string, payload: PipelinePublishPayload) {
   return apiFetch<PipelineRunResponse>(`/admin/marketing/pipeline/${id}/publish`, {
     method: "POST",
     body: payload,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ĐỘI SALE AI (Sales Crew / CrewAI) — /admin/crew/* (require_admin)
+// Chỉ ĐỌC + TẠO NHÁP. Không có endpoint gửi tin thật ở client.
+// ---------------------------------------------------------------------------
+
+/** Trạng thái runtime của crew (bật/tắt, live/fallback/disabled, điều kiện). */
+export function getCrewStatus() {
+  return apiFetch<CrewStatus>("/admin/crew/status");
+}
+
+/** Danh sách template agent (Tư vấn viên · Chăm sóc · Chốt deal). */
+export function listCrewAgents() {
+  return apiFetch<CrewAgentsResponse>("/admin/crew/agents");
+}
+
+/** Chạy đội sale cho 1 lead → phân tích + đề xuất + tin nhắn NHÁP. */
+export function runCrewForLead(leadId: string, payload?: CrewRunPayload) {
+  return apiFetch<CrewRunResult>(`/admin/crew/leads/${leadId}/run`, {
+    method: "POST",
+    body: payload ?? {},
   });
 }

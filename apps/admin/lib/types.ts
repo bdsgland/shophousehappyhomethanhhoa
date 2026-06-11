@@ -1610,3 +1610,97 @@ export interface PipelinePublishPayload {
   email_to?: string[];
   subject?: string;
 }
+
+// ---------------------------------------------------------------------------
+// ĐỘI SALE AI (Sales Crew / CrewAI) — /admin/crew/*
+// Khớp schema backend: app/crew/availability.py, service.py, sales_crew.py.
+// Mọi kết quả chỉ ĐỌC + TẠO NHÁP: requires_confirmation=true, auto_executed=false.
+// ---------------------------------------------------------------------------
+
+export type CrewMode = "disabled" | "live" | "fallback";
+
+/** GET /admin/crew/status — crew_runtime_status(). */
+export interface CrewStatus {
+  enabled: boolean;
+  mode: CrewMode;
+  crewai_installed: boolean;
+  anthropic_key_present: boolean;
+  use_mock_llm: boolean;
+  dify_configured: boolean;
+  dify_dataset_configured: boolean;
+  model: string;
+  max_agents: number;
+  max_tokens: number;
+  will_use_llm: boolean;
+  notes: string[];
+}
+
+/** 1 agent template (advisor / nurturer / closer). */
+export interface CrewAgentTemplate {
+  key: string;
+  name: string;
+  role: string;
+  goal: string;
+  backstory: string;
+}
+
+/** GET /admin/crew/agents. */
+export interface CrewAgentsResponse {
+  agents: CrewAgentTemplate[];
+}
+
+/** 1 đề xuất hành động (engine heuristic). */
+export interface CrewRecommendedAction {
+  priority: string;
+  action: string;
+  reason: string;
+}
+
+/** 1 tin nhắn NHÁP — không bao giờ tự gửi. */
+export interface CrewDraftMessage {
+  channel: string;
+  draft: string;
+  requires_confirmation: boolean;
+  auto_sent: boolean;
+}
+
+/** Khối phân tích — union heuristic | crewai (field tuỳ engine). */
+export interface CrewAnalysis {
+  engine: string; // "heuristic" | "crewai"
+  model?: string | null;
+  summary: string;
+  agents: string[];
+  draft_messages?: CrewDraftMessage[];
+  // chỉ engine=heuristic:
+  readiness?: number;
+  recommended_actions?: CrewRecommendedAction[];
+  // chỉ engine=crewai:
+  task_outputs?: string[];
+}
+
+export interface CrewKnowledge {
+  configured?: boolean | null;
+  records?: number | null;
+}
+
+/** POST /admin/crew/leads/{id}/run — service.run_for_lead(). */
+export interface CrewRunResult {
+  ok: boolean;
+  mode: CrewMode | string;
+  lead_id: string;
+  lead_name?: string | null;
+  generated_at: string;
+  requires_confirmation: boolean;
+  auto_executed: boolean;
+  notes: string[];
+  // có khi ok=true:
+  analysis?: CrewAnalysis;
+  knowledge?: CrewKnowledge;
+}
+
+export type CrewRunChannel = "zalo" | "sms" | "email";
+
+/** Body POST run (CrewRunRequest). */
+export interface CrewRunPayload {
+  channel?: CrewRunChannel;
+}

@@ -15,6 +15,7 @@ import {
   Wallet,
   UserCog,
   Megaphone,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/kb", label: "Tài liệu RAG", icon: BookOpen },
   { href: "/inbox", label: "Hộp thư đa kênh", icon: Inbox },
   { href: "/marketing", label: "AI Marketing", icon: Megaphone },
+  { href: "/crew", label: "Đội Sale AI", icon: Bot },
   { href: "/automation", label: "Automation", icon: Workflow },
   { href: "/settings", label: "Cấu hình", icon: Settings },
 ];
