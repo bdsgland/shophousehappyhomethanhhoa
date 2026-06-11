@@ -61,6 +61,26 @@ class Settings(BaseSettings):
     # Agent behaviour
     lead_hot_score_threshold: int = 70
 
+    # ----- Sales Crew (CrewAI multi-agent "đội sale ảo") — TÍNH NĂNG CỘNG THÊM -----
+    # Lớp multi-agent (CrewAI) chạy phân tích 1 lead → đề xuất hành động + tin nhắn
+    # NHÁP (KHÔNG tự gửi). Mặc định TẮT (crew_enabled=false) để không ảnh hưởng luồng
+    # chat/CRM hiện tại. Bật bằng env CREW_ENABLED=true SAU KHI đã cài crewai
+    # (xem requirements-crew.txt). Khi thiếu crewai / thiếu ANTHROPIC_API_KEY /
+    # use_mock_llm=true → module tự fallback phân tích heuristic (không gọi LLM),
+    # KHÔNG crash.
+    crew_enabled: bool = False
+    # Model Claude cho crew. Trống → fallback llm_model. CrewAI dùng LiteLLM nên tên
+    # sẽ được tự thêm tiền tố "anthropic/" nếu chưa có provider. Đổi qua env CREW_MODEL.
+    crew_model: str = ""
+    # Giới hạn số agent thực thi trong 1 crew (bảo vệ chi phí + thời gian). 1..6.
+    crew_max_agents: int = 3
+    # max_tokens mỗi agent khi gọi Claude (chặn chi phí). Đổi qua env CREW_MAX_TOKENS.
+    crew_max_tokens: int = 1200
+
+    def crew_model_resolved(self) -> str:
+        """Model dùng cho crew — ưu tiên crew_model, fallback llm_model."""
+        return (self.crew_model or self.llm_model or "claude-haiku-4-5-20251001").strip()
+
     # Knowledge base mặc định cho kênh chat (Chatwoot webhook).
     elc_project_slug: str = "eurowindow-light-city"
 

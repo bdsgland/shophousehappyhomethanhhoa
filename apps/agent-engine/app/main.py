@@ -209,6 +209,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("call", "webhook_router", {}),
     ("pipeline", "router", {}),
     ("ai_crm", "router", {}),
+    ("crew", "router", {}),  # Sales Crew (CrewAI) — /admin/crew/*, mặc định TẮT
     ("match", "router", {}),
     ("ws_presence", "router", {}),
     ("ws_match", "router", {}),

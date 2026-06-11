@@ -1,0 +1,29 @@
+# ============================================================================
+# Sales Crew (CrewAI) — DEPENDENCY TUỲ CHỌN, KHÔNG cài mặc định.
+# ============================================================================
+# Vì sao tách file riêng (KHÔNG nhét vào requirements.txt chính):
+#   - CrewAI kéo theo deps NẶNG (litellm, chromadb, onnxruntime, tiktoken, ...),
+#     làm phình thời gian build + image size trên Railway.
+#   - Một số deps có thể XUNG ĐỘT ràng buộc version với stack hiện tại
+#     (pydantic<3, httpx<1, anthropic<1). Phải để CI/Railway giải resolver TÁCH
+#     BIỆT trước khi ép vào build chính → tránh phá luồng chat/CRM đang chạy.
+#   - Tính năng crew mặc định TẮT (CREW_ENABLED=false). Code tự fallback heuristic
+#     khi crewai chưa được cài → app vẫn boot bình thường nếu KHÔNG cài file này.
+#
+# CÁCH BẬT (sau khi đã xác nhận muốn dùng crew):
+#   1) Cài:  pip install -r requirements-crew.txt   (Python 3.10–3.13)
+#   2) Đặt env trên Railway: CREW_ENABLED=true, ANTHROPIC_API_KEY=sk-ant-...
+#   3) (Tuỳ chọn) Sửa nixpacks.toml buildCommand để cài thêm file này, ví dụ:
+#        pip install -r requirements.txt && pip install -r requirements-crew.txt
+#
+# RUNTIME: CrewAI yêu cầu Python >=3.10,<3.14. Railway (nixpacks.toml: python311)
+# đạt yêu cầu. CHÚ Ý: .venv local hiện là 3.9.6 → KHÔNG cài được crewai ở local
+# 3.9; muốn test local hãy tạo venv 3.11 riêng.
+#
+# Phiên bản ghim — cập nhật khi nâng cấp có kiểm thử.
+crewai==0.175.0
+
+# crewai-tools: KHÔNG bắt buộc cho scaffold v1 (các tool tích hợp ELC được viết
+# tay trong app/crew/tools.py để không phụ thuộc thêm). Bỏ comment nếu cần bộ
+# tool dựng sẵn của CrewAI (web search, file read, ...).
+# crewai-tools==0.55.0

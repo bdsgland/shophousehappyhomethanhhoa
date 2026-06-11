@@ -43,5 +43,11 @@ rank-bm25>=0.2.2,<1.0.0
 python-multipart>=0.0.9,<1.0.0
 reportlab>=4.0.0,<5.0.0
 
+# Sales Crew (CrewAI multi-agent "đội sale ảo") — TÍNH NĂNG CỘNG THÊM, mặc định TẮT.
+# Deps NẶNG + có thể xung đột version → KHÔNG cài ở build chính. Khai báo riêng
+# trong requirements-crew.txt; chỉ cài khi bật crew (CREW_ENABLED=true). Code tự
+# fallback heuristic khi crewai chưa được cài (app vẫn boot bình thường).
+#   pip install -r requirements-crew.txt   # Python 3.10–3.13 (Railway python311 OK)
+
 # Test (TestClient của Starlette dùng httpx — đã khai báo ở phần HTTP client)
 pytest>=8.0.0,<9.0.0

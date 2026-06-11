@@ -260,6 +260,22 @@ def _h_db_query(a: Dict[str, Any]) -> Dict[str, Any]:
     return bridge.db_query(body=body, actor=_ACTOR)
 
 
+# ----------------------- SALES CREW (READ / ĐỀ-XUẤT) -----------------------
+def _h_crew_run_for_lead(a: Dict[str, Any]) -> Dict[str, Any]:
+    """Chạy "đội sale ảo" (CrewAI) cho 1 lead → phân tích + đề xuất + tin NHÁP.
+
+    READ-ONLY / chỉ-đề-xuất: KHÔNG gửi tin, KHÔNG ghi CRM (requires_confirmation).
+    Import lazy app.crew để module MCP không phụ thuộc crewai lúc load. Crew tự
+    fallback heuristic khi crewai chưa cài / thiếu key / đang mock."""
+    from app.crew import service as crew_service
+
+    return crew_service.run_for_lead(
+        a["lead_id"],
+        channel=a.get("channel", "zalo"),
+        requested_by=_ACTOR,
+    )
+
+
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
 # inputSchema (JSON Schema) · handler · write (đánh dấu hành động ghi).
 TOOLS: List[Dict[str, Any]] = [
@@ -667,6 +683,21 @@ TOOLS: List[Dict[str, Any]] = [
             "additionalProperties": False,
         },
         "handler": _h_db_query,
+        "write": False,
+    },
+    {
+        "name": "crew_run_for_lead",
+        "description": "CHẠY 'đội sale ảo' (Sales Crew, CrewAI) phân tích 1 lead → trả PHÂN TÍCH + ĐỀ XUẤT hành động + TIN NHẮN NHÁP. CHỈ ĐỀ XUẤT, KHÔNG gửi tin / KHÔNG ghi CRM (kết quả kèm requires_confirmation=true). Dùng khi CEO hỏi 'phân tích lead này nên làm gì tiếp', 'soạn giúp tin chăm sóc'. Tham số: lead_id (bắt buộc), channel (zalo/sms/email, mặc định zalo). Nếu crew đang TẮT / thiếu cấu hình → trả phân tích heuristic kèm ghi chú.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_id": {"type": "string", "description": "ID lead trong CRM"},
+                "channel": {"type": "string", "description": "Kênh tin nháp: zalo/sms/email", "default": "zalo"},
+            },
+            "required": ["lead_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_crew_run_for_lead,
         "write": False,
     },
 ]
