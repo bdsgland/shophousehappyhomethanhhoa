@@ -9,7 +9,6 @@ import {
   Inbox,
   Medal,
   Radio,
-  Server,
   Settings,
   Workflow,
   Command,
@@ -42,6 +41,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/inbox", label: "Hộp thư đa kênh", icon: Inbox },
   { href: "/marketing", label: "AI Marketing", icon: Megaphone },
   { href: "/automation", label: "Automation", icon: Workflow },
-  { href: "/platforms", label: "Nền tảng", icon: Server },
   { href: "/settings", label: "Cấu hình", icon: Settings },
 ];

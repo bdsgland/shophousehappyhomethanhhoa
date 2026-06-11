@@ -26,6 +26,7 @@ Khai báo trong Stringee Dashboard (Project → Manage answer_url / event_url):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from typing import Any, Optional
@@ -47,9 +48,28 @@ webhook_router = APIRouter(prefix="/webhook/stringee", tags=["call-center-webhoo
 CALL_CHANNEL = "call_center"
 
 
+# Stringee giới hạn độ dài userId (báo lỗi USER_ID_TOO_LONG nếu vượt). Tài liệu
+# không công bố con số chính xác; thực tế cap ~36 ký tự. Sale id là UUID4 (36 ký
+# tự) nên "sale_" + UUID = 41 ký tự → vượt giới hạn. Đặt ngưỡng an toàn 36.
+_STRINGEE_USER_ID_MAXLEN = 36
+
+
 def _stringee_user_id(sale_id: str) -> str:
-    """userId trên Stringee cho 1 sale (namespace tránh đụng id khác)."""
-    return f"sale_{sale_id}"
+    """userId trên Stringee cho 1 sale — ỔN ĐỊNH, DUY NHẤT, ≤ giới hạn độ dài.
+
+    Giữ namespace `sale_` cho dễ đọc khi id ngắn. Nếu `sale_<id>` vượt giới hạn
+    (vd id là UUID dài) → dùng `sale_<16 ký tự đầu sha1(id)>` (21 ký tự): luôn ra
+    cùng userId cho cùng sale, chỉ gồm ký tự hợp lệ [a-z0-9_], không vượt cap.
+
+    Lưu ý: webhook khớp cuộc gọi về lead/sale qua clientCustomData = log_id (xem
+    call_start), KHÔNG dùng userId này, nên rút gọn userId không phá vỡ mapping.
+    """
+    sid = str(sale_id)
+    candidate = f"sale_{sid}"
+    if len(candidate) <= _STRINGEE_USER_ID_MAXLEN:
+        return candidate
+    digest = hashlib.sha1(sid.encode("utf-8")).hexdigest()[:16]
+    return f"sale_{digest}"
 
 
 def _answer_url() -> str:

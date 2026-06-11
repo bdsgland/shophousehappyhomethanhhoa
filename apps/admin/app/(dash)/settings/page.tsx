@@ -7,6 +7,7 @@ import {
   HardDriveDownload,
   RotateCcw,
   Save,
+  Server,
   Settings2,
   ShieldCheck,
   Tag,
@@ -37,6 +38,7 @@ import { AuditLogTable } from "@/components/settings/AuditLogTable";
 import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
 import { IntegrationsManager } from "@/components/settings/IntegrationsManager";
 import { SalesPolicyTab } from "@/components/settings/SalesPolicyTab";
+import { PlatformsPanel } from "@/components/platforms/PlatformsPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +53,7 @@ const TABS = [
   { key: "commission", label: "Cơ chế hoa hồng", icon: <Coins className="h-4 w-4" /> },
   { key: "sales-policy", label: "Chính sách bán hàng", icon: <Tag className="h-4 w-4" /> },
   { key: "integrations", label: "Tích hợp", icon: <Database className="h-4 w-4" /> },
+  { key: "platforms", label: "Nền tảng", icon: <Server className="h-4 w-4" /> },
   { key: "notifications", label: "Thông báo", icon: <ShieldCheck className="h-4 w-4" /> },
   { key: "audit", label: "Nhật ký", icon: <ShieldCheck className="h-4 w-4" /> },
   { key: "backup", label: "Sao lưu", icon: <HardDriveDownload className="h-4 w-4" /> },
@@ -114,6 +117,8 @@ export default function SettingsPage() {
           <IntegrationsManager />
         </div>
       )}
+
+      {tab === "platforms" && <PlatformsPanel />}
 
       {tab === "notifications" && (
         <NotificationsTab config={data?.config} loading={isLoading} onSaved={() => qc.invalidateQueries({ queryKey: ["settings"] })} />
