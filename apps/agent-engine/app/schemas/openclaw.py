@@ -147,3 +147,38 @@ class OpenClawAnnounce(BaseModel):
     message: str
     subject: str = "Thông báo từ ELC"
     user_ids: list[str] = Field(default_factory=list)  # cho audience="specific_users"
+
+
+# ---------------------------------------------------------------------------
+# Marketing Pipeline (CEO bot điều khiển dây chuyền sản xuất content AI)
+# ---------------------------------------------------------------------------
+
+class OpenClawMarketingResearch(BaseModel):
+    topic: str
+    project: Optional[str] = None
+    audience: Optional[str] = None
+    language: Literal["vi", "en", "bilingual"] = "vi"
+
+
+class OpenClawMarketingContent(BaseModel):
+    brief: str
+    channel: Literal["facebook", "zalo", "google", "email", "tiktok", "other"] = "facebook"
+    content_format: Literal["toplist", "pov", "case_study", "howto", "generic"] = "generic"
+    tone: Optional[str] = None
+    language: Literal["vi", "en", "bilingual"] = "vi"
+    audience: Optional[str] = None
+
+
+class OpenClawMarketingRunPipeline(BaseModel):
+    pipeline_id: str
+    include_publish: bool = False
+    confirm: bool = False  # bắt buộc True nếu include_publish
+    channels: list[str] = Field(default_factory=list)
+
+
+class OpenClawMarketingPublish(BaseModel):
+    pipeline_id: str
+    channels: list[str] = Field(default_factory=list)
+    confirm: bool = False  # bắt buộc True để đăng
+    email_to: list[str] = Field(default_factory=list)
+    subject: Optional[str] = None

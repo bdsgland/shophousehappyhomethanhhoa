@@ -41,6 +41,9 @@ import type {
   CrmStats,
   DashboardKpi,
   ImportCommitPayload,
+  ApiKey,
+  ApiKeyCreated,
+  ApiKeysResponse,
   ImportParsePreview,
   ImportResult,
   ImportWorkspaceStatus,
@@ -82,6 +85,13 @@ import type {
   ContentGenerateResponse,
   MarketingContentItem,
   CampaignSuggestResponse,
+  MarketingPipeline,
+  PipelineCreatePayload,
+  PipelineUpdatePayload,
+  PipelineRunResponse,
+  PipelineRunAllPayload,
+  PipelinePublishPayload,
+  PipelineStage,
 } from "./types";
 
 export const API_URL =
@@ -846,6 +856,25 @@ export function deleteIntegration(service: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// API KEYS — khoá truy cập API/MCP toàn quyền (/admin/api-keys)
+// ---------------------------------------------------------------------------
+
+export function listApiKeys() {
+  return apiFetch<ApiKeysResponse>("/admin/api-keys");
+}
+
+export function createApiKey(name: string, scope = "admin_full") {
+  return apiFetch<ApiKeyCreated>("/admin/api-keys", {
+    method: "POST",
+    body: { name, scope },
+  });
+}
+
+export function revokeApiKey(keyId: string) {
+  return apiFetch<ApiKey>(`/admin/api-keys/${keyId}`, { method: "DELETE" });
+}
+
 /**
  * URL điều hướng trình duyệt tới luồng Connect. Auth qua `?token=` (đúng
  * convention các endpoint cần admin trong ngữ cảnh trình duyệt, vd WS).
@@ -1370,5 +1399,75 @@ export function deleteMarketingContent(id: string) {
 export function suggestCampaigns() {
   return apiFetch<CampaignSuggestResponse>("/admin/marketing/suggest", {
     method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// MARKETING PIPELINE — dây chuyền sản xuất content AI (/admin/marketing/pipeline)
+// ---------------------------------------------------------------------------
+
+/** Danh sách pipeline (lọc kênh tuỳ chọn). */
+export function listPipelines(params?: { channel?: string }) {
+  const q = new URLSearchParams();
+  if (params?.channel) q.set("channel", params.channel);
+  const qs = q.toString();
+  return apiFetch<{ pipelines: MarketingPipeline[]; count: number }>(
+    `/admin/marketing/pipeline${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function getMarketingPipeline(id: string) {
+  return apiFetch<MarketingPipeline>(`/admin/marketing/pipeline/${id}`);
+}
+
+export function createPipeline(payload: PipelineCreatePayload) {
+  return apiFetch<MarketingPipeline>("/admin/marketing/pipeline", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updatePipeline(id: string, payload: PipelineUpdatePayload) {
+  return apiFetch<MarketingPipeline>(`/admin/marketing/pipeline/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function deletePipeline(id: string) {
+  return apiFetch<{ ok: boolean }>(`/admin/marketing/pipeline/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Sửa tay output 1 giai đoạn (research/script/content/video_script). */
+export function editPipelineStage(id: string, stage: PipelineStage, output: string) {
+  return apiFetch<MarketingPipeline>(`/admin/marketing/pipeline/${id}/stage/${stage}`, {
+    method: "PUT",
+    body: { output },
+  });
+}
+
+/** Chạy 1 giai đoạn AI. */
+export function runPipelineStage(id: string, stage: PipelineStage) {
+  return apiFetch<PipelineRunResponse>(
+    `/admin/marketing/pipeline/${id}/run-stage/${stage}`,
+    { method: "POST" },
+  );
+}
+
+/** Chạy toàn bộ dây chuyền (mặc định dừng trước publish). */
+export function runPipelineAll(id: string, payload?: PipelineRunAllPayload) {
+  return apiFetch<PipelineRunResponse>(`/admin/marketing/pipeline/${id}/run-all`, {
+    method: "POST",
+    body: payload ?? {},
+  });
+}
+
+/** Đăng nội dung pipeline lên kênh (bắt buộc confirm=true). */
+export function publishPipeline(id: string, payload: PipelinePublishPayload) {
+  return apiFetch<PipelineRunResponse>(`/admin/marketing/pipeline/${id}/publish`, {
+    method: "POST",
+    body: payload,
   });
 }

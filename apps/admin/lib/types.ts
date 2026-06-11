@@ -450,6 +450,30 @@ export interface IntegrationTestResult {
   info?: Record<string, unknown>;
 }
 
+// ---- API KEYS (khoá truy cập API/MCP toàn quyền) ----
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  scope: string;
+  prefix: string;
+  masked: string;
+  created_at: string;
+  created_by: string | null;
+  last_used_at: string | null;
+  revoked: boolean;
+  revoked_at: string | null;
+}
+
+export interface ApiKeysResponse {
+  keys: ApiKey[];
+}
+
+// Trả về khi TẠO key — kèm `plaintext` chỉ hiện 1 lần duy nhất.
+export interface ApiKeyCreated extends ApiKey {
+  plaintext: string;
+}
+
 export interface AuditEvent {
   id: string;
   event_type: string;
@@ -1491,4 +1515,98 @@ export interface CampaignSuggestResponse {
   suggestions: CampaignSuggestion[];
   used_llm: boolean;
   message?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// MARKETING PIPELINE — dây chuyền sản xuất content AI nhiều giai đoạn
+// ---------------------------------------------------------------------------
+
+export type PipelineStage =
+  | "research"
+  | "script"
+  | "content"
+  | "video_script"
+  | "publish";
+
+export type PipelineContentFormat =
+  | "toplist"
+  | "pov"
+  | "case_study"
+  | "howto"
+  | "generic";
+
+export type PipelineLanguage = "vi" | "en" | "bilingual";
+
+export type PipelineStageStatus = "pending" | "running" | "done" | "error";
+
+export interface PipelinePublishResult {
+  channel: string;
+  status: "posted" | "scheduled" | "needs_connection" | "error" | "skipped";
+  detail?: string;
+  post_id?: string;
+  message_id?: string;
+}
+
+export interface PipelineStageState {
+  status: PipelineStageStatus;
+  output?: string | null;
+  result?: {
+    channels?: string[];
+    results?: PipelinePublishResult[];
+    needs_connection?: string[];
+  } | null;
+  used_llm: boolean;
+  updated_at?: string | null;
+  error?: string | null;
+}
+
+export interface MarketingPipeline {
+  id: string;
+  name: string;
+  topic: string;
+  project?: string | null;
+  audience?: string | null;
+  content_format: PipelineContentFormat;
+  channel: CampaignChannel;
+  tone?: string | null;
+  language: PipelineLanguage;
+  campaign_id?: string | null;
+  stages: Record<PipelineStage, PipelineStageState>;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PipelineCreatePayload {
+  name: string;
+  topic: string;
+  project?: string;
+  audience?: string;
+  content_format: PipelineContentFormat;
+  channel: CampaignChannel;
+  tone?: string;
+  language: PipelineLanguage;
+  campaign_id?: string;
+}
+
+export type PipelineUpdatePayload = Partial<PipelineCreatePayload>;
+
+export interface PipelineRunResponse {
+  pipeline: MarketingPipeline;
+  ran: string[];
+  used_llm: boolean;
+  message?: string | null;
+}
+
+export interface PipelineRunAllPayload {
+  include_publish?: boolean;
+  confirm?: boolean;
+  channels?: CampaignChannel[];
+}
+
+export interface PipelinePublishPayload {
+  channels?: CampaignChannel[];
+  confirm?: boolean;
+  email_to?: string[];
+  subject?: string;
 }

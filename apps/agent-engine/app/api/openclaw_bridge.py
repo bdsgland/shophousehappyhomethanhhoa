@@ -49,6 +49,10 @@ from app.schemas.openclaw import (
     OpenClawLeadBulkAction,
     OpenClawLeadCreate,
     OpenClawLeadUpdate,
+    OpenClawMarketingContent,
+    OpenClawMarketingPublish,
+    OpenClawMarketingResearch,
+    OpenClawMarketingRunPipeline,
     OpenClawSqlQuery,
     OpenClawTelegramSend,
     OpenClawUserCreate,
@@ -787,3 +791,76 @@ def service_logs(service: str, lines: int = 100, actor: str = GodActor) -> Dict[
         501,
         "Lấy logs Railway chưa được triển khai (cần map deployment id). Dùng Railway dashboard.",
     )
+
+
+# ---------------------------------------------------------------------------
+# MARKETING PIPELINE — CEO bot điều khiển dây chuyền sản xuất content AI.
+# Tái dùng app/core/marketing_pipeline_ai + app/api/marketing_pipeline (internal).
+# Import lazy trong hàm để tránh phụ thuộc vòng khi nạp module.
+# ---------------------------------------------------------------------------
+@router.post("/marketing/research")
+def marketing_research(body: OpenClawMarketingResearch, actor: str = GodActor) -> Dict[str, Any]:
+    """ĐỌC (sinh AI, không ghi kênh): nghiên cứu nhanh 1 chủ đề marketing."""
+    from app.core import marketing_pipeline_ai as mp_ai
+
+    text, used_llm = mp_ai.research_topic(
+        body.topic, project=body.project, audience=body.audience, language=body.language
+    )
+    _audit(actor, "marketing.research", body.topic[:80], {})
+    return {"ok": True, "topic": body.topic, "research": text, "used_llm": used_llm}
+
+
+@router.post("/marketing/generate-content")
+def marketing_generate_content(body: OpenClawMarketingContent, actor: str = GodActor) -> Dict[str, Any]:
+    """ĐỌC (sinh AI, không ghi kênh): sinh nhanh 1 bài viết từ brief tự do."""
+    from app.core import marketing_pipeline_ai as mp_ai
+
+    text, used_llm = mp_ai.content_from_brief(
+        body.brief, channel=body.channel, content_format=body.content_format,
+        tone=body.tone, language=body.language, audience=body.audience,
+    )
+    _audit(actor, "marketing.generate_content", body.brief[:80], {})
+    return {"ok": True, "content": text, "used_llm": used_llm}
+
+
+@router.post("/marketing/run-pipeline")
+def marketing_run_pipeline(body: OpenClawMarketingRunPipeline, actor: str = GodActor) -> Dict[str, Any]:
+    """⚠️ Chạy dây chuyền pipeline. Mặc định DỪNG trước publish; muốn đăng phải confirm=True."""
+    from app.api import marketing_pipeline as mp
+
+    try:
+        out = mp.run_all_internal(
+            body.pipeline_id, include_publish=body.include_publish,
+            confirm=body.confirm, channels=list(body.channels),
+        )
+    except mp.PipelineNotFound:
+        raise HTTPException(404, "Không tìm thấy pipeline")
+    except mp.PipelineConfirmRequired as exc:
+        raise HTTPException(400, str(exc))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _audit(actor, "marketing.run_pipeline", body.pipeline_id,
+           {"include_publish": body.include_publish, "ran": out["ran"]})
+    return {"ok": True, "ran": out["ran"], "used_llm": out["used_llm"], "pipeline": out["pipeline"]}
+
+
+@router.post("/marketing/publish")
+def marketing_publish(body: OpenClawMarketingPublish, actor: str = GodActor) -> Dict[str, Any]:
+    """⚠️ HÀNH ĐỘNG GHI — CẦN XÁC NHẬN. Đăng nội dung pipeline lên kênh đã kết nối."""
+    from app.api import marketing_pipeline as mp
+
+    try:
+        p = mp.publish_internal(
+            body.pipeline_id, channels=list(body.channels), confirm=body.confirm,
+            email_to=list(body.email_to), subject=body.subject,
+        )
+    except mp.PipelineNotFound:
+        raise HTTPException(404, "Không tìm thấy pipeline")
+    except mp.PipelineConfirmRequired as exc:
+        raise HTTPException(400, str(exc))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    pub = (p.get("stages") or {}).get("publish") or {}
+    _audit(actor, "marketing.publish", body.pipeline_id,
+           {"channels": list(body.channels)})
+    return {"ok": True, "pipeline_id": body.pipeline_id, "result": pub.get("result")}

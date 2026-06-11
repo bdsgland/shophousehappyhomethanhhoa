@@ -5,15 +5,22 @@ import {
   BarChart3,
   Check,
   Copy,
+  FileText,
+  Film,
+  Lightbulb,
   Megaphone,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
+  Rocket,
+  Send,
   Sparkles,
   Trash2,
   Wand2,
+  Workflow,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -27,12 +34,20 @@ import {
 
 import {
   createCampaign,
+  createPipeline,
   deleteCampaign,
   deleteMarketingContent,
+  deletePipeline,
+  editPipelineStage,
   generateMarketingContent,
   getMarketingOverview,
   listCampaigns,
+  listIntegrations,
   listMarketingContent,
+  listPipelines,
+  publishPipeline,
+  runPipelineAll,
+  runPipelineStage,
   suggestCampaigns,
   updateCampaign,
   updateCampaignSpend,
@@ -45,6 +60,12 @@ import type {
   MarketingCampaign,
   MarketingContentLength,
   MarketingContentType,
+  MarketingPipeline,
+  PipelineContentFormat,
+  PipelineCreatePayload,
+  PipelineLanguage,
+  PipelineStage,
+  PipelineStageState,
 } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/kpi/StatCard";
@@ -125,12 +146,13 @@ function fmtPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-type TabKey = "overview" | "campaigns" | "content";
+type TabKey = "overview" | "campaigns" | "content" | "pipeline";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "overview", label: "Tổng quan", icon: <BarChart3 className="h-4 w-4" /> },
   { key: "campaigns", label: "Chiến dịch", icon: <Megaphone className="h-4 w-4" /> },
   { key: "content", label: "Sản xuất nội dung (AI)", icon: <Sparkles className="h-4 w-4" /> },
+  { key: "pipeline", label: "Marketing Pipeline", icon: <Workflow className="h-4 w-4" /> },
 ];
 
 // ===========================================================================
@@ -146,6 +168,7 @@ export default function MarketingPage() {
       qc.invalidateQueries({ queryKey: ["marketing-overview"] }),
       qc.invalidateQueries({ queryKey: ["marketing-campaigns"] }),
       qc.invalidateQueries({ queryKey: ["marketing-content"] }),
+      qc.invalidateQueries({ queryKey: ["marketing-pipelines"] }),
     ]);
   }
 
@@ -167,6 +190,7 @@ export default function MarketingPage() {
       {tab === "overview" && <OverviewTab />}
       {tab === "campaigns" && <CampaignsTab />}
       {tab === "content" && <ContentTab />}
+      {tab === "pipeline" && <PipelineTab />}
     </div>
   );
 }
@@ -961,5 +985,668 @@ function VariantCard({ index, text }: { index: number; text: string }) {
       </div>
       <p className="whitespace-pre-line text-sm leading-relaxed">{text}</p>
     </div>
+  );
+}
+
+// ===========================================================================
+// Tab MARKETING PIPELINE — dây chuyền sản xuất content AI nhiều giai đoạn
+// ===========================================================================
+
+const FORMAT_LABEL: Record<PipelineContentFormat, string> = {
+  toplist: "Toplist",
+  pov: "POV",
+  case_study: "Case Study",
+  howto: "How-to",
+  generic: "Tiêu chuẩn",
+};
+
+const LANGUAGE_LABEL: Record<PipelineLanguage, string> = {
+  vi: "Tiếng Việt",
+  en: "Tiếng Anh",
+  bilingual: "Song ngữ Việt-Anh",
+};
+
+const AI_STAGE_ORDER: PipelineStage[] = ["research", "script", "content", "video_script"];
+
+const STAGE_LABEL: Record<PipelineStage, string> = {
+  research: "Research — Ý tưởng & Insight",
+  script: "Kịch bản / Dàn ý",
+  content: "Nội dung hoàn chỉnh",
+  video_script: "Kịch bản video ngắn",
+  publish: "Đăng kênh",
+};
+
+const STAGE_ICON: Record<PipelineStage, React.ReactNode> = {
+  research: <Lightbulb className="h-4 w-4" />,
+  script: <FileText className="h-4 w-4" />,
+  content: <Sparkles className="h-4 w-4" />,
+  video_script: <Film className="h-4 w-4" />,
+  publish: <Send className="h-4 w-4" />,
+};
+
+const STAGE_STATUS: Record<
+  PipelineStageState["status"],
+  { label: string; variant: "default" | "success" | "warning" | "danger" | "muted" }
+> = {
+  pending: { label: "Chưa chạy", variant: "muted" },
+  running: { label: "Đang chạy", variant: "warning" },
+  done: { label: "Hoàn tất", variant: "success" },
+  error: { label: "Lỗi", variant: "danger" },
+};
+
+// Map kênh marketing → key dịch vụ trong Trung tâm tích hợp (để báo đã kết nối).
+function channelIntegrationKeys(channel: CampaignChannel): string[] {
+  if (channel === "facebook") return ["facebook"];
+  if (channel === "zalo") return ["zalo"];
+  if (channel === "email") return ["email_google", "email_smtp"];
+  return [];
+}
+
+interface PipelineForm {
+  name: string;
+  topic: string;
+  project: string;
+  audience: string;
+  content_format: PipelineContentFormat;
+  channel: CampaignChannel;
+  tone: string;
+  language: PipelineLanguage;
+}
+
+const EMPTY_PIPELINE_FORM: PipelineForm = {
+  name: "",
+  topic: "",
+  project: "",
+  audience: "",
+  content_format: "generic",
+  channel: "facebook",
+  tone: "",
+  language: "vi",
+};
+
+function PipelineTab() {
+  const qc = useQueryClient();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const listQ = useQuery({
+    queryKey: ["marketing-pipelines"],
+    queryFn: () => listPipelines(),
+  });
+
+  const pipelines = listQ.data?.pipelines ?? [];
+  const selected =
+    pipelines.find((p) => p.id === selectedId) ?? pipelines[0] ?? null;
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => deletePipeline(id),
+    onSuccess: () => {
+      setSelectedId(null);
+      qc.invalidateQueries({ queryKey: ["marketing-pipelines"] });
+    },
+  });
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Cột danh sách pipeline */}
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Tạo pipeline
+          </Button>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Workflow className="h-4 w-4 text-primary" />
+              Dây chuyền content
+            </CardTitle>
+            <CardDescription>
+              Research → Kịch bản → Nội dung → Video → Đăng.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {listQ.isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
+            ) : pipelines.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Chưa có pipeline. Bấm “Tạo pipeline”.
+              </p>
+            ) : (
+              pipelines.map((p) => {
+                const isSel = selected?.id === p.id;
+                const doneCount = AI_STAGE_ORDER.filter(
+                  (st) => p.stages[st]?.status === "done",
+                ).length;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedId(p.id)}
+                    className={
+                      "w-full rounded-md border p-3 text-left transition-colors " +
+                      (isSel
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/40")
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="line-clamp-1 text-sm font-medium">{p.name}</span>
+                      <Badge variant="muted">{CHANNEL_LABEL[p.channel]}</Badge>
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{p.topic}</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <Badge variant="default">{FORMAT_LABEL[p.content_format]}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {doneCount}/{AI_STAGE_ORDER.length} giai đoạn
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cột stepper giai đoạn */}
+      <div className="space-y-4 lg:col-span-2">
+        {selected ? (
+          <PipelineStepper
+            key={selected.id}
+            pipeline={selected}
+            onDelete={() => {
+              if (window.confirm(`Xoá pipeline "${selected.name}"?`)) delMut.mutate(selected.id);
+            }}
+          />
+        ) : (
+          <Card>
+            <CardContent className="py-16 text-center text-sm text-muted-foreground">
+              Chọn hoặc tạo một pipeline để bắt đầu dây chuyền sản xuất nội dung.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <CreatePipelineDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(p) => {
+          setSelectedId(p.id);
+          setCreateOpen(false);
+          qc.invalidateQueries({ queryKey: ["marketing-pipelines"] });
+        }}
+      />
+    </div>
+  );
+}
+
+function PipelineStepper({
+  pipeline,
+  onDelete,
+}: {
+  pipeline: MarketingPipeline;
+  onDelete: () => void;
+}) {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ["marketing-pipelines"] });
+
+  const runAllMut = useMutation({
+    mutationFn: () => runPipelineAll(pipeline.id, {}),
+    onSuccess: refresh,
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <CardTitle>{pipeline.name}</CardTitle>
+            <CardDescription>
+              {pipeline.topic}
+              {pipeline.project ? ` · ${pipeline.project}` : ""}
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              onClick={() => runAllMut.mutate()}
+              disabled={runAllMut.isPending}
+              title="Chạy lần lượt Research → Video script (dừng trước Đăng)"
+            >
+              <Rocket className={runAllMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+              {runAllMut.isPending ? "Đang chạy…" : "Chạy toàn bộ"}
+            </Button>
+            <Button variant="ghost" size="icon" title="Xoá pipeline" onClick={onDelete}>
+              <Trash2 className="h-4 w-4 text-danger" />
+            </Button>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <Badge variant="muted">{CHANNEL_LABEL[pipeline.channel]}</Badge>
+          <Badge variant="default">{FORMAT_LABEL[pipeline.content_format]}</Badge>
+          <Badge variant="muted">{LANGUAGE_LABEL[pipeline.language]}</Badge>
+          {pipeline.tone && <Badge variant="muted">{pipeline.tone}</Badge>}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {runAllMut.isError && (
+          <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+            Lỗi: {(runAllMut.error as Error).message}
+          </div>
+        )}
+        {AI_STAGE_ORDER.map((stage, idx) => (
+          <StageCard
+            key={stage}
+            pipeline={pipeline}
+            stage={stage}
+            index={idx}
+            prevDone={
+              idx === 0 || pipeline.stages[AI_STAGE_ORDER[idx - 1]]?.status === "done"
+            }
+          />
+        ))}
+        <PublishCard pipeline={pipeline} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function StageCard({
+  pipeline,
+  stage,
+  index,
+  prevDone,
+}: {
+  pipeline: MarketingPipeline;
+  stage: PipelineStage;
+  index: number;
+  prevDone: boolean;
+}) {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ["marketing-pipelines"] });
+  const st = pipeline.stages[stage];
+  const serverOutput = st?.output ?? "";
+  const [draft, setDraft] = useState<string>(serverOutput);
+  const [dirty, setDirty] = useState(false);
+
+  // Đồng bộ lại draft khi output từ server đổi (và người dùng chưa sửa dở).
+  useEffect(() => {
+    if (!dirty) setDraft(serverOutput);
+  }, [serverOutput, dirty]);
+
+  const runMut = useMutation({
+    mutationFn: () => runPipelineStage(pipeline.id, stage),
+    onSuccess: () => {
+      setDirty(false);
+      refresh();
+    },
+  });
+
+  const saveMut = useMutation({
+    mutationFn: () => editPipelineStage(pipeline.id, stage, draft),
+    onSuccess: () => {
+      setDirty(false);
+      refresh();
+    },
+  });
+
+  const status = st?.status ?? "pending";
+  const meta = STAGE_STATUS[status];
+
+  return (
+    <div className="rounded-md border border-border p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+            {index + 1}
+          </span>
+          {STAGE_ICON[stage]}
+          <span className="text-sm font-medium">{STAGE_LABEL[stage]}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {!st?.used_llm && status === "done" && <Badge variant="warning">mẫu</Badge>}
+          <Badge variant={meta.variant}>{meta.label}</Badge>
+        </div>
+      </div>
+
+      {!prevDone && status === "pending" && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Hoàn tất giai đoạn trước để có ngữ cảnh tốt hơn (vẫn có thể chạy ngay).
+        </p>
+      )}
+
+      {st?.error && (
+        <div className="mb-2 rounded-md bg-danger/10 p-2 text-xs text-danger">{st.error}</div>
+      )}
+
+      {(status === "done" || draft) && (
+        <Textarea
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setDirty(true);
+          }}
+          className="min-h-[120px] text-sm"
+          placeholder="Output của giai đoạn sẽ hiển thị ở đây…"
+        />
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant={status === "done" ? "outline" : "default"}
+          onClick={() => runMut.mutate()}
+          disabled={runMut.isPending}
+        >
+          <Play className={runMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+          {runMut.isPending ? "Đang chạy…" : status === "done" ? "Chạy lại AI" : "Chạy AI"}
+        </Button>
+        {dirty && (
+          <Button size="sm" variant="outline" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+            <Check className="h-4 w-4" />
+            Lưu chỉnh sửa
+          </Button>
+        )}
+        {st?.used_llm === false && status === "done" && (
+          <span className="text-xs text-muted-foreground">Đang dùng mẫu (chưa bật AI).</span>
+        )}
+      </div>
+
+      {runMut.isError && (
+        <div className="mt-2 rounded-md bg-danger/10 p-2 text-xs text-danger">
+          Lỗi: {(runMut.error as Error).message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublishCard({ pipeline }: { pipeline: MarketingPipeline }) {
+  const qc = useQueryClient();
+  const [channels, setChannels] = useState<CampaignChannel[]>([pipeline.channel]);
+  const [emailTo, setEmailTo] = useState("");
+  const [confirm, setConfirm] = useState(false);
+
+  const integrationsQ = useQuery({
+    queryKey: ["integrations"],
+    queryFn: listIntegrations,
+  });
+
+  function isChannelConnected(ch: CampaignChannel): boolean {
+    const keys = channelIntegrationKeys(ch);
+    if (keys.length === 0) return false;
+    const svcs = integrationsQ.data?.services ?? [];
+    return keys.some((k) => svcs.find((s) => s.key === k)?.connected);
+  }
+
+  const publishMut = useMutation({
+    mutationFn: () =>
+      publishPipeline(pipeline.id, {
+        channels,
+        confirm: true,
+        email_to: emailTo
+          .split(/[,;\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+        subject: pipeline.name,
+      }),
+    onSuccess: () => {
+      setConfirm(false);
+      qc.invalidateQueries({ queryKey: ["marketing-pipelines"] });
+    },
+  });
+
+  const st = pipeline.stages.publish;
+  const contentReady = pipeline.stages.content?.status === "done";
+  const results = st?.result?.results ?? [];
+
+  function toggle(ch: CampaignChannel) {
+    setChannels((cur) =>
+      cur.includes(ch) ? cur.filter((c) => c !== ch) : [...cur, ch],
+    );
+  }
+
+  const PUBLISH_CHANNELS: CampaignChannel[] = ["facebook", "zalo", "email"];
+
+  return (
+    <div className="rounded-md border border-dashed border-border p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+            5
+          </span>
+          {STAGE_ICON.publish}
+          <span className="text-sm font-medium">{STAGE_LABEL.publish}</span>
+        </div>
+        <Badge variant={STAGE_STATUS[st?.status ?? "pending"].variant}>
+          {STAGE_STATUS[st?.status ?? "pending"].label}
+        </Badge>
+      </div>
+
+      {!contentReady && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Cần hoàn tất giai đoạn “Nội dung” trước khi đăng.
+        </p>
+      )}
+
+      <div className="mb-3 flex flex-wrap gap-2">
+        {PUBLISH_CHANNELS.map((ch) => {
+          const connected = isChannelConnected(ch);
+          const active = channels.includes(ch);
+          return (
+            <button
+              key={ch}
+              onClick={() => toggle(ch)}
+              className={
+                "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors " +
+                (active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40")
+              }
+            >
+              {active && <Check className="h-3.5 w-3.5 text-primary" />}
+              {CHANNEL_LABEL[ch]}
+              {connected ? (
+                <Badge variant="success">đã kết nối</Badge>
+              ) : (
+                <Badge variant="warning">chưa kết nối</Badge>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {channels.includes("email") && (
+        <Field label="Người nhận email (phân tách bằng dấu phẩy)">
+          <Input
+            value={emailTo}
+            onChange={(e) => setEmailTo(e.target.value)}
+            placeholder="a@example.com, b@example.com"
+          />
+        </Field>
+      )}
+
+      <label className="mt-2 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={confirm}
+          onChange={(e) => setConfirm(e.target.checked)}
+        />
+        Tôi xác nhận đăng/đẩy nội dung lên kênh đã chọn.
+      </label>
+
+      <div className="mt-2">
+        <Button
+          size="sm"
+          onClick={() => publishMut.mutate()}
+          disabled={!confirm || !contentReady || channels.length === 0 || publishMut.isPending}
+        >
+          <Send className={publishMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+          {publishMut.isPending ? "Đang đăng…" : "Đăng / Lên lịch"}
+        </Button>
+      </div>
+
+      {publishMut.isError && (
+        <div className="mt-2 rounded-md bg-danger/10 p-2 text-xs text-danger">
+          Lỗi: {(publishMut.error as Error).message}
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {results.map((r, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-medium">{CHANNEL_LABEL[r.channel as CampaignChannel] ?? r.channel}</span>
+              <span className="text-muted-foreground">{r.detail}</span>
+              <Badge
+                variant={
+                  r.status === "posted"
+                    ? "success"
+                    : r.status === "scheduled"
+                    ? "default"
+                    : r.status === "needs_connection"
+                    ? "warning"
+                    : "danger"
+                }
+              >
+                {r.status}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreatePipelineDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (p: MarketingPipeline) => void;
+}) {
+  const [form, setForm] = useState<PipelineForm>(EMPTY_PIPELINE_FORM);
+  const [error, setError] = useState<string | null>(null);
+
+  const createMut = useMutation({
+    mutationFn: () => {
+      const payload: PipelineCreatePayload = {
+        name: form.name.trim(),
+        topic: form.topic.trim(),
+        project: form.project.trim() || undefined,
+        audience: form.audience.trim() || undefined,
+        content_format: form.content_format,
+        channel: form.channel,
+        tone: form.tone.trim() || undefined,
+        language: form.language,
+      };
+      return createPipeline(payload);
+    },
+    onSuccess: (p) => {
+      setForm(EMPTY_PIPELINE_FORM);
+      onCreated(p);
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogHeader title="Tạo pipeline mới" onClose={onClose} />
+      <DialogBody>
+        {error && <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">{error}</div>}
+        <Field label="Tên pipeline">
+          <Input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="VD: ELC tháng 6 — Toplist căn hộ view hồ"
+          />
+        </Field>
+        <Field label="Chủ đề / từ khoá">
+          <Textarea
+            value={form.topic}
+            onChange={(e) => setForm({ ...form, topic: e.target.value })}
+            placeholder="VD: 5 lý do nên chọn căn hộ Eurowindow Light City để đầu tư"
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Dự án (tuỳ chọn)">
+            <Input
+              value={form.project}
+              onChange={(e) => setForm({ ...form, project: e.target.value })}
+              placeholder="VD: Eurowindow Light City"
+            />
+          </Field>
+          <Field label="Đối tượng">
+            <Input
+              value={form.audience}
+              onChange={(e) => setForm({ ...form, audience: e.target.value })}
+              placeholder="VD: Nhà đầu tư 30-45 tuổi"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Định dạng">
+            <Select
+              value={form.content_format}
+              onChange={(e) =>
+                setForm({ ...form, content_format: e.target.value as PipelineContentFormat })
+              }
+            >
+              {(Object.keys(FORMAT_LABEL) as PipelineContentFormat[]).map((f) => (
+                <option key={f} value={f}>
+                  {FORMAT_LABEL[f]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Kênh chính">
+            <Select
+              value={form.channel}
+              onChange={(e) => setForm({ ...form, channel: e.target.value as CampaignChannel })}
+            >
+              {CHANNELS.map((ch) => (
+                <option key={ch} value={ch}>
+                  {CHANNEL_LABEL[ch]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ngôn ngữ">
+            <Select
+              value={form.language}
+              onChange={(e) => setForm({ ...form, language: e.target.value as PipelineLanguage })}
+            >
+              {(Object.keys(LANGUAGE_LABEL) as PipelineLanguage[]).map((l) => (
+                <option key={l} value={l}>
+                  {LANGUAGE_LABEL[l]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tông giọng">
+            <Input
+              value={form.tone}
+              onChange={(e) => setForm({ ...form, tone: e.target.value })}
+              placeholder="VD: sang trọng, truyền cảm hứng"
+            />
+          </Field>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Huỷ
+        </Button>
+        <Button
+          onClick={() => createMut.mutate()}
+          disabled={createMut.isPending || !form.name.trim() || form.topic.trim().length < 2}
+        >
+          {createMut.isPending ? "Đang tạo…" : "Tạo pipeline"}
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }

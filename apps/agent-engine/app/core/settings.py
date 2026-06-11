@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     # chưa có dữ liệu deal thật. 0 → doanh thu/ROI hiển thị 0 (không bịa số).
     marketing_revenue_per_customer: float = 0
 
+    # ----- MARKETING PIPELINE — dây chuyền sản xuất content AI nhiều giai đoạn -----
+    # Store JSON pipeline + output từng giai đoạn (resolve giống marketing_store).
+    marketing_pipeline_file: str = "data/_runtime/marketing_pipelines.json"
+    # Số pipeline lưu tối đa (rotate cũ nhất khi vượt) — chặn phình file.
+    marketing_pipeline_keep: int = 200
+    # max_tokens mỗi giai đoạn AI (research/script/content/video_script) — chặn chi phí.
+    marketing_pipeline_max_tokens: int = 1800
+
     # Embedding
     voyage_api_key: str = ""
     openai_api_key: str = ""

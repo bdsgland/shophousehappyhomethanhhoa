@@ -38,8 +38,26 @@ import anyio
 from fastapi import HTTPException
 
 from app.api import openclaw_bridge as bridge
+from app.core import api_keys_store
 from app.core.settings import settings
-from app.schemas.openclaw import OpenClawAnnounce, OpenClawTelegramSend
+from app.schemas.openclaw import (
+    OpenClawAnnounce,
+    OpenClawAssignHot,
+    OpenClawEmailSend,
+    OpenClawInventoryBulkUpdate,
+    OpenClawInventoryUpdate,
+    OpenClawLeadBulkAction,
+    OpenClawLeadCreate,
+    OpenClawLeadUpdate,
+    OpenClawMarketingContent,
+    OpenClawMarketingPublish,
+    OpenClawMarketingResearch,
+    OpenClawMarketingRunPipeline,
+    OpenClawSqlQuery,
+    OpenClawTelegramSend,
+    OpenClawUserCreate,
+    OpenClawUserUpdate,
+)
 
 log = logging.getLogger("openclaw.mcp")
 
@@ -116,6 +134,124 @@ def _h_announce(a: Dict[str, Any]) -> Dict[str, Any]:
         user_ids=a.get("user_ids") or [],
     )
     return bridge.announce(body=body, actor=_ACTOR)
+
+
+def _h_marketing_research(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawMarketingResearch(
+        topic=a["topic"], project=a.get("project"),
+        audience=a.get("audience"), language=a.get("language", "vi"),
+    )
+    return bridge.marketing_research(body=body, actor=_ACTOR)
+
+
+def _h_marketing_generate_content(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawMarketingContent(
+        brief=a["brief"], channel=a.get("channel", "facebook"),
+        content_format=a.get("content_format", "generic"),
+        tone=a.get("tone"), language=a.get("language", "vi"), audience=a.get("audience"),
+    )
+    return bridge.marketing_generate_content(body=body, actor=_ACTOR)
+
+
+def _h_marketing_run_pipeline(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawMarketingRunPipeline(
+        pipeline_id=a["pipeline_id"],
+        include_publish=bool(a.get("include_publish", False)),
+        confirm=bool(a.get("confirm", False)),
+        channels=a.get("channels") or [],
+    )
+    return bridge.marketing_run_pipeline(body=body, actor=_ACTOR)
+
+
+def _h_marketing_publish(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawMarketingPublish(
+        pipeline_id=a["pipeline_id"],
+        channels=a.get("channels") or [],
+        confirm=bool(a.get("confirm", False)),
+        email_to=a.get("email_to") or [],
+        subject=a.get("subject"),
+    )
+    return bridge.marketing_publish(body=body, actor=_ACTOR)
+
+
+# ----------------------------- CRM (WRITE) -----------------------------
+def _h_create_lead(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawLeadCreate(
+        name=a["name"], phone=a["phone"], email=a.get("email"),
+        note=a.get("note"), source=a.get("source", "openclaw"),
+        status=a.get("status", "cold"), assigned_sale_id=a.get("assigned_sale_id"),
+    )
+    return bridge.create_lead(body=body, actor=_ACTOR)
+
+
+def _h_update_lead(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawLeadUpdate(
+        name=a.get("name"), phone=a.get("phone"), email=a.get("email"),
+        status=a.get("status"), note=a.get("note"),
+        assigned_sale_id=a.get("assigned_sale_id"),
+    )
+    return bridge.update_lead(lead_id=a["lead_id"], body=body, actor=_ACTOR)
+
+
+def _h_assign_hot_lead(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawAssignHot(sale_id=a["sale_id"])
+    return bridge.assign_hot(lead_id=a["lead_id"], body=body, actor=_ACTOR)
+
+
+def _h_lead_bulk_action(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawLeadBulkAction(
+        lead_ids=a.get("lead_ids") or [], action=a["action"],
+        sale_id=a.get("sale_id"), status=a.get("status"),
+    )
+    return bridge.lead_bulk_action(body=body, actor=_ACTOR)
+
+
+# --------------------------- INVENTORY (WRITE) ---------------------------
+def _h_update_inventory(a: Dict[str, Any]) -> Dict[str, Any]:
+    changes = {k: v for k, v in a.items() if k != "unit_id"}
+    body = OpenClawInventoryUpdate(**changes)
+    return bridge.update_inventory(unit_id=a["unit_id"], body=body, actor=_ACTOR)
+
+
+def _h_bulk_update_inventory(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawInventoryBulkUpdate(
+        unit_ids=a.get("unit_ids") or [],
+        changes=OpenClawInventoryUpdate(**(a.get("changes") or {})),
+    )
+    return bridge.bulk_update_inventory(body=body, actor=_ACTOR)
+
+
+# ----------------------------- USERS (WRITE) -----------------------------
+def _h_create_user(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawUserCreate(
+        email=a["email"], full_name=a["full_name"], role=a.get("role", "sale"),
+        password=a.get("password"), phone=a.get("phone"),
+        region=a.get("region"), upline_email=a.get("upline_email"),
+    )
+    return bridge.create_user(body=body, actor=_ACTOR)
+
+
+def _h_update_user(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawUserUpdate(
+        email=a.get("email"), full_name=a.get("full_name"), role=a.get("role"),
+        is_active=a.get("is_active"), phone=a.get("phone"),
+        region=a.get("region"), upline_email=a.get("upline_email"),
+        password=a.get("password"),
+    )
+    return bridge.update_user(user_id=a["user_id"], body=body, actor=_ACTOR)
+
+
+# ---------------------- COMMUNICATION / DB (WRITE/READ) ----------------------
+def _h_email_send(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawEmailSend(
+        to=a["to"], subject=a["subject"], body=a["body"], html=bool(a.get("html", False)),
+    )
+    return bridge.email_send(body=body, actor=_ACTOR)
+
+
+def _h_db_query(a: Dict[str, Any]) -> Dict[str, Any]:
+    body = OpenClawSqlQuery(sql=a["sql"], max_rows=int(a.get("max_rows", 1000)))
+    return bridge.db_query(body=body, actor=_ACTOR)
 
 
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
@@ -250,6 +386,268 @@ TOOLS: List[Dict[str, Any]] = [
         "handler": _h_announce,
         "write": True,
     },
+    # -------------------- MARKETING PIPELINE --------------------
+    {
+        "name": "marketing_research",
+        "description": "Nghiên cứu nhanh 1 chủ đề marketing bất động sản bằng AI (góc nhìn/insight/từ khoá). Tham số: topic (bắt buộc), project, audience, language (vi|en|bilingual). Sinh nội dung AI (tốn token) nhưng KHÔNG đăng kênh.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Chủ đề/từ khoá cần nghiên cứu"},
+                "project": {"type": "string", "description": "Dự án ELC (tuỳ chọn)"},
+                "audience": {"type": "string", "description": "Đối tượng khách hàng (tuỳ chọn)"},
+                "language": {"type": "string", "enum": ["vi", "en", "bilingual"], "default": "vi"},
+            },
+            "required": ["topic"],
+            "additionalProperties": False,
+        },
+        "handler": _h_marketing_research,
+        "write": False,
+    },
+    {
+        "name": "marketing_generate_content",
+        "description": "Sinh nhanh 1 bài viết marketing hoàn chỉnh từ brief tự do bằng AI. Tham số: brief (bắt buộc), channel, content_format (toplist|pov|case_study|howto|generic), tone, language, audience. KHÔNG đăng kênh.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "brief": {"type": "string", "description": "Mô tả/brief nội dung cần viết"},
+                "channel": {"type": "string", "enum": ["facebook", "zalo", "google", "email", "tiktok", "other"], "default": "facebook"},
+                "content_format": {"type": "string", "enum": ["toplist", "pov", "case_study", "howto", "generic"], "default": "generic"},
+                "tone": {"type": "string", "description": "Tông giọng (tuỳ chọn)"},
+                "language": {"type": "string", "enum": ["vi", "en", "bilingual"], "default": "vi"},
+                "audience": {"type": "string", "description": "Đối tượng (tuỳ chọn)"},
+            },
+            "required": ["brief"],
+            "additionalProperties": False,
+        },
+        "handler": _h_marketing_generate_content,
+        "write": False,
+    },
+    {
+        "name": "marketing_run_pipeline",
+        "description": "Chạy dây chuyền pipeline marketing (research→script→content→video_script) theo pipeline_id. Mặc định DỪNG trước publish. Muốn đăng luôn: include_publish=true + confirm=true + channels. ⚠️ Khi include_publish=true là HÀNH ĐỘNG GHI — cần xác nhận.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pipeline_id": {"type": "string", "description": "ID pipeline đã tạo"},
+                "include_publish": {"type": "boolean", "default": False, "description": "Chạy kèm đăng kênh"},
+                "confirm": {"type": "boolean", "default": False, "description": "Bắt buộc true nếu include_publish"},
+                "channels": {"type": "array", "items": {"type": "string"}, "description": "Kênh đăng (khi include_publish)"},
+            },
+            "required": ["pipeline_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_marketing_run_pipeline,
+        "write": True,
+    },
+    {
+        "name": "marketing_publish",
+        "description": "⚠️ HÀNH ĐỘNG GHI — CẦN XÁC NHẬN. Đăng nội dung (giai đoạn content) của pipeline lên kênh đã kết nối (facebook/zalo/email). BẮT BUỘC confirm=true. Kênh chưa kết nối sẽ báo cần kết nối, không crash. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pipeline_id": {"type": "string", "description": "ID pipeline cần đăng"},
+                "channels": {"type": "array", "items": {"type": "string"}, "description": "Kênh đăng; trống = kênh mặc định của pipeline"},
+                "confirm": {"type": "boolean", "default": False, "description": "Bắt buộc true để đăng"},
+                "email_to": {"type": "array", "items": {"type": "string"}, "description": "Người nhận khi channel=email"},
+                "subject": {"type": "string", "description": "Tiêu đề email (tuỳ chọn)"},
+            },
+            "required": ["pipeline_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_marketing_publish,
+        "write": True,
+    },
+    # -------------------- CRM (WRITE) --------------------
+    {
+        "name": "create_lead",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Tạo lead (khách tiềm năng) mới trong CRM. Tham số: name + phone (bắt buộc), email, note, source, status (cold/warm/hot...), assigned_sale_id. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Tên khách"},
+                "phone": {"type": "string", "description": "Số điện thoại"},
+                "email": {"type": "string", "description": "Email (tuỳ chọn)"},
+                "note": {"type": "string", "description": "Ghi chú (tuỳ chọn)"},
+                "source": {"type": "string", "default": "openclaw"},
+                "status": {"type": "string", "default": "cold"},
+                "assigned_sale_id": {"type": "string", "description": "Gán cho sale (tuỳ chọn)"},
+            },
+            "required": ["name", "phone"],
+            "additionalProperties": False,
+        },
+        "handler": _h_create_lead,
+        "write": True,
+    },
+    {
+        "name": "update_lead",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Cập nhật thông tin 1 lead theo lead_id. Chỉ field nào gửi mới đổi: name, phone, email, status, note, assigned_sale_id. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_id": {"type": "string", "description": "ID lead cần sửa"},
+                "name": {"type": "string"},
+                "phone": {"type": "string"},
+                "email": {"type": "string"},
+                "status": {"type": "string"},
+                "note": {"type": "string"},
+                "assigned_sale_id": {"type": "string"},
+            },
+            "required": ["lead_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_update_lead,
+        "write": True,
+    },
+    {
+        "name": "assign_hot_lead",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Đánh dấu 1 lead là HOT và gán cho sale (sale_id). Dùng khi CEO muốn chuyển ngay 1 khách nóng cho sale phụ trách. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_id": {"type": "string", "description": "ID lead"},
+                "sale_id": {"type": "string", "description": "ID sale nhận lead"},
+            },
+            "required": ["lead_id", "sale_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_assign_hot_lead,
+        "write": True,
+    },
+    {
+        "name": "lead_bulk_action",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Thao tác hàng loạt trên nhiều lead. action: assign (cần sale_id) | mark_hot | set_status (cần status) | soft_delete. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_ids": {"type": "array", "items": {"type": "string"}},
+                "action": {"type": "string", "enum": ["assign", "mark_hot", "set_status", "soft_delete"]},
+                "sale_id": {"type": "string", "description": "Khi action=assign"},
+                "status": {"type": "string", "description": "Khi action=set_status"},
+            },
+            "required": ["lead_ids", "action"],
+            "additionalProperties": False,
+        },
+        "handler": _h_lead_bulk_action,
+        "write": True,
+    },
+    # -------------------- BẢNG HÀNG / INVENTORY (WRITE) --------------------
+    {
+        "name": "update_inventory",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Cập nhật 1 căn (unit) trong bảng hàng theo unit_id. Field tuỳ chọn: trang_thai, gia_tri, gia_min, gia_max, dien_tich, mat_tien, phan_khu, loai, huong, view, notes. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "unit_id": {"type": "string", "description": "ID căn cần sửa"},
+                "trang_thai": {"type": "string", "description": "Trạng thái (còn/giữ/đã bán...)"},
+                "gia_tri": {"type": "number"},
+                "gia_min": {"type": "number"},
+                "gia_max": {"type": "number"},
+                "dien_tich": {"type": "number"},
+                "mat_tien": {"type": "number"},
+                "phan_khu": {"type": "string"},
+                "loai": {"type": "string"},
+                "huong": {"type": "string"},
+                "view": {"type": "string"},
+                "notes": {"type": "string"},
+            },
+            "required": ["unit_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_update_inventory,
+        "write": True,
+    },
+    {
+        "name": "bulk_update_inventory",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Cập nhật cùng 1 bộ thay đổi cho nhiều căn (unit_ids). `changes` là object giống update_inventory (trang_thai, gia_tri...). Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "unit_ids": {"type": "array", "items": {"type": "string"}},
+                "changes": {"type": "object", "description": "Bộ field cần đổi (như update_inventory)"},
+            },
+            "required": ["unit_ids", "changes"],
+            "additionalProperties": False,
+        },
+        "handler": _h_bulk_update_inventory,
+        "write": True,
+    },
+    # -------------------- NGƯỜI DÙNG / NHÂN SỰ (WRITE) --------------------
+    {
+        "name": "create_user",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Tạo tài khoản người dùng (client/sale/admin). password trống → tự sinh và TRẢ VỀ 1 LẦN trong kết quả. Tham số: email + full_name (bắt buộc), role, phone, region, upline_email. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "email": {"type": "string"},
+                "full_name": {"type": "string"},
+                "role": {"type": "string", "enum": ["client", "sale", "admin"], "default": "sale"},
+                "password": {"type": "string", "description": "Trống = tự sinh"},
+                "phone": {"type": "string"},
+                "region": {"type": "string"},
+                "upline_email": {"type": "string"},
+            },
+            "required": ["email", "full_name"],
+            "additionalProperties": False,
+        },
+        "handler": _h_create_user,
+        "write": True,
+    },
+    {
+        "name": "update_user",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Cập nhật người dùng theo user_id. Field tuỳ chọn: email, full_name, role, is_active (khoá/mở), phone, region, upline_email, password (đặt lại). Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string"},
+                "email": {"type": "string"},
+                "full_name": {"type": "string"},
+                "role": {"type": "string", "enum": ["client", "sale", "admin"]},
+                "is_active": {"type": "boolean"},
+                "phone": {"type": "string"},
+                "region": {"type": "string"},
+                "upline_email": {"type": "string"},
+                "password": {"type": "string"},
+            },
+            "required": ["user_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_update_user,
+        "write": True,
+    },
+    # -------------------- GỬI LỆNH / TRUY VẤN --------------------
+    {
+        "name": "send_email",
+        "description": "⚠️ HÀNH ĐỘNG GHI. Gửi email tới danh sách `to`. Tham số: to (mảng email, bắt buộc), subject, body, html (mặc định false). Thiếu cấu hình SMTP/Gmail → trả lỗi, KHÔNG crash. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "array", "items": {"type": "string"}, "description": "Người nhận"},
+                "subject": {"type": "string"},
+                "body": {"type": "string"},
+                "html": {"type": "boolean", "default": False},
+            },
+            "required": ["to", "subject", "body"],
+            "additionalProperties": False,
+        },
+        "handler": _h_email_send,
+        "write": True,
+    },
+    {
+        "name": "db_query",
+        "description": "ĐỌC dữ liệu bằng câu lệnh SQL CHỈ-ĐỌC (SELECT). Chặn mọi lệnh ghi. Tham số: sql (bắt buộc), max_rows (1..1000, mặc định 1000). Cần DATABASE_URL; chưa cấu hình → trả lỗi 503. Dùng khi cần truy vấn linh hoạt ngoài các tool có sẵn.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sql": {"type": "string", "description": "Câu SELECT (chỉ đọc)"},
+                "max_rows": {"type": "integer", "minimum": 1, "maximum": 1000, "default": 1000},
+            },
+            "required": ["sql"],
+            "additionalProperties": False,
+        },
+        "handler": _h_db_query,
+        "write": False,
+    },
 ]
 
 _TOOLS_BY_NAME: Dict[str, Dict[str, Any]] = {t["name"]: t for t in TOOLS}
@@ -263,12 +661,36 @@ def _expected_token() -> str:
 
 
 def _check_auth(headers: Dict[str, str]) -> bool:
+    """Xác thực MCP. Chấp nhận:
+
+      1. OPENCLAW_GOD_TOKEN cũ — header X-Openclaw-Token, fallback Bearer.
+      2. API KEY TOÀN QUYỀN (scope admin_full) — header X-Api-Key, hoặc Bearer
+         elc_sk_... So khớp qua api_keys_store.verify (hash, hằng-thời-gian).
+
+    Như vậy công cụ ngoài có thể dùng API key tạo trên admin để gọi MCP, không
+    cần biết god token. Trả True nếu 1 trong 2 hợp lệ.
+    """
+    authz = headers.get("authorization") or ""
+    bearer = ""
+    if authz.lower().startswith("bearer "):
+        bearer = authz.split(None, 1)[1].strip()
+
+    # (2) API key — ưu tiên X-Api-Key, fallback Bearer elc_sk_...
+    presented_key = (headers.get("x-api-key") or "").strip()
+    if not presented_key and bearer.startswith(api_keys_store.KEY_PREFIX):
+        presented_key = bearer
+    if presented_key.startswith(api_keys_store.KEY_PREFIX):
+        rec = api_keys_store.verify(presented_key)
+        if rec and rec.get("scope") == "admin_full":
+            return True
+        # Key sai/hết hạn → KHÔNG fallback sang so token (tránh nhầm), trả False.
+        return False
+
+    # (1) God token cũ — X-Openclaw-Token ưu tiên, fallback Bearer.
     expected = _expected_token()
     presented = (headers.get("x-openclaw-token") or "").strip()
     if not presented:
-        authz = headers.get("authorization") or ""
-        if authz.lower().startswith("bearer "):
-            presented = authz.split(None, 1)[1].strip()
+        presented = bearer
     if not expected or not presented:
         return False
     return secrets.compare_digest(presented, expected)
@@ -337,8 +759,10 @@ async def _dispatch(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "capabilities": {"tools": {"listChanged": False}},
             "serverInfo": _SERVER_INFO,
             "instructions": (
-                "MCP bridge điều khiển hệ thống ELC. Tool tiền tố get_/list_ là CHỈ ĐỌC; "
-                "send_telegram và announce là HÀNH ĐỘNG GHI — cần xác nhận trước khi gọi."
+                "MCP bridge điều khiển hệ thống ELC. Tool tiền tố get_/list_ và db_query là "
+                "CHỈ ĐỌC. Các tool có mô tả '⚠️ HÀNH ĐỘNG GHI' (create_/update_/assign_/"
+                "bulk_/send_/announce/marketing_publish...) thay đổi dữ liệu hoặc gửi đi — "
+                "cần xác nhận trước khi gọi. Mọi hành động ghi đều được lưu audit."
             ),
         }
         return None if is_notification else _rpc_result(req_id, result)
@@ -419,7 +843,7 @@ async def mcp_asgi_app(scope, receive, send) -> None:
             "headers": [
                 (b"access-control-allow-origin", b"*"),
                 (b"access-control-allow-methods", b"POST, GET, OPTIONS"),
-                (b"access-control-allow-headers", b"content-type, x-openclaw-token, authorization, mcp-session-id, mcp-protocol-version"),
+                (b"access-control-allow-headers", b"content-type, x-openclaw-token, x-api-key, authorization, mcp-session-id, mcp-protocol-version"),
             ],
         })
         await send({"type": "http.response.body", "body": b""})

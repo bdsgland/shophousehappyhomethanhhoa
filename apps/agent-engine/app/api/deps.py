@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import secrets
 from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from typing import Optional
 
 import jwt
 
-from app.core import user_store
+from app.core import api_keys_store, user_store
 from app.core.security import decode_access_token
 from app.core.settings import settings
 
@@ -173,6 +174,98 @@ def verify_openclaw_token(
             detail="Invalid OpenClaw token",
         )
     return dict(_OPENCLAW_PRINCIPAL)
+
+
+# ---------------------------------------------------------------------------
+# API KEYS — khoá truy cập API/MCP TOÀN QUYỀN cho công cụ ngoài (OpenClaw, script)
+# ---------------------------------------------------------------------------
+
+# Security scheme khai báo cho OpenAPI → /docs hiện nút "Authorize" (Bearer).
+# auto_error=False để dependency tự quyết (cho phép fallback X-API-Key / JWT admin).
+bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="API Key hoặc JWT (Bearer)",
+    description=(
+        "Dán API key TOÀN QUYỀN (elc_sk_...) HOẶC JWT đăng nhập admin. "
+        "Dùng để gọi trực tiếp các endpoint quản trị trên trang /docs này."
+    ),
+)
+# Khai báo thêm header X-API-Key trong OpenAPI (tiện cho client dùng header riêng).
+api_key_header_scheme = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    scheme_name="X-API-Key",
+    description="API key TOÀN QUYỀN (elc_sk_...) đặt ở header X-API-Key.",
+)
+
+
+def _api_key_principal(rec: dict) -> dict:
+    """Principal 'ảo' khi xác thực bằng API key admin_full — role admin để bypass
+    các kiểm tra phân quyền giống admin thật. Mang theo id/name khoá để audit."""
+    return {
+        "id": f"apikey:{rec.get('id')}",
+        "principal": "api_key",
+        "role": "admin",
+        "full_name": f"API Key — {rec.get('name')}",
+        "email": "api-key@eurowindowlightcity.net",
+        "api_key_id": rec.get("id"),
+        "api_key_name": rec.get("name"),
+        "scope": rec.get("scope"),
+    }
+
+
+def require_api_key_or_admin(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    x_api_key: Optional[str] = Depends(api_key_header_scheme),
+) -> dict:
+    """Cho phép gọi bằng API key TOÀN QUYỀN (scope admin_full) HOẶC JWT admin.
+
+    Thứ tự:
+      1. Lấy key từ X-API-Key, hoặc Authorization: Bearer nếu giá trị bắt đầu bằng
+         tiền tố API key (elc_sk_). Hợp lệ + scope admin_full → principal admin.
+      2. Nếu Bearer là JWT thường → xác thực user, yêu cầu role admin.
+      3. Thiếu hết → 401.
+    """
+    bearer_val = credentials.credentials.strip() if credentials and credentials.credentials else None
+
+    # (1) API key: ưu tiên X-API-Key, fallback Bearer elc_sk_...
+    presented_key: Optional[str] = None
+    if x_api_key and x_api_key.strip().startswith(api_keys_store.KEY_PREFIX):
+        presented_key = x_api_key.strip()
+    elif bearer_val and bearer_val.startswith(api_keys_store.KEY_PREFIX):
+        presented_key = bearer_val
+
+    if presented_key:
+        rec = api_keys_store.verify(presented_key)
+        if not rec:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="API key không hợp lệ hoặc đã bị thu hồi",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if rec.get("scope") != "admin_full":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API key không đủ quyền (cần scope admin_full)",
+            )
+        return _api_key_principal(rec)
+
+    # (2) JWT admin thường (qua Bearer).
+    if bearer_val:
+        user = get_current_user(f"Bearer {bearer_val}")
+        if user.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Yêu cầu quyền quản trị viên",
+            )
+        return user
+
+    # (3) Không có thông tin xác thực nào.
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Thiếu API key (X-API-Key / Bearer elc_sk_...) hoặc JWT admin",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def optional_service_guard(

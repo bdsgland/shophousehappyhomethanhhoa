@@ -5,6 +5,7 @@ import {
   Coins,
   Database,
   HardDriveDownload,
+  KeyRound,
   RotateCcw,
   Save,
   Server,
@@ -34,6 +35,7 @@ import type {
 } from "@/lib/types";
 import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { AuditLogTable } from "@/components/settings/AuditLogTable";
 import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
 import { IntegrationsManager } from "@/components/settings/IntegrationsManager";
@@ -53,6 +55,7 @@ const TABS = [
   { key: "commission", label: "Cơ chế hoa hồng", icon: <Coins className="h-4 w-4" /> },
   { key: "sales-policy", label: "Chính sách bán hàng", icon: <Tag className="h-4 w-4" /> },
   { key: "integrations", label: "Tích hợp", icon: <Database className="h-4 w-4" /> },
+  { key: "api-keys", label: "API Keys", icon: <KeyRound className="h-4 w-4" /> },
   { key: "platforms", label: "Nền tảng", icon: <Server className="h-4 w-4" /> },
   { key: "notifications", label: "Thông báo", icon: <ShieldCheck className="h-4 w-4" /> },
   { key: "audit", label: "Nhật ký", icon: <ShieldCheck className="h-4 w-4" /> },
@@ -117,6 +120,8 @@ export default function SettingsPage() {
           <IntegrationsManager />
         </div>
       )}
+
+      {tab === "api-keys" && <ApiKeysManager />}
 
       {tab === "platforms" && <PlatformsPanel />}
 
