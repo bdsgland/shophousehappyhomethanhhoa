@@ -29,10 +29,10 @@ export const PLATFORMS: PlatformMeta[] = [
     embeddable: false,
   },
   {
-    key: "note",
-    name: "Open Notebook",
-    description: "Knowledge base & nghiên cứu tài liệu dự án.",
-    url: "https://note.eurowindowlightcity.net",
+    key: "dify",
+    name: "Dify",
+    description: "Bộ não tri thức (LLM platform + RAG): chatbot, knowledge base.",
+    url: "https://dify.eurowindowlightcity.net",
     embeddable: false,
   },
   {

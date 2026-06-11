@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from app.core import (
     audit_store,
     commission_config_store,
+    dify_client,
     inventory_store,
     lead_store,
     sale_task_store,
@@ -579,6 +580,44 @@ def sales_performance(period: str = "week", actor: str = GodActor) -> Dict[str, 
     ranking = sale_task_store.rank_sales_by_eligibility(sales)
     _audit(actor, "sales.performance", period, {"count": len(ranking)})
     return {"period": period, "ranking": ranking}
+
+
+@router.get("/knowledge/query")
+def dify_knowledge_query(
+    query: str, top_k: int = 5, actor: str = GodActor
+) -> Dict[str, Any]:
+    """ĐỌC — hỏi "bộ não tri thức" Dify (RAG). CHỈ ĐỌC, không ghi.
+
+    Ưu tiên hỏi chatbot Dify (DIFY_API_KEY) để lấy câu trả lời tổng hợp; nếu chỉ
+    có Knowledge Base key (DIFY_DATASET_API_KEY) thì truy hồi top-k đoạn tài liệu.
+    Thiếu cấu hình Dify → 503 "Dify chưa cấu hình" (KHÔNG crash).
+    """
+    if not query or not query.strip():
+        raise HTTPException(400, "Thiếu tham số query.")
+    if not dify_client.is_configured() and not dify_client.is_dataset_configured():
+        raise HTTPException(
+            503, "Dify chưa cấu hình (thiếu DIFY_API_URL + DIFY_API_KEY/DIFY_DATASET_API_KEY)."
+        )
+    try:
+        if dify_client.is_configured():
+            result = dify_client.chat(query, user=actor)
+            _audit(actor, "dify.knowledge_query", "chat", {"q_len": len(query)})
+            return {
+                "mode": "chat",
+                "answer": result.get("answer", ""),
+                "conversation_id": result.get("conversation_id", ""),
+            }
+        records = dify_client.retrieve(query, top_k=top_k)
+        _audit(actor, "dify.knowledge_query", "retrieve", {"records": len(records)})
+        return {
+            "mode": "retrieve",
+            "records": records,
+            "context": dify_client.format_records_for_llm(records),
+        }
+    except dify_client.DifyNotConfigured as exc:
+        raise HTTPException(503, str(exc))
+    except dify_client.DifyError as exc:
+        raise HTTPException(502, f"Dify lỗi: {exc}")
 
 
 @router.get("/audit-log")

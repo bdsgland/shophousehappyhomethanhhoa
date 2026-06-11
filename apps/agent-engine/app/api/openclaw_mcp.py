@@ -116,6 +116,12 @@ def _h_get_platforms_health(a: Dict[str, Any]) -> Dict[str, Any]:
     return bridge.platforms_health(actor=_ACTOR)
 
 
+def _h_dify_knowledge_query(a: Dict[str, Any]) -> Dict[str, Any]:
+    return bridge.dify_knowledge_query(
+        query=a["query"], top_k=int(a.get("top_k", 5)), actor=_ACTOR
+    )
+
+
 def _h_send_telegram(a: Dict[str, Any]) -> Dict[str, Any]:
     body = OpenClawTelegramSend(
         chat_id=a.get("chat_id"),
@@ -345,6 +351,21 @@ TOOLS: List[Dict[str, Any]] = [
         "description": "ĐỌC tình trạng sức khoẻ các nền tảng: Postgres, Chatwoot, cấu hình Telegram/SMTP/Railway. Dùng khi CEO hỏi 'hệ thống có ổn không', kiểm tra hạ tầng.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         "handler": _h_get_platforms_health,
+        "write": False,
+    },
+    {
+        "name": "dify_knowledge_query",
+        "description": "ĐỌC — hỏi 'bộ não tri thức' Dify (RAG: tài liệu dự án, chính sách, FAQ). Tham số: query (bắt buộc), top_k (số đoạn truy hồi, mặc định 5). Trả câu trả lời tổng hợp (nếu cấu hình chatbot) hoặc các đoạn tài liệu liên quan. Dùng khi CEO/bot cần tra cứu kiến thức nội bộ. Dify chưa cấu hình → báo lỗi 503, KHÔNG crash.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Câu hỏi/nội dung cần tra cứu"},
+                "top_k": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5},
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+        "handler": _h_dify_knowledge_query,
         "write": False,
     },
     # ----------------------------- WRITE ----------------------------

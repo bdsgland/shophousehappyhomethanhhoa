@@ -1,9 +1,11 @@
 """Sales Agent — orchestrator chính.
 
 Phiên bản MVP+RAG:
-- Mọi câu hỏi có project_slug đều đi qua retrieval BM25 offline để lấy ngữ
-  cảnh từ tài liệu dự án (KHÔNG cần API key).
-- Sinh câu trả lời:
+- Bộ não tri thức ưu tiên: Dify (LLM platform + RAG self-host). Khi Dify đã cấu
+  hình (DIFY_API_URL + DIFY_API_KEY) -> chatbot lấy câu trả lời thẳng từ Dify
+  (Dify tự lo RAG knowledge base). Nếu Dify lỗi/timeout -> fallback luồng cũ.
+- Khi Dify CHƯA cấu hình -> giữ nguyên luồng cũ:
+    * Mọi câu hỏi có project_slug đi qua retrieval BM25 offline để lấy ngữ cảnh.
     * USE_MOCK_LLM=true hoặc thiếu ANTHROPIC_API_KEY -> mock reply (vẫn lộ
       trích dẫn nguồn để demo retrieval đã đúng).
     * Ngược lại -> gọi Claude thật, nhét retrieved context vào system prompt.
@@ -19,6 +21,7 @@ from app.agents.retrieval import (
     format_context_for_llm,
     get_index,
 )
+from app.core import dify_client
 from app.core.settings import settings
 from app.schemas.chat import ChatMessage, ChatResponse
 
@@ -95,6 +98,33 @@ async def _real_reply(
     return response.content[0].text
 
 
+async def _dify_reply(
+    messages: List[ChatMessage],
+    project_slug: Optional[str],
+) -> Optional[str]:
+    """Lấy câu trả lời từ Dify (bộ não tri thức RAG).
+
+    Trả None nếu Dify chưa cấu hình hoặc gọi lỗi → lớp gọi tự fallback luồng cũ
+    (KHÔNG crash chat). Dify tự lo retrieval knowledge base nên không cần BM25.
+    """
+    if not dify_client.is_configured():
+        return None
+    query = _last_user_text(messages)
+    if not query:
+        return None
+    # Truyền project_slug làm input cho Dify (app có thể dùng biến này lọc KB).
+    inputs = {"project_slug": project_slug} if project_slug else {}
+    try:
+        result = await dify_client.chat_async(query, inputs=inputs)
+        answer = (result.get("answer") or "").strip()
+        return answer or None
+    except dify_client.DifyNotConfigured:
+        return None
+    except Exception as exc:  # noqa: BLE001 — Dify lỗi không được làm hỏng chat
+        log.warning("Dify chat lỗi, fallback luồng cũ: %s", exc)
+        return None
+
+
 def _score_intent(messages: List[ChatMessage]) -> int:
     """Chấm điểm intent thô sơ ở MVP — đếm tín hiệu trong tin của khách."""
     user_text = " ".join(m.content.lower() for m in messages if m.role == "user")
@@ -125,16 +155,20 @@ async def run_sales_agent(
     chunks: list[RetrievedChunk] = []
     project_context = ""
 
-    if project_slug:
-        query = _last_user_text(messages)
-        if query:
-            chunks = _retrieve(project_slug, query, top_k=5)
-            project_context = format_context_for_llm(chunks)
+    # Ưu tiên Dify (bộ não tri thức) khi đã cấu hình. None → fallback luồng cũ.
+    reply = await _dify_reply(messages, project_slug)
 
-    if settings.use_mock_llm or not settings.anthropic_api_key:
-        reply = _mock_reply(messages, chunks)
-    else:
-        reply = await _real_reply(messages, project_context)
+    if reply is None:
+        if project_slug:
+            query = _last_user_text(messages)
+            if query:
+                chunks = _retrieve(project_slug, query, top_k=5)
+                project_context = format_context_for_llm(chunks)
+
+        if settings.use_mock_llm or not settings.anthropic_api_key:
+            reply = _mock_reply(messages, chunks)
+        else:
+            reply = await _real_reply(messages, project_context)
 
     score = _score_intent(messages)
     is_hot = score >= settings.lead_hot_score_threshold

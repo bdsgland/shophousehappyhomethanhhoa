@@ -153,7 +153,7 @@ def _platforms_config() -> List[Dict[str, Any]]:
     return [
         {"key": "api", "name": "Agent Engine (API)", "url": "self"},
         {"key": "n8n", "name": "n8n Automation", "url": settings.platform_n8n_url},
-        {"key": "note", "name": "Open Notebook", "url": settings.platform_note_url},
+        {"key": "dify", "name": "Dify", "url": settings.platform_dify_url},
         {"key": "bot", "name": "OpenClaw", "url": settings.platform_bot_url},
         {"key": "chat", "name": "Chatwoot", "url": settings.platform_chat_url},
     ]

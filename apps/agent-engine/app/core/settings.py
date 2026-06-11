@@ -85,9 +85,34 @@ class Settings(BaseSettings):
     # URL các nền tảng vệ tinh — dùng cho /admin/platforms/health.
     # Override qua env (PLATFORM_N8N_URL, ...) nếu subdomain thực tế khác.
     platform_n8n_url: str = "https://n8n.eurowindowlightcity.net"
-    platform_note_url: str = "https://note.eurowindowlightcity.net"
+    # Dify (LLM platform có RAG) — thay thế Open Notebook làm "bộ não tri thức".
+    # URL console/self-host để hiển thị trên trang nền tảng admin + health-check.
+    platform_dify_url: str = "https://dify.eurowindowlightcity.net"
     platform_bot_url: str = "https://bot.eurowindowlightcity.net"
     platform_chat_url: str = "https://chat.eurowindowlightcity.net"
+
+    # ----- Dify (bộ não tri thức RAG) — thay thế Open Notebook -----
+    # Dify self-host. Chatbot tư vấn + OpenClaw gọi qua các biến dưới đây. ĐỂ TRỐNG
+    # → mọi tính năng Dify TẮT an toàn (chatbot fallback Claude trực tiếp, tool MCP
+    # trả "Dify chưa cấu hình"), KHÔNG crash. TUYỆT ĐỐI không commit key thật.
+    #   - DIFY_API_URL: base URL Dify (vd https://dify.eurowindowlightcity.net).
+    #     Client tự ghép /v1/... nên KHÔNG cần kèm /v1 ở đây.
+    #   - DIFY_API_KEY: App API key của ứng dụng Chatbot/Agent (bắt đầu app-...).
+    #   - DIFY_DATASET_API_KEY: API key Knowledge Base (datasets, bắt đầu dataset-...)
+    #     — chỉ cần khi truy hồi/đẩy tài liệu vào knowledge base.
+    #   - DIFY_DATASET_ID: dataset mặc định để truy hồi (tuỳ chọn).
+    dify_api_url: str = ""
+    dify_api_key: str = ""
+    dify_dataset_api_key: str = ""
+    dify_dataset_id: str = ""
+
+    def dify_configured(self) -> bool:
+        """True nếu đủ tối thiểu để gọi chatbot Dify (URL + app key)."""
+        return bool(self.dify_api_url.strip() and self.dify_api_key.strip())
+
+    def dify_dataset_configured(self) -> bool:
+        """True nếu đủ để gọi Knowledge Base API (URL + dataset key)."""
+        return bool(self.dify_api_url.strip() and self.dify_dataset_api_key.strip())
 
     # ----- Automation n8n (3 workflow: hot-lead, commission, daily-briefing) -----
     # Để trống → tự dựng URL từ platform_n8n_url + path mặc định. Đặt env
