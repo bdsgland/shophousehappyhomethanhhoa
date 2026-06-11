@@ -280,11 +280,7 @@ export function CallButton({
           disabled={!phone || cfgQ.isLoading}
           title={!phone ? "Khách chưa có số điện thoại" : "Gọi qua tổng đài"}
         >
-          {phase === "preparing" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Phone className="h-4 w-4" />
-          )}
+          <Phone className="h-4 w-4" />
           Gọi
         </Button>
       )}

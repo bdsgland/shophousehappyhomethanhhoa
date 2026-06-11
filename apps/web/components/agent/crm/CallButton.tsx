@@ -286,11 +286,7 @@ export function CallButton({
           title={!phone ? "Khách chưa có số điện thoại" : "Gọi qua tổng đài"}
           className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
         >
-          {phase === "preparing" ? (
-            <RefreshCw size={15} className="animate-spin" />
-          ) : (
-            <Phone size={15} />
-          )}
+          <Phone size={15} />
           Gọi
         </button>
       )}
