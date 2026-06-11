@@ -322,27 +322,64 @@ def _to_int(value: Any) -> Optional[int]:
         return None
 
 
+def _resolve_destination(params: dict) -> Optional[str]:
+    """Số đích (SĐT khách) cho cuộc gọi app-to-phone.
+
+    Ưu tiên `to` Stringee gửi (FE truyền vào makeCall → Stringee echo lại). Nếu
+    thiếu, tra ngược qua custom_data (= log_id) để lấy `to_number` đã lưu lúc
+    /call/start. Trả None nếu không xác định được (→ chỉ ghi âm, không connect).
+    """
+    to = _extract_number(params.get("to"))
+    if to:
+        return to
+    custom = params.get("clientCustomData") or params.get("custom_data") or params.get("custom")
+    if custom:
+        try:
+            clog = lead_store.get_contact_log(str(custom))
+        except Exception:  # noqa: BLE001 — webhook không được vỡ
+            clog = None
+        if clog:
+            num = (clog.get("to_number") or "").strip()
+            return num or None
+    return None
+
+
 @webhook_router.api_route("/answer", methods=["GET", "POST"])
 async def stringee_answer(request: Request):
     """answer_url — trả SCCO điều khiển cuộc gọi: BẬT GHI ÂM + KẾT NỐI. PUBLIC.
 
     SCCO (Stringee Call Control Object) là 1 mảng action. Ở đây:
       1) record  — ghi âm mp3, gửi recording_url về event_url khi xong.
-      2) connect — nối số tổng đài (from) với SĐT khách (to).
-    Thiếu `to` (chưa rõ số nhận) → chỉ trả record (tránh connect rỗng gây lỗi).
+      2) connect — nối số TỔNG ĐÀI Stringee (from) ra SĐT khách (to).
+
+    QUAN TRỌNG (app-to-phone, Web SDK gọi ra số điện thoại): theo tài liệu Stringee
+    "Make call to a phone number, then connect…", action `connect` phải đặt
+      from = SỐ TỔNG ĐÀI Stringee đã đăng ký (STRINGEE_FROM_NUMBER), type "external"
+      to   = SĐT khách, type "external"
+    KHÔNG dùng `from` type "internal" / userId — đó là nguyên nhân lỗi
+    CALL_NOT_ALLOWED_BY_YOUR_SERVER (Stringee từ chối vì caller-id không phải số
+    đã đăng ký của project). Khi Web SDK makeCall, Stringee gửi `from`=tham số FE
+    truyền (có thể là userId nếu thiếu số), nên KHÔNG tin `from` của request mà
+    LUÔN dùng STRINGEE_FROM_NUMBER làm caller-id của connect.
+
+    Thiếu số đích (chưa rõ số khách) → chỉ trả record (tránh connect rỗng gây lỗi).
     """
     params = await _read_params(request)
-    frm = _extract_number(params.get("from")) or settings.stringee_from_number
-    to = _extract_number(params.get("to"))
+    # Caller-id của connect PHẢI là số tổng đài Stringee đã đăng ký, không lấy từ
+    # request (request `from` có thể là userId của Web SDK → bị từ chối).
+    caller = (settings.stringee_from_number or "").strip() or _extract_number(
+        params.get("from")
+    )
+    to = _resolve_destination(params)
 
     scco: list[dict] = [
         {"action": "record", "eventUrl": _event_url(), "format": "mp3"}
     ]
-    if to:
+    if to and caller:
         scco.append(
             {
                 "action": "connect",
-                "from": {"type": "internal", "number": frm, "alias": frm},
+                "from": {"type": "external", "number": caller, "alias": caller},
                 "to": {"type": "external", "number": to, "alias": to},
             }
         )
