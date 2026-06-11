@@ -13,6 +13,9 @@ import {
   Settings,
   Workflow,
   Command,
+  Wallet,
+  UserCog,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,10 +34,13 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/customers/performance", label: "Hiệu suất Sale", icon: Medal },
   { href: "/users", label: "Người dùng", icon: Users },
+  { href: "/hr", label: "Nhân sự", icon: UserCog },
   { href: "/sales", label: "Sale & Hoa hồng", icon: BadgeDollarSign },
+  { href: "/finance", label: "Tài chính", icon: Wallet },
   { href: "/inventory", label: "Quỹ căn", icon: Building2 },
   { href: "/kb", label: "Tài liệu RAG", icon: BookOpen },
   { href: "/inbox", label: "Hộp thư đa kênh", icon: Inbox },
+  { href: "/marketing", label: "AI Marketing", icon: Megaphone },
   { href: "/automation", label: "Automation", icon: Workflow },
   { href: "/platforms", label: "Nền tảng", icon: Server },
   { href: "/settings", label: "Cấu hình", icon: Settings },

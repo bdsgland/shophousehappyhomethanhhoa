@@ -279,6 +279,23 @@ def rank_sales_by_eligibility(sales: Optional[list[dict]] = None) -> list[dict]:
     return perfs
 
 
+def list_tasks(sale_id: Optional[str] = None) -> list[dict]:
+    """Liệt kê task (đã hydrate score/meetings). Lọc theo sale_id nếu truyền.
+
+    Dùng cho module HR tổng hợp KPI thực tế của nhân sự theo kỳ. Trả bản sao
+    (dict copy) để caller không sửa nhầm store.
+    """
+    with _LOCK:
+        data = _load()
+        tasks = list(data["tasks"])
+    out = []
+    for t in tasks:
+        if sale_id is not None and t.get("sale_id") != sale_id:
+            continue
+        out.append(_hydrate(dict(t)))
+    return out
+
+
 def clear() -> None:
     """Xoá toàn bộ task — chỉ dùng trong test."""
     with _LOCK:

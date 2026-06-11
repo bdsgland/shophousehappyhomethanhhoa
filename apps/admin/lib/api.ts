@@ -27,6 +27,15 @@ import type {
   DriveSyncConfig,
   DriveSyncJob,
   DriveSyncResult,
+  FinanceAIAnalysis,
+  FinanceCost,
+  FinanceCostInput,
+  FinanceManualRevenue,
+  FinanceManualRevenueInput,
+  FinanceOverview,
+  FinancePeriod,
+  FinancePeriodSummary,
+  FinanceRevenueResponse,
   CrmLeadDetail,
   CrmLeadPage,
   CrmStats,
@@ -61,6 +70,15 @@ import type {
   TokenResponse,
   User,
   UserRole,
+  MarketingCampaign,
+  MarketingOverview,
+  CampaignCreatePayload,
+  CampaignUpdatePayload,
+  CampaignPerformance,
+  ContentGeneratePayload,
+  ContentGenerateResponse,
+  MarketingContentItem,
+  CampaignSuggestResponse,
 } from "./types";
 
 export const API_URL =
@@ -1048,5 +1066,275 @@ export function managerCommand(payload: ManagerCommandPayload) {
   return apiFetch<ManagerCommandResult>("/admin/manager/command", {
     method: "POST",
     body: payload,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tài chính (/admin/finance) — chi phí, doanh thu, lợi nhuận, phân tích AI
+// ---------------------------------------------------------------------------
+
+/** Tổng quan tài chính: KPI kỳ + chuỗi tháng + cơ cấu chi phí + tách nguồn DT. */
+export function getFinanceOverview(
+  period: FinancePeriod = "month",
+  monthsBack = 12,
+) {
+  return apiFetch<FinanceOverview>(
+    `/admin/finance/overview?period=${period}&months_back=${monthsBack}`,
+  );
+}
+
+export function getFinanceSummary(period: FinancePeriod = "month") {
+  return apiFetch<FinancePeriodSummary>(`/admin/finance/summary?period=${period}`);
+}
+
+/** Danh sách chi phí. */
+export function listFinanceCosts() {
+  return apiFetch<{ costs: FinanceCost[]; count: number }>("/admin/finance/costs");
+}
+
+export function createFinanceCost(payload: FinanceCostInput) {
+  return apiFetch<FinanceCost>("/admin/finance/costs", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateFinanceCost(id: string, payload: FinanceCostInput) {
+  return apiFetch<FinanceCost>(`/admin/finance/costs/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function deleteFinanceCost(id: string) {
+  return apiFetch<{ ok: boolean; id: string }>(`/admin/finance/costs/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Các dòng doanh thu tổng hợp (hoa hồng + thủ công) theo kỳ. all=true bỏ lọc. */
+export function listFinanceRevenue(period: FinancePeriod = "month", all = false) {
+  return apiFetch<FinanceRevenueResponse>(
+    `/admin/finance/revenue?period=${period}${all ? "&all=true" : ""}`,
+  );
+}
+
+export function createManualRevenue(payload: FinanceManualRevenueInput) {
+  return apiFetch<FinanceManualRevenue>("/admin/finance/revenue", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateManualRevenue(
+  id: string,
+  payload: FinanceManualRevenueInput,
+) {
+  return apiFetch<FinanceManualRevenue>(`/admin/finance/revenue/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function deleteManualRevenue(id: string) {
+  return apiFetch<{ ok: boolean; id: string }>(`/admin/finance/revenue/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Phân tích tài chính bằng AI (Claude) + dự báo kỳ tới. Fallback nếu thiếu key. */
+export function getFinanceAIAnalysis(period: FinancePeriod = "month") {
+  return apiFetch<FinanceAIAnalysis>(`/admin/finance/ai-analysis?period=${period}`, {
+    method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// NHÂN SỰ (HR) — phân quyền, mục tiêu KPI, báo cáo hiệu suất AI (/admin/hr)
+// ---------------------------------------------------------------------------
+
+// Import type HR đặt cuối file để KHÔNG đụng khối import dùng chung ở đầu file
+// (giảm xung đột khi nhiều phiên cùng sửa). Import declaration được hoisted.
+import type {
+  HRObjective,
+  HRObjectiveCreate,
+  HRObjectiveUpdate,
+  HROverview,
+  HRPerformanceReport,
+  HRPermissionMatrix,
+  HRStaff,
+  HRStaffCreate,
+  HRStaffUpdate,
+} from "./types";
+
+export function getHROverview() {
+  return apiFetch<HROverview>("/admin/hr/overview");
+}
+
+export function listHRStaff(includeClients = false) {
+  return apiFetch<{ staff: HRStaff[]; count: number }>(
+    `/admin/hr/staff${includeClients ? "?include_clients=true" : ""}`,
+  );
+}
+
+export function createHRStaff(payload: HRStaffCreate) {
+  return apiFetch<HRStaff>("/admin/hr/staff", { method: "POST", body: payload });
+}
+
+export function updateHRStaff(id: string, payload: HRStaffUpdate) {
+  return apiFetch<HRStaff>(`/admin/hr/staff/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function setHRStaffStatus(id: string, isActive: boolean) {
+  return apiFetch<HRStaff>(`/admin/hr/staff/${id}/status`, {
+    method: "PATCH",
+    body: { is_active: isActive },
+  });
+}
+
+export function getHRPermissions() {
+  return apiFetch<HRPermissionMatrix>("/admin/hr/permissions");
+}
+
+export function updateHRRolePermissions(
+  role: string,
+  permissions: Record<string, boolean>,
+) {
+  return apiFetch<HRPermissionMatrix>("/admin/hr/permissions", {
+    method: "PUT",
+    body: { role, permissions },
+  });
+}
+
+export function resetHRPermissions() {
+  return apiFetch<HRPermissionMatrix>("/admin/hr/permissions/reset", {
+    method: "POST",
+  });
+}
+
+export function listHRObjectives(staffId?: string) {
+  return apiFetch<HRObjective[]>(
+    `/admin/hr/objectives${staffId ? `?staff_id=${encodeURIComponent(staffId)}` : ""}`,
+  );
+}
+
+export function createHRObjective(payload: HRObjectiveCreate) {
+  return apiFetch<HRObjective>("/admin/hr/objectives", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateHRObjective(id: string, payload: HRObjectiveUpdate) {
+  return apiFetch<HRObjective>(`/admin/hr/objectives/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function deleteHRObjective(id: string) {
+  return apiFetch<{ ok: boolean; id: string }>(`/admin/hr/objectives/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function getHRPerformanceReport(staffId: string) {
+  return apiFetch<HRPerformanceReport>(
+    `/admin/hr/staff/${staffId}/performance-report`,
+    { method: "POST" },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AI MARKETING — chiến dịch đa kênh + hiệu suất + sản xuất nội dung (/admin/marketing)
+// ---------------------------------------------------------------------------
+
+/** Tổng quan marketing: KPI + theo kênh + hiệu suất từng campaign. */
+export function getMarketingOverview() {
+  return apiFetch<MarketingOverview>("/admin/marketing/overview");
+}
+
+export function listCampaigns(params?: { channel?: string; status?: string }) {
+  const q = new URLSearchParams();
+  if (params?.channel) q.set("channel", params.channel);
+  if (params?.status) q.set("status", params.status);
+  const qs = q.toString();
+  return apiFetch<{ campaigns: MarketingCampaign[]; count: number }>(
+    `/admin/marketing/campaigns${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function getCampaign(id: string) {
+  return apiFetch<{ campaign: MarketingCampaign; performance: CampaignPerformance }>(
+    `/admin/marketing/campaigns/${id}`,
+  );
+}
+
+export function createCampaign(payload: CampaignCreatePayload) {
+  return apiFetch<MarketingCampaign>("/admin/marketing/campaigns", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateCampaign(id: string, payload: CampaignUpdatePayload) {
+  return apiFetch<MarketingCampaign>(`/admin/marketing/campaigns/${id}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function updateCampaignSpend(
+  id: string,
+  payload: { spent?: number; add?: number },
+) {
+  return apiFetch<MarketingCampaign>(`/admin/marketing/campaigns/${id}/spend`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function deleteCampaign(id: string) {
+  return apiFetch<{ ok: boolean }>(`/admin/marketing/campaigns/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Sinh nội dung marketing bằng AI (fallback mẫu nếu thiếu API key). */
+export function generateMarketingContent(payload: ContentGeneratePayload) {
+  return apiFetch<ContentGenerateResponse>("/admin/marketing/content/generate", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function listMarketingContent(params?: {
+  limit?: number;
+  content_type?: string;
+  channel?: string;
+}) {
+  const q = new URLSearchParams();
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.content_type) q.set("content_type", params.content_type);
+  if (params?.channel) q.set("channel", params.channel);
+  const qs = q.toString();
+  return apiFetch<{ content: MarketingContentItem[]; count: number }>(
+    `/admin/marketing/content${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function deleteMarketingContent(id: string) {
+  return apiFetch<{ ok: boolean }>(`/admin/marketing/content/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Gợi ý chiến dịch bằng AI dựa trên hiệu suất lead theo kênh. */
+export function suggestCampaigns() {
+  return apiFetch<CampaignSuggestResponse>("/admin/marketing/suggest", {
+    method: "POST",
   });
 }

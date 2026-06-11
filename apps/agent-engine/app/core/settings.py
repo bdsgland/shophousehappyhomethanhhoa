@@ -28,6 +28,21 @@ class Settings(BaseSettings):
     # max_tokens mỗi lần gọi Claude (output JSON ngắn) — chặn chi phí.
     ai_crm_max_tokens: int = 320
 
+    # ----- AI Marketing — chiến dịch đa kênh + AI sản xuất nội dung -----
+    # Store JSON collection (campaigns + content history), resolve giống leads_file.
+    marketing_campaigns_file: str = "data/_runtime/marketing_campaigns.json"
+    marketing_content_file: str = "data/_runtime/marketing_content.json"
+    # Số bản ghi nội dung AI lưu lại tối đa (rotate cũ nhất khi vượt).
+    marketing_content_keep: int = 500
+    # Model sinh nội dung — trống → fallback llm_model (opus, chất lượng copywriting
+    # tốt). Đổi qua env MARKETING_MODEL nếu muốn model rẻ hơn (haiku).
+    marketing_model: str = ""
+    # max_tokens mỗi lần sinh nội dung (nhiều biến thể) — chặn chi phí.
+    marketing_max_tokens: int = 1500
+    # Doanh thu quy đổi ước tính trên mỗi khách chuyển đổi (VND) — để tính ROI khi
+    # chưa có dữ liệu deal thật. 0 → doanh thu/ROI hiển thị 0 (không bịa số).
+    marketing_revenue_per_customer: float = 0
+
     # Embedding
     voyage_api_key: str = ""
     openai_api_key: str = ""
@@ -174,6 +189,12 @@ class Settings(BaseSettings):
     contact_logs_file: str = "data/_runtime/contact_logs.json"
     sale_tasks_file: str = "data/_runtime/sale_tasks.json"
 
+    # ----- NHÂN SỰ (HR) — ma trận quyền theo vai trò + mục tiêu KPI -----
+    # JSON store (resolve giống users_file: DATA_DIR / agent-engine / CWD). Sau
+    # migrate PostgreSQL. Ma trận quyền tự seed mặc định khi file rỗng.
+    hr_roles_file: str = "data/_runtime/hr_roles.json"
+    hr_objectives_file: str = "data/_runtime/hr_objectives.json"
+
     # Quỹ căn (inventory) — JSON store đồng bộ từ Google Sheets chủ đầu tư.
     # Resolve giống users_file (DATA_DIR Railway volume / agent-engine / CWD).
     # File backup tự sinh trong cùng thư mục: _runtime/backups/inventory-*.json
@@ -191,6 +212,18 @@ class Settings(BaseSettings):
     # phiếu tính giá. Cùng pattern store với commission_config (version + backup).
     sales_policy_file: str = "data/_runtime/sales_policy.json"
     sales_policy_backup_keep: int = 10
+
+    # ----- TÀI CHÍNH (chi phí + doanh thu thủ công) -----
+    # JSON store {costs:[], manual_revenue:[]} cho module "Tài chính" admin.
+    # Doanh thu THẬT tổng hợp tự động từ hoa hồng (commission_store) + deal chốt;
+    # đây chỉ lưu chi phí người dùng nhập + doanh thu nhập tay (nếu có). Resolve
+    # giống users_file (DATA_DIR Railway volume / agent-engine / CWD). Sau migrate
+    # PostgreSQL. Mô hình doanh thu công ty môi giới = phần hoa hồng nhận được.
+    finance_file: str = "data/_runtime/finance.json"
+    # Model Claude dùng cho phân tích tài chính (text dài hơn AI CRM). Trống →
+    # fallback llm_model. Đổi qua env FINANCE_AI_MODEL nếu cần.
+    finance_ai_model: str = "claude-haiku-4-5-20251001"
+    finance_ai_max_tokens: int = 1200
 
     # Sale Learning Center — thư mục lưu tài liệu upload + index BM25 + phiếu báo
     # giá. Tương đối thì resolve theo $DATA_DIR (Railway volume) hoặc thư mục

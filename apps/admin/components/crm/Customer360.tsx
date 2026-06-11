@@ -122,6 +122,14 @@ function money(v: unknown): string {
   return typeof v === "number" ? `${v.toLocaleString("vi-VN")} đ` : "—";
 }
 
+/** Chuẩn hoá số điện thoại VN về dạng 84xxxxxxxxx (cho link Zalo). */
+function normalizePhone(raw: unknown): string {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return "84" + digits.slice(1);
+  return digits;
+}
+
 /** Icon + màu cho 1 mục dòng thời gian theo type/channel. */
 function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
   if (item.type === "ai") return { Icon: Sparkles, color: "text-warning" };
@@ -277,6 +285,9 @@ export function Customer360({ leadId }: { leadId: string }) {
   const quotes = p.deals?.quotes ?? [];
   const tierKey = (ai.tier ?? "").toString().toLowerCase();
   const nba = ai.next_action;
+  const zaloPhone = normalizePhone(basic.phone);
+  const quickBtn =
+    "inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted";
 
   return (
     <div className="space-y-5">
@@ -310,6 +321,33 @@ export function Customer360({ leadId }: { leadId: string }) {
               phone={basic.phone}
               onEnded={() => qc.invalidateQueries({ queryKey: ["crm-360", leadId] })}
             />
+            {/* Liên hệ nhanh đa kênh — luôn hiện (kể cả chưa có lịch sử) */}
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {basic.phone && (
+                <a
+                  href={`https://zalo.me/${zaloPhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={quickBtn}
+                  title="Nhắn Zalo"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 text-sky-500" /> Zalo
+                </a>
+              )}
+              {basic.phone && (
+                <a href={`sms:${basic.phone}`} className={quickBtn} title="Gửi SMS">
+                  <MessageSquare className="h-3.5 w-3.5 text-primary" /> SMS
+                </a>
+              )}
+              {basic.email && (
+                <a href={`mailto:${basic.email}`} className={quickBtn} title="Gửi email">
+                  <Mail className="h-3.5 w-3.5 text-primary" /> Email
+                </a>
+              )}
+              <Link href="/inbox" className={quickBtn} title="Mở Hộp thư">
+                <Inbox className="h-3.5 w-3.5" /> Hộp thư
+              </Link>
+            </div>
           </div>
         </div>
       </Card>

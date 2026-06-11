@@ -44,6 +44,14 @@ function money(v: unknown): string {
   return typeof v === "number" ? `${v.toLocaleString("vi-VN")} đ` : "—";
 }
 
+/** Chuẩn hoá số điện thoại VN về dạng 84xxxxxxxxx (cho link Zalo). */
+function normalizePhone(raw: unknown): string {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return "84" + digits.slice(1);
+  return digits;
+}
+
 /** Thời gian tương đối kiểu mạng xã hội ("2 giờ trước"). */
 function relTime(iso: string | null): string {
   if (!iso) return "—";
@@ -271,6 +279,9 @@ export function Customer360Block({
   const bookings = p.deals?.bookings ?? [];
   const quotes = p.deals?.quotes ?? [];
   const nba = ai.next_action;
+  const zaloPhone = normalizePhone(basic.phone);
+  const quickBtn =
+    "inline-flex items-center gap-1 rounded-lg border border-brand-100 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:border-orange-300 hover:text-orange-600";
 
   return (
     <div className="space-y-4">
@@ -306,6 +317,30 @@ export function Customer360Block({
             phone={basic.phone}
             onEnded={() => load()}
           />
+        </div>
+        {/* Liên hệ nhanh đa kênh — luôn hiện (kể cả chưa có lịch sử) */}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {basic.phone && (
+            <a
+              href={`https://zalo.me/${zaloPhone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={quickBtn}
+              title="Nhắn Zalo"
+            >
+              <MessageCircle size={13} className="text-sky-500" /> Zalo
+            </a>
+          )}
+          {basic.phone && (
+            <a href={`sms:${basic.phone}`} className={quickBtn} title="Gửi SMS">
+              <MessageCircle size={13} className="text-orange-500" /> SMS
+            </a>
+          )}
+          {basic.email && (
+            <a href={`mailto:${basic.email}`} className={quickBtn} title="Gửi email">
+              <Send size={13} className="text-sky-600" /> Email
+            </a>
+          )}
         </div>
       </div>
 

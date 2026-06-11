@@ -1071,3 +1071,386 @@ export interface ManagerCommandResult {
   message?: string;
   result?: { type: string; data?: unknown; message?: string };
 }
+
+// ---- Tài chính (/admin/finance) ----
+
+export type CostCategory =
+  | "nền tảng"
+  | "marketing"
+  | "nhân sự"
+  | "vận hành"
+  | "khác";
+export type CostRecurrence = "monthly" | "one_off";
+
+export interface FinanceCost {
+  id: string;
+  category: CostCategory | string;
+  name: string;
+  amount: number;
+  recurring: CostRecurrence | string;
+  date: string; // YYYY-MM-DD
+  note?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface FinanceCostInput {
+  category: string;
+  name: string;
+  amount: number;
+  recurring: string;
+  date: string;
+  note?: string;
+}
+
+export interface FinanceManualRevenue {
+  id: string;
+  name: string;
+  amount: number;
+  date: string;
+  source?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface FinanceManualRevenueInput {
+  name: string;
+  amount: number;
+  date: string;
+  source?: string;
+  note?: string;
+}
+
+export interface FinanceRevenueItem {
+  source: "commission" | "manual" | "deal" | string;
+  source_label: string;
+  ref_id?: string | null;
+  label: string;
+  amount: number;
+  date: string;
+  meta: Record<string, unknown>;
+}
+
+export interface FinancePeriodSummary {
+  period_label: string;
+  start: string;
+  end: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+  deal_count: number;
+  customer_count: number;
+}
+
+export interface FinanceMonthlyPoint {
+  month: string; // YYYY-MM
+  revenue: number;
+  cost: number;
+  profit: number;
+}
+
+export interface FinanceCostSlice {
+  category: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface FinanceOverview {
+  summary: FinancePeriodSummary;
+  monthly: FinanceMonthlyPoint[];
+  cost_breakdown: FinanceCostSlice[];
+  revenue_breakdown: { commission: number; manual: number };
+}
+
+export interface FinanceForecast {
+  next_period_label: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  method: string;
+}
+
+export interface FinanceAIAnalysis {
+  source: "ai" | "fallback";
+  summary: string;
+  forecast: FinanceForecast;
+  period_label: string;
+  generated_at: string;
+}
+
+export interface FinanceRevenueResponse {
+  items: FinanceRevenueItem[];
+  count: number;
+  total: number;
+  manual: FinanceManualRevenue[];
+}
+
+export type FinancePeriod = "month" | "quarter" | "year";
+
+// ---------------------------------------------------------------------------
+// NHÂN SỰ (HR) — phân quyền, KPI, báo cáo hiệu suất AI (đồng bộ app/schemas/hr.py)
+// ---------------------------------------------------------------------------
+
+export type HRRole =
+  | "admin"
+  | "manager"
+  | "sale"
+  | "marketing"
+  | "accountant"
+  | "support"
+  | "client";
+
+export type KPIMetric =
+  | "revenue"
+  | "commission"
+  | "deals"
+  | "leads"
+  | "contacts"
+  | "meetings";
+
+/** Nhân sự (mở rộng từ public_view + % hoàn thành mục tiêu). */
+export interface HRStaff {
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string | null;
+  role: HRRole | string;
+  is_active: boolean;
+  region?: string | null;
+  referral_code?: string | null;
+  upline_email?: string | null;
+  created_at: string;
+  objective_completion_pct: number;
+}
+
+export interface HRStaffCreate {
+  email: string;
+  full_name: string;
+  password?: string;
+  phone?: string;
+  role: HRRole;
+  region?: string;
+  upline_email?: string;
+}
+
+export interface HRStaffUpdate {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  role?: HRRole;
+  is_active?: boolean;
+  region?: string;
+  upline_email?: string;
+}
+
+export interface HRPermissionDef {
+  key: string;
+  label_vi: string;
+}
+
+export interface HRRolePermissionRow {
+  role: string;
+  label_vi: string;
+  permissions: Record<string, boolean>;
+}
+
+export interface HRPermissionMatrix {
+  permissions_catalog: HRPermissionDef[];
+  roles: HRRolePermissionRow[];
+}
+
+export interface HRObjective {
+  id: string;
+  staff_id: string;
+  staff_name?: string | null;
+  period: string;
+  metric: KPIMetric;
+  target: number;
+  actual: number;
+  actual_auto: number;
+  actual_override?: number | null;
+  completion_pct: number;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HRObjectiveCreate {
+  staff_id: string;
+  period: string;
+  metric: KPIMetric;
+  target: number;
+  note?: string;
+}
+
+export interface HRObjectiveUpdate {
+  period?: string;
+  metric?: KPIMetric;
+  target?: number;
+  actual_override?: number | null;
+  note?: string;
+}
+
+export interface HRPerformanceReport {
+  staff_id: string;
+  staff_name: string;
+  role: string;
+  generated_at: string;
+  ai_used: boolean;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  metrics: Record<string, number>;
+}
+
+export interface HRTopPerformer {
+  staff_id: string;
+  staff_name: string;
+  role: string;
+  completion_pct: number;
+}
+
+export interface HROverview {
+  staff_total: number;
+  staff_active: number;
+  staff_by_role: Record<string, number>;
+  objectives_total: number;
+  overall_completion_pct: number;
+  top_performers: HRTopPerformer[];
+  generated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// AI Marketing — chiến dịch đa kênh + hiệu suất + sản xuất nội dung AI
+// ---------------------------------------------------------------------------
+
+export type CampaignChannel =
+  | "facebook"
+  | "zalo"
+  | "google"
+  | "email"
+  | "tiktok"
+  | "other";
+export type CampaignStatus = "draft" | "running" | "paused" | "done";
+export type MarketingContentType = "post" | "ad" | "email" | "script";
+export type MarketingContentLength = "short" | "medium" | "long";
+
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  channel: CampaignChannel;
+  objective?: string | null;
+  budget: number;
+  spent: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  status: CampaignStatus;
+  utm_source?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignCreatePayload {
+  name: string;
+  channel: CampaignChannel;
+  objective?: string;
+  budget?: number;
+  spent?: number;
+  start_date?: string;
+  end_date?: string;
+  status?: CampaignStatus;
+  utm_source?: string;
+  notes?: string;
+}
+
+export type CampaignUpdatePayload = Partial<CampaignCreatePayload>;
+
+export interface CampaignPerformance {
+  campaign_id: string;
+  name: string;
+  channel: CampaignChannel;
+  status: CampaignStatus;
+  budget: number;
+  spent: number;
+  leads: number;
+  customers: number;
+  cpl: number;
+  conversion_rate: number;
+  est_revenue: number;
+  roi: number;
+}
+
+export interface MarketingChannelStat {
+  channel: CampaignChannel;
+  campaigns: number;
+  spent: number;
+  leads: number;
+  customers: number;
+  cpl: number;
+  est_revenue: number;
+  roi: number;
+}
+
+export interface MarketingOverview {
+  total_campaigns: number;
+  running_campaigns: number;
+  total_budget: number;
+  total_spent: number;
+  total_leads: number;
+  total_customers: number;
+  avg_cpl: number;
+  est_revenue: number;
+  roi: number;
+  est_revenue_per_customer: number;
+  by_channel: MarketingChannelStat[];
+  campaigns: CampaignPerformance[];
+  generated_at: string;
+}
+
+export interface ContentGeneratePayload {
+  content_type: MarketingContentType;
+  channel: CampaignChannel;
+  product: string;
+  audience?: string;
+  tone?: string;
+  length: MarketingContentLength;
+  variants: number;
+  campaign_id?: string;
+}
+
+export interface MarketingContentItem {
+  id: string;
+  content_type: MarketingContentType;
+  channel: CampaignChannel;
+  product: string;
+  audience?: string | null;
+  tone?: string | null;
+  length: MarketingContentLength;
+  variants: string[];
+  used_llm: boolean;
+  campaign_id?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface ContentGenerateResponse {
+  item: MarketingContentItem;
+  used_llm: boolean;
+  message?: string | null;
+}
+
+export interface CampaignSuggestion {
+  channel: CampaignChannel;
+  idea: string;
+  rationale?: string | null;
+}
+
+export interface CampaignSuggestResponse {
+  suggestions: CampaignSuggestion[];
+  used_llm: boolean;
+  message?: string | null;
+}
