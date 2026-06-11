@@ -30,9 +30,23 @@ from typing import Any, Optional
 
 import httpx
 
+from app.core import integrations_store
 from app.core.settings import settings
 
 _TIMEOUT = 12.0
+
+
+def _cfg() -> dict:
+    """{api_url, api_key} — store (integrations) trước, env (resolved) sau."""
+    return integrations_store.get_credential("n8n")
+
+
+def _api_base() -> str:
+    return str(_cfg().get("api_url") or settings.n8n_api_base()).rstrip("/")
+
+
+def _api_key() -> str:
+    return str(_cfg().get("api_key") or "")
 
 
 # ---------------------------------------------------------------------------
@@ -153,12 +167,12 @@ def categorize(name: str, tags: list[dict] | None) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def is_configured() -> bool:
-    """True nếu đã có API key (kể cả fallback N8N_API_KEY_TEMP / N8N_API_TOKEN)."""
-    return bool(settings.n8n_api_key_resolved())
+    """True nếu đã có API key (store hoặc env, kể cả fallback TEMP / TOKEN)."""
+    return bool(_api_key())
 
 
 def _headers() -> dict[str, str]:
-    key = settings.n8n_api_key_resolved()
+    key = _api_key()
     if not key:
         raise N8nNotConfigured("Chưa cấu hình N8N_API_KEY")
     return {
@@ -169,7 +183,7 @@ def _headers() -> dict[str, str]:
 
 async def _get(path: str, params: Optional[dict] = None) -> Any:
     """GET {base}/api/v1{path}. Raise N8nError nếu lỗi mạng/HTTP."""
-    url = f"{settings.n8n_api_base()}/api/v1{path}"
+    url = f"{_api_base()}/api/v1{path}"
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=False) as client:
             r = await client.get(url, headers=_headers(), params=params)
@@ -189,7 +203,7 @@ async def _get(path: str, params: Optional[dict] = None) -> Any:
 
 async def _post(path: str) -> Any:
     """POST {base}/api/v1{path} (không body). Dùng cho activate/deactivate."""
-    url = f"{settings.n8n_api_base()}/api/v1{path}"
+    url = f"{_api_base()}/api/v1{path}"
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=False) as client:
             r = await client.post(url, headers=_headers())

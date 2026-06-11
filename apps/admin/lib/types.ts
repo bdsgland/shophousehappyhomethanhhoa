@@ -412,6 +412,44 @@ export interface SettingsResponse {
   integrations: IntegrationStatus[];
 }
 
+// ---- TRUNG TÂM TÍCH HỢP & KẾT NỐI ----
+
+export interface IntegrationFieldView {
+  key: string;
+  label: string;
+  secret: boolean;
+  type: "text" | "number" | "bool";
+  placeholder: string;
+  present: boolean;
+  masked?: string; // chỉ field secret — 4 ký tự cuối, KHÔNG full
+  value?: string | number | boolean; // chỉ field non-secret
+}
+
+export interface IntegrationServiceView {
+  key: string;
+  name: string;
+  group: string;
+  managed: boolean;
+  connected: boolean;
+  source: "store" | "env" | "none";
+  fields: IntegrationFieldView[];
+  guide: string;
+  guide_url: string;
+  detail?: string;
+}
+
+export interface IntegrationsResponse {
+  groups: { key: string; label: string }[];
+  services: IntegrationServiceView[];
+}
+
+export interface IntegrationTestResult {
+  service: string;
+  ok: boolean;
+  detail: string;
+  info?: Record<string, unknown>;
+}
+
 export interface AuditEvent {
   id: string;
   event_type: string;

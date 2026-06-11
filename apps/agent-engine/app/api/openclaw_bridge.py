@@ -205,9 +205,17 @@ def _send_telegram(token: str, chat_id: str, text: str, parse_mode: Optional[str
         raise RuntimeError(f"Telegram API {r.status_code}: {r.text[:200]}")
 
 
+def _smtp_cfg() -> dict:
+    """{host, port, user, password, from, use_tls} — store (integrations) → env."""
+    from app.core import integrations_store
+
+    return integrations_store.get_credential("email_smtp")
+
+
 def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> None:
+    cfg = _smtp_cfg()
     msg = EmailMessage()
-    msg["From"] = settings.smtp_from or settings.smtp_user
+    msg["From"] = cfg.get("from") or cfg.get("user")
     msg["To"] = ", ".join(to)
     msg["Subject"] = subject
     if html:
@@ -215,11 +223,11 @@ def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> N
         msg.add_alternative(body, subtype="html")
     else:
         msg.set_content(body)
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
-        if settings.smtp_use_tls:
+    with smtplib.SMTP(cfg.get("host"), int(cfg.get("port") or 587), timeout=20) as server:
+        if cfg.get("use_tls"):
             server.starttls()
-        if settings.smtp_user:
-            server.login(settings.smtp_user, settings.smtp_password)
+        if cfg.get("user"):
+            server.login(cfg.get("user"), cfg.get("password") or "")
         server.send_message(msg)
 
 
@@ -568,7 +576,7 @@ def telegram_send(body: OpenClawTelegramSend, actor: str = GodActor) -> Dict[str
 
 @router.post("/email/send")
 def email_send(body: OpenClawEmailSend, actor: str = GodActor) -> Dict[str, Any]:
-    if not settings.smtp_host:
+    if not _smtp_cfg().get("host"):
         raise HTTPException(503, "SMTP chưa cấu hình (SMTP_HOST trống).")
     try:
         _send_email([str(t) for t in body.to], body.subject, body.body, html=body.html)
@@ -607,7 +615,7 @@ def announce(body: OpenClawAnnounce, actor: str = GodActor) -> Dict[str, Any]:
                     results["telegram"]["errors"] += 1
         if "email" in body.channels:
             email = u.get("email")
-            if not settings.smtp_host or not email:
+            if not _smtp_cfg().get("host") or not email:
                 results["email"]["skipped"] += 1
             else:
                 try:
@@ -669,7 +677,7 @@ def platforms_health(actor: str = GodActor) -> Dict[str, Any]:
 
     # Cấu hình kênh (không gọi mạng — chỉ báo đã cấu hình hay chưa).
     checks.append({"name": "telegram", "configured": bool(_telegram_token())})
-    checks.append({"name": "smtp", "configured": bool(settings.smtp_host)})
+    checks.append({"name": "smtp", "configured": bool(_smtp_cfg().get("host"))})
     checks.append({"name": "railway", "configured": bool(settings.railway_api_token)})
 
     overall = all(c.get("ok", True) for c in checks)

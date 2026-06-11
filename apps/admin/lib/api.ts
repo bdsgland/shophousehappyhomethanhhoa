@@ -44,6 +44,9 @@ import type {
   ImportParsePreview,
   ImportResult,
   ImportWorkspaceStatus,
+  IntegrationsResponse,
+  IntegrationServiceView,
+  IntegrationTestResult,
   LeadInsight,
   PipelineResponse,
   Profile360,
@@ -810,6 +813,37 @@ export interface WorkspaceStatus {
 
 export function getWorkspaceStatus() {
   return apiFetch<WorkspaceStatus>("/admin/google-workspace/status");
+}
+
+// ---------------------------------------------------------------------------
+// TRUNG TÂM TÍCH HỢP & KẾT NỐI — /admin/integrations
+// ---------------------------------------------------------------------------
+
+export function listIntegrations() {
+  return apiFetch<IntegrationsResponse>("/admin/integrations");
+}
+
+export function saveIntegration(
+  service: string,
+  values: Record<string, string | number | boolean>,
+) {
+  return apiFetch<IntegrationServiceView>(`/admin/integrations/${service}`, {
+    method: "PUT",
+    body: values,
+  });
+}
+
+export function testIntegration(service: string) {
+  return apiFetch<IntegrationTestResult>(
+    `/admin/integrations/${service}/test`,
+    { method: "POST" },
+  );
+}
+
+export function deleteIntegration(service: string) {
+  return apiFetch<IntegrationServiceView>(`/admin/integrations/${service}`, {
+    method: "DELETE",
+  });
 }
 
 /**

@@ -35,7 +35,7 @@ import { shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { AuditLogTable } from "@/components/settings/AuditLogTable";
 import { GoogleWorkspaceCard } from "@/components/settings/GoogleWorkspaceCard";
-import { IntegrationsList } from "@/components/settings/IntegrationsList";
+import { IntegrationsManager } from "@/components/settings/IntegrationsManager";
 import { SalesPolicyTab } from "@/components/settings/SalesPolicyTab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,18 +109,9 @@ export default function SettingsPage() {
       {tab === "sales-policy" && <SalesPolicyTab />}
 
       {tab === "integrations" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <GoogleWorkspaceCard />
-          {isLoading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : (
-            <IntegrationsList items={data?.integrations ?? []} />
-          )}
-          <p className="mt-4 text-xs text-muted-foreground">
-            Trạng thái kết nối đọc trực tiếp từ biến môi trường của backend. Để đổi
-            khoá tích hợp (token Chatwoot, Telegram, n8n…), cập nhật biến môi trường
-            trên Railway rồi tải lại trang.
-          </p>
+          <IntegrationsManager />
         </div>
       )}
 

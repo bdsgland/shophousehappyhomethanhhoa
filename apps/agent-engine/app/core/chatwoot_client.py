@@ -18,7 +18,7 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
-from app.core import lead_store
+from app.core import integrations_store, lead_store
 from app.core.settings import settings
 
 log = logging.getLogger(__name__)
@@ -29,19 +29,40 @@ PREFIX_WEB = "web"
 
 
 # ---------------------------------------------------------------------------
-# Cấu hình
+# Cấu hình — resolve store-first-then-env (admin nhập UI là có hiệu lực ngay)
 # ---------------------------------------------------------------------------
 
+def _cfg() -> dict:
+    """{base_url, account_id, api_token} — store (integrations) trước, env sau."""
+    return integrations_store.get_credential("chatwoot")
+
+
+def _base_url() -> str:
+    return str(_cfg().get("base_url") or settings.chatwoot_base_url or "")
+
+
+def _account_id() -> int:
+    val = _cfg().get("account_id")
+    try:
+        return int(val) if val not in (None, "") else settings.chatwoot_account_id
+    except (TypeError, ValueError):
+        return settings.chatwoot_account_id
+
+
+def _api_token() -> str:
+    return str(_cfg().get("api_token") or "")
+
+
 def is_configured() -> bool:
-    return bool(settings.chatwoot_api_token)
+    return bool(_api_token())
 
 
 def config_status() -> dict:
     """Trạng thái cấu hình để FE quyết định hiện hướng dẫn hay dữ liệu."""
     return {
         "configured": is_configured(),
-        "base_url": settings.chatwoot_base_url,
-        "account_id": settings.chatwoot_account_id,
+        "base_url": _base_url(),
+        "account_id": _account_id(),
         "detail": (
             None
             if is_configured()
@@ -65,15 +86,16 @@ async def _request(
 
     Toàn bộ HTTP đi qua đây để dễ mock trong test + bảo đảm không làm sập caller.
     """
-    if not settings.chatwoot_api_token:
+    token = _api_token()
+    if not token:
         log.warning("[chatwoot] thiếu CHATWOOT_API_TOKEN — bỏ qua %s %s", method, path)
         return None
 
     import httpx
 
-    url = f"{settings.chatwoot_base_url.rstrip('/')}{path}"
+    url = f"{_base_url().rstrip('/')}{path}"
     headers = {
-        "api_access_token": settings.chatwoot_api_token,
+        "api_access_token": token,
         "Content-Type": "application/json",
     }
     try:
@@ -89,7 +111,7 @@ async def _request(
 
 
 def _account_path(suffix: str) -> str:
-    return f"/api/v1/accounts/{settings.chatwoot_account_id}{suffix}"
+    return f"/api/v1/accounts/{_account_id()}{suffix}"
 
 
 def _mask_token(token: str) -> str:
@@ -107,12 +129,13 @@ async def diagnostics() -> dict:
     KHÔNG nuốt lỗi: ghi rõ status code / loại lỗi / số hội thoại lấy được để admin
     tự chẩn đoán (token sai 401, account sai 404, URL sai/timeout...).
     """
-    base = settings.chatwoot_base_url.rstrip("/")
+    base = _base_url().rstrip("/")
+    token = _api_token()
     result: dict = {
         "configured": is_configured(),
         "base_url": base,
-        "account_id": settings.chatwoot_account_id,
-        "token_masked": _mask_token(settings.chatwoot_api_token),
+        "account_id": _account_id(),
+        "token_masked": _mask_token(token),
         "request_url": f"{base}{_account_path('/conversations')}",
         "ok": False,
         "status_code": None,
@@ -128,7 +151,7 @@ async def diagnostics() -> dict:
     import httpx
 
     headers = {
-        "api_access_token": settings.chatwoot_api_token,
+        "api_access_token": token,
         "Content-Type": "application/json",
     }
     try:
@@ -157,7 +180,7 @@ async def diagnostics() -> dict:
             elif resp.status_code == 404:
                 result["error"] = "Không tìm thấy (404)."
                 result["hint"] = (
-                    f"account_id={settings.chatwoot_account_id} hoặc base_url sai. "
+                    f"account_id={_account_id()} hoặc base_url sai. "
                     "Kiểm tra URL Chatwoot + CHATWOOT_ACCOUNT_ID."
                 )
             else:

@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 import jwt
 
+from app.core import integrations_store
 from app.core.settings import settings
 
 # REST endpoint gọi ra (Call2). Header xác thực: X-STRINGEE-AUTH.
@@ -37,14 +38,21 @@ class StringeeError(RuntimeError):
     """Lỗi khi gọi REST API Stringee (callout, ...)."""
 
 
+def _cfg() -> dict:
+    """{api_key_sid, api_key_secret, from_number} — store (integrations) → env."""
+    return integrations_store.get_credential("stringee")
+
+
 def is_configured() -> bool:
     """Đã đủ API key để sinh token chưa (SID + Secret)."""
-    return bool(settings.stringee_api_key_sid and settings.stringee_api_key_secret)
+    c = _cfg()
+    return bool(c.get("api_key_sid") and c.get("api_key_secret"))
 
 
 def _require_keys() -> tuple[str, str]:
-    sid = settings.stringee_api_key_sid
-    secret = settings.stringee_api_key_secret
+    c = _cfg()
+    sid = c.get("api_key_sid")
+    secret = c.get("api_key_secret")
     if not sid or not secret:
         raise StringeeNotConfigured(
             "Chưa cấu hình Stringee — cần đặt STRINGEE_API_KEY_SID và "
@@ -102,7 +110,7 @@ def callout(
     Raise StringeeNotConfigured nếu thiếu key/số; StringeeError nếu lỗi HTTP.
     """
     _require_keys()
-    frm = (from_number or settings.stringee_from_number or "").strip()
+    frm = (from_number or _cfg().get("from_number") or "").strip()
     if not frm:
         raise StringeeNotConfigured(
             "Chưa cấu hình STRINGEE_FROM_NUMBER (số tổng đài để gọi đi)."
