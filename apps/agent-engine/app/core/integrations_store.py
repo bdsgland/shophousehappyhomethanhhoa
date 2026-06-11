@@ -605,22 +605,29 @@ async def _test_stringee() -> dict:
 
 
 async def _test_smtp() -> dict:
-    import smtplib
+    from app.core import smtp_ipv4
 
     creds = get_credential("email_smtp")
     host = creds.get("host")
     if not host:
         return {"ok": False, "detail": "Chưa cấu hình SMTP host."}
     port = int(creds.get("port") or 587)
+    # 465 → SSL; còn lại dùng STARTTLS khi bật use_tls (mặc định 587 nên bật TLS).
+    use_ssl = port == 465
+    use_tls = bool(creds.get("use_tls")) and not use_ssl
     try:
-        with smtplib.SMTP(host, port, timeout=15) as server:
-            if creds.get("use_tls"):
-                server.starttls()
+        with smtp_ipv4.open_smtp(
+            host, port, use_ssl=use_ssl, use_tls=use_tls, timeout=15
+        ) as server:
             if creds.get("user"):
                 server.login(creds.get("user"), creds.get("password") or "")
-        return {"ok": True, "detail": f"Kết nối SMTP {host}:{port} thành công."}
+        mode = "SSL" if use_ssl else ("STARTTLS" if use_tls else "plain")
+        return {
+            "ok": True,
+            "detail": f"Kết nối SMTP {host}:{port} ({mode}, IPv4) thành công.",
+        }
     except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "detail": f"SMTP lỗi: {type(exc).__name__}: {exc}"}
+        return {"ok": False, "detail": f"SMTP lỗi: {smtp_ipv4.classify_error(exc)}"}
 
 
 async def _test_n8n() -> dict:

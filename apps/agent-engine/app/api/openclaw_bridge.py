@@ -21,7 +21,6 @@ import logging
 import os
 import re
 import secrets
-import smtplib
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
@@ -223,9 +222,16 @@ def _send_email(to: List[str], subject: str, body: str, html: bool = False) -> N
         msg.add_alternative(body, subtype="html")
     else:
         msg.set_content(body)
-    with smtplib.SMTP(cfg.get("host"), int(cfg.get("port") or 587), timeout=20) as server:
-        if cfg.get("use_tls"):
-            server.starttls()
+    from app.core import smtp_ipv4
+
+    host = cfg.get("host")
+    port = int(cfg.get("port") or 587)
+    use_ssl = port == 465
+    use_tls = bool(cfg.get("use_tls")) and not use_ssl
+    # Ép IPv4 (Railway không có route IPv6) + giữ hostname gốc cho TLS.
+    with smtp_ipv4.open_smtp(
+        host, port, use_ssl=use_ssl, use_tls=use_tls, timeout=15
+    ) as server:
         if cfg.get("user"):
             server.login(cfg.get("user"), cfg.get("password") or "")
         server.send_message(msg)
