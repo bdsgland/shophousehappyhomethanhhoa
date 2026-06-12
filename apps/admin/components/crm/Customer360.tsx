@@ -1,33 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Bot,
   Calendar,
+  Check,
   Clock,
+  Copy,
   Edit3,
   FileText,
   GitBranch,
   Inbox,
   Lightbulb,
+  ListChecks,
   Mail,
   MapPin,
   MessageCircle,
   MessageSquare,
   Phone,
+  Play,
   RefreshCw,
   Send,
   Share2,
+  ShieldAlert,
   Sparkles,
   StickyNote,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
 
-import { addCareLog, getProfile360 } from "@/lib/api";
+import { addCareLog, getProfile360, runAiCareForLead } from "@/lib/api";
 import { CallButton, RecordingPlayer } from "./CallButton";
 import type {
+  AiCareResult,
   CareLogInput,
   ChannelInteraction,
   CrmCareChannel,
@@ -164,6 +171,153 @@ function timelineIcon(item: TimelineItem): { Icon: LucideIcon; color: string } {
  * Ô "soạn hoạt động chăm sóc" (care feed) đặt đầu dòng thời gian. Chọn kênh +
  * nội dung + kết quả → POST /crm/leads/{id}/care → prepend item trả về NGAY.
  */
+/**
+ * Khối "Chăm sóc bằng Sale AI": chạy phân tích qua sale AI phụ trách → hiện phân
+ * tích + tin nhắn NHÁP. AN TOÀN: KHÔNG có nút gửi thật — chỉ chép để tự gửi.
+ */
+function AiCareCard({
+  leadId,
+  salesmanName,
+}: {
+  leadId: string;
+  salesmanName: string | null;
+}) {
+  const careMut = useMutation({
+    mutationFn: () => runAiCareForLead(leadId, { channel: "zalo" }),
+  });
+  const res: AiCareResult | undefined = careMut.data;
+  const analysis = res?.analysis;
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <Bot className="h-4 w-4 text-primary" /> Chăm sóc bằng Sale AI
+        </h3>
+        <Button size="sm" onClick={() => careMut.mutate()} disabled={careMut.isPending}>
+          <Play className={careMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+          {careMut.isPending ? "Đang chạy…" : "Chạy chăm sóc"}
+        </Button>
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Sale AI phụ trách: <span className="font-medium">{salesmanName ?? "sẽ tự gán khi chạy"}</span>.
+        Kết quả là phân tích + tin nhắn NHÁP — không tự gửi cho khách.
+      </p>
+
+      {careMut.isError && (
+        <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+          Lỗi: {(careMut.error as Error).message}
+        </div>
+      )}
+
+      {res && !analysis && (
+        <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
+          {res.notes?.length ? res.notes.join(" ") : "Không có kết quả phân tích."}
+        </div>
+      )}
+
+      {analysis && (
+        <div className="space-y-4">
+          {/* Banner an toàn */}
+          <div className="flex items-start gap-2 rounded-md bg-warning/10 p-3 text-sm text-[hsl(38,92%,38%)]">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Cần xác nhận trước khi gửi. Sale AI KHÔNG tự gửi tin / không ghi CRM — hãy duyệt rồi tự
+              gửi qua kênh chăm sóc.
+            </span>
+          </div>
+
+          {/* Phân tích */}
+          <div>
+            <h4 className="mb-1 text-sm font-semibold">Phân tích</h4>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {analysis.summary}
+            </p>
+          </div>
+
+          {/* Đề xuất hành động (heuristic) */}
+          {analysis.recommended_actions && analysis.recommended_actions.length > 0 && (
+            <div>
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <ListChecks className="h-4 w-4 text-primary" /> Đề xuất hành động
+              </h4>
+              <div className="space-y-2">
+                {analysis.recommended_actions.map((a, i) => (
+                  <div key={i} className="rounded-md border border-border p-3">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Badge variant="muted">Ưu tiên {a.priority}</Badge>
+                      <span className="text-sm font-medium">{a.action}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{a.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tin nhắn NHÁP */}
+          {analysis.draft_messages && analysis.draft_messages.length > 0 && (
+            <div>
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <MessageSquare className="h-4 w-4 text-primary" /> Tin nhắn nháp
+              </h4>
+              <div className="space-y-3">
+                {analysis.draft_messages.map((d, i) => (
+                  <AiDraftCard key={i} channel={d.channel} draft={d.draft} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Ô tin nhắn nháp (đọc/sửa + chép) — KHÔNG có nút gửi thật. */
+function AiDraftCard({ channel, draft }: { channel: string; draft: string }) {
+  const [text, setText] = useState(draft);
+  const [copied, setCopied] = useState(false);
+
+  // Đồng bộ lại khi backend trả nháp mới.
+  useEffect(() => {
+    setText(draft);
+  }, [draft]);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard không khả dụng */
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <Badge variant="muted">{channel}</Badge>
+          <Badge variant="warning">Nháp — chưa gửi</Badge>
+        </div>
+        <Button variant="ghost" size="sm" onClick={copy}>
+          {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Đã chép" : "Chép"}
+        </Button>
+      </div>
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="min-h-[120px] text-sm"
+      />
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Bạn có thể sửa nội dung rồi tự gửi qua kênh chăm sóc. Trang này không gửi tin thật.
+      </p>
+    </div>
+  );
+}
+
 function CareComposer({
   leadId,
   onPosted,
@@ -307,6 +461,11 @@ export function Customer360({ leadId }: { leadId: string }) {
               </span>
               <span>Nguồn: {SOURCE_LABEL[basic.source ?? ""] ?? basic.source ?? "—"}</span>
               <span>Sale: {basic.assigned_sale_name ?? "Chưa phân bổ"}</span>
+              <span className="inline-flex items-center gap-1">
+                <Bot className="h-3.5 w-3.5 text-primary" />
+                AI Sale phụ trách: {p.ai_salesman?.name ?? "Chưa gán"}
+                {p.ai_salesman?.specialty_label ? ` (${p.ai_salesman.specialty_label})` : ""}
+              </span>
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
@@ -401,6 +560,9 @@ export function Customer360({ leadId }: { leadId: string }) {
           )}
         </div>
       </Card>
+
+      {/* Chăm sóc bằng Sale AI — phân tích + tin NHÁP (không gửi thật) */}
+      <AiCareCard leadId={leadId} salesmanName={p.ai_salesman?.name ?? null} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Dòng thời gian + tường hoạt động chăm sóc */}

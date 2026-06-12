@@ -96,6 +96,12 @@ import type {
   CrewAgentsResponse,
   CrewRunResult,
   CrewRunPayload,
+  AiSalesStats,
+  AiSalesPage,
+  AiSalesSeedResult,
+  AiSalesAssignResult,
+  AiCareResult,
+  AiSalesman,
 } from "./types";
 
 export const API_URL =
@@ -1494,6 +1500,66 @@ export function listCrewAgents() {
 /** Chạy đội sale cho 1 lead → phân tích + đề xuất + tin nhắn NHÁP. */
 export function runCrewForLead(leadId: string, payload?: CrewRunPayload) {
   return apiFetch<CrewRunResult>(`/admin/crew/leads/${leadId}/run`, {
+    method: "POST",
+    body: payload ?? {},
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ĐỘI SALE AI ("1000 saleman AI") — /admin/ai-sales/* (require_admin)
+// Tự động gán (nội bộ) OK; mọi tin ra khách thật chỉ ở dạng NHÁP cần xác nhận.
+// ---------------------------------------------------------------------------
+
+/** Thống kê đội sale AI (tổng / hoạt động / đã gán / tải trung bình). */
+export function getAiSalesStats() {
+  return apiFetch<AiSalesStats>("/admin/ai-sales/stats");
+}
+
+/** Danh sách sale AI (phân trang/tìm kiếm/lọc). */
+export function listAiSalesmen(params?: {
+  status?: string;
+  specialty?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.specialty) q.set("specialty", params.specialty);
+  if (params?.search) q.set("search", params.search);
+  if (params?.page) q.set("page", String(params.page));
+  if (params?.page_size) q.set("page_size", String(params.page_size));
+  const qs = q.toString();
+  return apiFetch<AiSalesPage>(`/admin/ai-sales${qs ? `?${qs}` : ""}`);
+}
+
+/** Khởi tạo roster (idempotent) — mặc định 1000 sale AI. */
+export function seedAiSales(count = 1000) {
+  return apiFetch<AiSalesSeedResult>("/admin/ai-sales/seed", {
+    method: "POST",
+    body: { count },
+  });
+}
+
+/** Chi tiết 1 sale AI. */
+export function getAiSalesman(id: string) {
+  return apiFetch<AiSalesman>(`/admin/ai-sales/${id}`);
+}
+
+/** Gán / chuyển sale AI cho 1 lead (id trống → tự chọn cân tải). */
+export function assignAiSalesman(
+  leadId: string,
+  payload?: { ai_salesman_id?: string; product_type?: string },
+) {
+  return apiFetch<AiSalesAssignResult>(`/admin/ai-sales/leads/${leadId}/assign`, {
+    method: "POST",
+    body: payload ?? {},
+  });
+}
+
+/** Chạy chăm sóc 1 khách qua sale AI phụ trách → phân tích + tin NHÁP (không gửi). */
+export function runAiCareForLead(leadId: string, payload?: CrewRunPayload) {
+  return apiFetch<AiCareResult>(`/admin/ai-sales/leads/${leadId}/run-care`, {
     method: "POST",
     body: payload ?? {},
   });

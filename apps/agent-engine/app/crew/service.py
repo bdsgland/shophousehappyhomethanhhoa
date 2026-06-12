@@ -114,6 +114,35 @@ def _fallback_analysis(
 
 
 # ---------------------------------------------------------------------------
+# Fallback CHẤT LƯỢNG bằng Claude THẬT (engine=claude-direct) — KHÔNG cần crewai.
+# Lỗi bất kỳ → tụt tiếp về heuristic để request không hỏng.
+# ---------------------------------------------------------------------------
+def _run_claude_or_heuristic(
+    base: Dict[str, Any],
+    lead_ctx: Dict[str, Any],
+    knowledge: Dict[str, Any],
+    channel: str,
+) -> Dict[str, Any]:
+    try:
+        from app.crew.claude_fallback import run_claude_analysis
+
+        analysis = run_claude_analysis(lead_ctx, knowledge.get("text", ""), channel=channel)
+        # Bảo đảm luôn có ít nhất 1 draft (kèm nền heuristic nếu Claude trả rỗng).
+        if not analysis.get("draft_messages"):
+            analysis["draft_messages"] = [
+                crew_tools.draft_nurture_message(
+                    lead_ctx, channel=channel, knowledge_snippet=knowledge.get("text", "")
+                )
+            ]
+        return analysis
+    except Exception as exc:  # noqa: BLE001 — Claude lỗi → heuristic
+        log.warning("Claude-direct lỗi, fallback heuristic: %s", exc)
+        base["notes"].append(f"Claude-direct lỗi → dùng heuristic: {exc}")
+        base["mode"] = "fallback"
+        return _fallback_analysis(lead_ctx, knowledge, channel)
+
+
+# ---------------------------------------------------------------------------
 # Điểm vào chính.
 # ---------------------------------------------------------------------------
 def run_for_lead(
@@ -168,7 +197,8 @@ def run_for_lead(
     ).strip()
     knowledge = crew_tools.dify_knowledge_query(kb_query, top_k=5)
 
-    # Chạy LIVE nếu đủ điều kiện; lỗi → fallback heuristic (không làm hỏng request).
+    # Chạy LIVE nếu đủ điều kiện; lỗi → tụt dần xuống Claude-direct rồi heuristic
+    # (không bao giờ làm hỏng request).
     analysis: Dict[str, Any]
     if mode == "live":
         try:
@@ -182,11 +212,13 @@ def run_for_lead(
                     lead_ctx, channel=channel, knowledge_snippet=knowledge.get("text", "")
                 )],
             )
-        except Exception as exc:  # noqa: BLE001 — CrewAI lỗi → fallback
-            log.warning("CrewAI live lỗi, fallback heuristic: %s", exc)
-            base["notes"].append(f"CrewAI lỗi runtime → dùng heuristic: {exc}")
-            base["mode"] = "fallback"
-            analysis = _fallback_analysis(lead_ctx, knowledge, channel)
+        except Exception as exc:  # noqa: BLE001 — CrewAI lỗi → thử Claude-direct
+            log.warning("CrewAI live lỗi, thử Claude-direct: %s", exc)
+            base["notes"].append(f"CrewAI lỗi runtime → chuyển Claude-direct: {exc}")
+            base["mode"] = "claude"
+            analysis = _run_claude_or_heuristic(base, lead_ctx, knowledge, channel)
+    elif mode == "claude":
+        analysis = _run_claude_or_heuristic(base, lead_ctx, knowledge, channel)
     else:
         analysis = _fallback_analysis(lead_ctx, knowledge, channel)
 

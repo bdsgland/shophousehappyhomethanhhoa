@@ -210,6 +210,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("pipeline", "router", {}),
     ("ai_crm", "router", {}),
     ("crew", "router", {}),  # Sales Crew (CrewAI) — /admin/crew/*, mặc định TẮT
+    ("ai_sales", "router", {}),  # Đội Sale AI (roster 1000 + auto-gán) — /admin/ai-sales/*
     ("match", "router", {}),
     ("ws_presence", "router", {}),
     ("ws_match", "router", {}),

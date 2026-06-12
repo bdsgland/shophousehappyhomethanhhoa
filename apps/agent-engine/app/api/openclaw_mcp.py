@@ -276,6 +276,65 @@ def _h_crew_run_for_lead(a: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+# ----------------------- ĐỘI SALE AI (READ / GÁN / NHÁP) -----------------------
+def _h_list_ai_salesmen(a: Dict[str, Any]) -> Dict[str, Any]:
+    """ĐỌC danh sách đội sale AI (roster) có lọc + phân trang."""
+    from app.core import ai_salesman_store
+
+    return ai_salesman_store.list_roster(
+        status=a.get("status"),
+        specialty=a.get("specialty"),
+        search=a.get("search"),
+        page=int(a.get("page", 1)),
+        page_size=int(a.get("page_size", 50)),
+    )
+
+
+def _h_assign_salesman(a: Dict[str, Any]) -> Dict[str, Any]:
+    """GÁN/CHUYỂN 1 sale AI cho lead (dữ liệu nội bộ — an toàn, có audit)."""
+    from app.core import ai_salesman_store
+
+    return ai_salesman_store.assign(
+        a["lead_id"],
+        ais_id=a.get("ai_salesman_id"),
+        product_type=a.get("product_type"),
+        requested_by=_ACTOR,
+    )
+
+
+def _h_run_care_for_lead(a: Dict[str, Any]) -> Dict[str, Any]:
+    """Chạy chăm sóc 1 khách qua sale AI phụ trách → phân tích + tin NHÁP.
+
+    READ/ĐỀ-XUẤT: tái dùng crew/service, KHÔNG gửi tin / KHÔNG ghi CRM
+    (requires_confirmation). Tự gán sale AI nếu khách chưa có (cân tải)."""
+    from app.core import ai_salesman_store, lead_store
+    from app.crew import service as crew_service
+
+    lead_id = a["lead_id"]
+    lead = lead_store.get_lead(lead_id)
+    if not lead:
+        return {"ok": False, "lead_id": lead_id, "ai_salesman": None,
+                "notes": [f"Không tìm thấy lead id={lead_id}."]}
+    ais_id = lead.get("ai_salesman_id")
+    salesman = ai_salesman_store.get(ais_id) if ais_id else None
+    if salesman is None:
+        assigned = ai_salesman_store.assign(lead_id, requested_by=_ACTOR)
+        if assigned.get("ok"):
+            salesman = assigned.get("ai_salesman")
+    result = crew_service.run_for_lead(
+        lead_id, channel=a.get("channel", "zalo"), requested_by=_ACTOR
+    )
+    result["ai_salesman"] = (
+        {
+            "id": salesman.get("id"), "code": salesman.get("code"),
+            "name": salesman.get("name"), "specialty": salesman.get("specialty"),
+            "specialty_label": salesman.get("specialty_label"),
+        }
+        if salesman else None
+    )
+    return result
+
+
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
 # inputSchema (JSON Schema) · handler · write (đánh dấu hành động ghi).
 TOOLS: List[Dict[str, Any]] = [
@@ -698,6 +757,55 @@ TOOLS: List[Dict[str, Any]] = [
             "additionalProperties": False,
         },
         "handler": _h_crew_run_for_lead,
+        "write": False,
+    },
+    # ----------------------- ĐỘI SALE AI -----------------------
+    {
+        "name": "list_ai_salesmen",
+        "description": "ĐỌC danh sách 'Đội Sale AI' (roster nhân viên sale ảo) có lọc & phân trang. Tham số: status (active/inactive), specialty (lien_ke/shophouse/can_ho), search (tên/mã), page, page_size. Dùng khi CEO hỏi về đội sale AI, ai đang chăm khách, tải của từng sale AI.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "Lọc trạng thái: active/inactive"},
+                "specialty": {"type": "string", "description": "Phân khúc: lien_ke/shophouse/can_ho"},
+                "search": {"type": "string", "description": "Tìm theo tên/mã sale AI"},
+                "page": {"type": "integer", "minimum": 1, "default": 1},
+                "page_size": {"type": "integer", "minimum": 1, "maximum": 500, "default": 50},
+            },
+            "additionalProperties": False,
+        },
+        "handler": _h_list_ai_salesmen,
+        "write": False,
+    },
+    {
+        "name": "assign_salesman",
+        "description": "⚠️ HÀNH ĐỘNG GHI (dữ liệu nội bộ). Gán/chuyển 1 sale AI cho 1 lead. ai_salesman_id trống → tự chọn cân tải + ưu tiên khớp chuyên môn (product_type). KHÔNG gửi gì cho khách. Ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_id": {"type": "string", "description": "ID lead trong CRM"},
+                "ai_salesman_id": {"type": "string", "description": "Gán cứng sale AI (vd ais_0007); trống = tự chọn"},
+                "product_type": {"type": "string", "description": "Loại sản phẩm khách quan tâm (ưu tiên khớp chuyên môn)"},
+            },
+            "required": ["lead_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_assign_salesman,
+        "write": True,
+    },
+    {
+        "name": "run_care_for_lead",
+        "description": "Chạy 'chăm sóc' 1 khách qua sale AI phụ trách → trả PHÂN TÍCH + TIN NHẮN NHÁP. CHỈ ĐỀ XUẤT, KHÔNG gửi tin / KHÔNG ghi CRM (requires_confirmation=true). Tự gán sale AI nếu khách chưa có. Tham số: lead_id (bắt buộc), channel (zalo/sms/email, mặc định zalo).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lead_id": {"type": "string", "description": "ID lead trong CRM"},
+                "channel": {"type": "string", "description": "Kênh tin nháp: zalo/sms/email", "default": "zalo"},
+            },
+            "required": ["lead_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_run_care_for_lead,
         "write": False,
     },
 ]

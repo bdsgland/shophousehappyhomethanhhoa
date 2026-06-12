@@ -437,8 +437,13 @@ def build_profile(
     all_quotes: list[dict],
     *,
     assigned_sale_name: Optional[str] = None,
+    ai_salesman: Optional[dict] = None,
 ) -> dict:
-    """Dựng hồ sơ 360° từ dữ liệu đã load (hàm thuần — không IO)."""
+    """Dựng hồ sơ 360° từ dữ liệu đã load (hàm thuần — không IO).
+
+    `ai_salesman` (tuỳ chọn): khối sale AI đang phụ trách khách (id/name/chuyên môn)
+    — tính năng Đội Sale AI. None nếu chưa gán / chưa seed roster.
+    """
     my_bookings, my_quotes = find_deals_for_lead(lead, all_bookings, all_quotes)
     timeline = build_timeline(lead, contact_logs, my_bookings, my_quotes)
     channels = build_channels(contact_logs, my_bookings)
@@ -470,6 +475,7 @@ def build_profile(
             "updated_at": lead.get("updated_at"),
         },
         "ai": ai_block,
+        "ai_salesman": ai_salesman,
         "pipeline": {
             "stage": stage,
             "label": pipeline.stage_label(stage),
@@ -506,7 +512,36 @@ def load_profile(
         all_quotes = learning_store.list_quotes()
     except Exception:  # noqa: BLE001 — thiếu nguồn quote không làm hỏng hồ sơ
         all_quotes = []
+    ai_salesman = _resolve_ai_salesman(lead.get("ai_salesman_id"))
     return build_profile(
         lead, contact_logs, all_bookings, all_quotes,
         assigned_sale_name=assigned_sale_name,
+        ai_salesman=ai_salesman,
     )
+
+
+def _resolve_ai_salesman(ais_id: Optional[str]) -> Optional[dict]:
+    """Đọc khối sale AI đang phụ trách (id/name/chuyên môn) cho hồ sơ 360.
+
+    An toàn: chưa gán / chưa seed roster / lỗi → None (không làm hỏng hồ sơ).
+    """
+    if not ais_id:
+        return None
+    try:
+        from app.core import ai_salesman_store  # lazy import tránh vòng
+
+        rec = ai_salesman_store.get(ais_id)
+        if not rec:
+            return None
+        return {
+            "id": rec.get("id"),
+            "code": rec.get("code"),
+            "name": rec.get("name"),
+            "specialty": rec.get("specialty"),
+            "specialty_label": rec.get("specialty_label"),
+            "status": rec.get("status"),
+            "assigned_count": rec.get("assigned_count"),
+            "capacity": rec.get("capacity"),
+        }
+    except Exception:  # noqa: BLE001 — sale AI không được làm hỏng hồ sơ 360
+        return None

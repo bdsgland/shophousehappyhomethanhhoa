@@ -853,6 +853,8 @@ export interface Profile360 {
   lead_id: string;
   basic: Profile360Basic;
   ai: Profile360Ai;
+  /** Sale AI đang phụ trách (Đội Sale AI) — null nếu chưa gán / chưa seed roster. */
+  ai_salesman?: AiSalesmanRef | null;
   pipeline: Profile360Pipeline;
   timeline: TimelineItem[];
   deals: Profile360Deals;
@@ -1703,4 +1705,85 @@ export type CrewRunChannel = "zalo" | "sms" | "email";
 /** Body POST run (CrewRunRequest). */
 export interface CrewRunPayload {
   channel?: CrewRunChannel;
+}
+
+// ---------------------------------------------------------------------------
+// ĐỘI SALE AI ("1000 saleman AI") — /admin/ai-sales/* (require_admin)
+// ---------------------------------------------------------------------------
+
+/** 1 sale AI trong roster (public_view). */
+export interface AiSalesman {
+  id: string;
+  code: string;
+  name: string;
+  specialty: string;
+  specialty_label: string;
+  capacity: number;
+  assigned_count: number;
+  status: string; // "active" | "inactive"
+  created_at: string;
+  updated_at: string;
+  capacity_left: number;
+  load_ratio: number;
+}
+
+/** Khối phân khúc trong thống kê. */
+export interface AiSalesBySpecialty {
+  key: string;
+  label: string;
+  count: number;
+  assigned: number;
+}
+
+/** GET /admin/ai-sales/stats. */
+export interface AiSalesStats {
+  total: number;
+  active: number;
+  inactive: number;
+  total_capacity: number;
+  total_assigned: number;
+  avg_load: number;
+  capacity_left: number;
+  by_specialty: AiSalesBySpecialty[];
+}
+
+/** GET /admin/ai-sales (phân trang). */
+export interface AiSalesPage {
+  total: number;
+  page: number;
+  page_size: number;
+  items: AiSalesman[];
+}
+
+/** POST /admin/ai-sales/seed. */
+export interface AiSalesSeedResult {
+  created: number;
+  total: number;
+  requested: number;
+}
+
+/** Tham chiếu sale AI rút gọn (đính kèm hồ sơ 360 + kết quả run-care). */
+export interface AiSalesmanRef {
+  id: string;
+  code: string;
+  name: string;
+  specialty: string;
+  specialty_label: string;
+  status?: string | null;
+  assigned_count?: number | null;
+  capacity?: number | null;
+}
+
+/** POST /admin/ai-sales/leads/{id}/assign. */
+export interface AiSalesAssignResult {
+  ok: boolean;
+  lead_id: string;
+  ai_salesman: AiSalesmanRef | null;
+  changed?: boolean;
+  reason?: string;
+}
+
+/** POST run-care = CrewRunResult + sale AI phụ trách. */
+export interface AiCareResult extends CrewRunResult {
+  ai_salesman?: AiSalesmanRef | null;
 }

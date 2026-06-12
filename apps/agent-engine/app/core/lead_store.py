@@ -15,6 +15,7 @@ app/api/leads.py). AI score 0-100 tính theo engagement (xem compute_ai_score).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
@@ -24,6 +25,8 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.settings import settings
+
+log = logging.getLogger("lead_store")
 
 _LOCK = threading.Lock()
 
@@ -89,6 +92,20 @@ def _save_logs(data: dict) -> None:
 
 def _now() -> str:
     return datetime.utcnow().isoformat() + "Z"
+
+
+def _auto_assign_ai_salesman(lead_id: str, product_type: Optional[str] = None) -> None:
+    """Hook gọi sau khi tạo lead MỚI → tự động gán 1 sale AI (Đội Sale AI).
+
+    AN TOÀN: lazy import + nuốt mọi lỗi (roster trống / module lỗi) để KHÔNG làm
+    hỏng luồng tạo lead hiện tại. Đây là tính năng CỘNG THÊM.
+    """
+    try:
+        from app.core import ai_salesman_store
+
+        ai_salesman_store.auto_assign_new_lead(lead_id, product_type=product_type)
+    except Exception as exc:  # noqa: BLE001 — không để auto-assign làm hỏng tạo lead
+        log.warning("auto-assign sale AI lỗi cho lead %s: %s", lead_id, exc)
 
 
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
@@ -281,9 +298,17 @@ def create_lead(
             status=status,
             registered=registered,
         )
+        # Lưu loại sản phẩm (nếu nguồn cung cấp) để Đội Sale AI ưu tiên khớp chuyên môn.
+        if lead_data.get("product_type"):
+            lead["product_type"] = str(lead_data["product_type"]).strip()
         data["leads"].append(lead)
         _save_leads(data)
-        return public_view(lead)
+        lead_id = lead["id"]
+    # HOOK (ngoài lock): tự động gán 1 sale AI cho khách MỚI. An toàn — roster trống
+    # / lỗi bất kỳ thì bỏ qua, KHÔNG vỡ luồng tạo lead cũ. Tính năng cộng thêm.
+    _auto_assign_ai_salesman(lead_id, lead_data.get("product_type"))
+    refreshed = get_lead(lead_id)
+    return refreshed if refreshed is not None else public_view(lead)
 
 
 def bulk_import_leads(
@@ -392,10 +417,15 @@ def import_customers(
                 status=default_status,
             )
             lead["auto_care"] = bool(auto_care)
+            if raw.get("product_type"):
+                lead["product_type"] = str(raw["product_type"]).strip()
             leads.append(lead)
             created_ids.append(lead["id"])
             imported += 1
         _save_leads(data)
+    # HOOK (ngoài lock): tự động gán sale AI cho từng khách MỚI import. An toàn.
+    for lid in created_ids:
+        _auto_assign_ai_salesman(lid)
     return {
         "imported": imported,
         "skipped": skipped,
@@ -499,7 +529,7 @@ def update_lead(lead_id: str, **fields) -> Optional[dict]:
         "name", "phone", "email", "source", "status", "note", "assigned_sale_id",
         "imported_by_sale_id", "booking_count", "registered",
         "last_contact_at", "hot_marker_at", "effective_contact_count",
-        "contact_count",
+        "contact_count", "ai_salesman_id", "product_type",
     }
     with _LOCK:
         data = _load_leads()
@@ -554,6 +584,52 @@ def add_activity_log(
 def assign_lead(lead_id: str, sale_id: str, by_admin_id: Optional[str] = None) -> Optional[dict]:
     """Gán / chuyển lead cho 1 sale (admin reassign hoặc auto-distribute)."""
     return update_lead(lead_id, assigned_sale_id=sale_id)
+
+
+def set_ai_salesman(lead_id: str, ai_salesman_id: Optional[str]) -> Optional[dict]:
+    """Đặt (hoặc gỡ nếu None) sale AI phụ trách lead — KHÔNG đụng ai_score/status.
+
+    Tách riêng update_lead vì update_lead bỏ qua giá trị None (không gỡ được). Cập
+    nhật updated_at. Trả public_view của lead, None nếu không tìm thấy.
+    """
+    with _LOCK:
+        data = _load_leads()
+        for l in data["leads"]:
+            if l["id"] == lead_id:
+                l["ai_salesman_id"] = ai_salesman_id
+                l["updated_at"] = _now()
+                _save_leads(data)
+                return public_view(l)
+    return None
+
+
+def list_leads_for_ai_salesman(
+    ais_id: str,
+    *,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> dict:
+    """Danh sách khách 1 sale AI đang phụ trách (ai_salesman_id == ais_id) — phân trang."""
+    with _LOCK:
+        rows = [l for l in _load_leads()["leads"] if l.get("ai_salesman_id") == ais_id]
+    if status:
+        rows = [l for l in rows if l.get("status") == status]
+    if search:
+        rows = [l for l in rows if _matches_search(l, search)]
+    rows.sort(key=lambda l: l.get("updated_at") or "", reverse=True)
+    total = len(rows)
+    page = max(1, int(page))
+    page_size = max(1, min(int(page_size), 200))
+    start = (page - 1) * page_size
+    page_rows = rows[start : start + page_size]
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [public_view(l) for l in page_rows],
+    }
 
 
 def soft_delete(lead_id: str) -> Optional[dict]:

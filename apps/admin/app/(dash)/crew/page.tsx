@@ -7,19 +7,31 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Gauge,
   ListChecks,
   MessageSquare,
   Play,
   RefreshCw,
+  Search,
   ShieldAlert,
   Sparkles,
+  UserCheck,
   Users,
+  UsersRound,
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { getCrewStatus, listCrewAgents, runCrewForLead } from "@/lib/api";
+import {
+  getAiSalesStats,
+  getCrewStatus,
+  listAiSalesmen,
+  listCrewAgents,
+  runCrewForLead,
+  seedAiSales,
+} from "@/lib/api";
 import type {
+  AiSalesman,
   CrewAgentTemplate,
   CrewMode,
   CrewRunChannel,
@@ -106,11 +118,249 @@ export default function CrewPage() {
       />
 
       <div className="space-y-6">
+        <RosterCard />
         <StatusCard />
         <AgentsCard />
         <RunCard />
       </div>
     </div>
+  );
+}
+
+// ===========================================================================
+// Đội 1000 Sale AI — thống kê + khởi tạo + danh sách roster
+// ===========================================================================
+
+const SPECIALTY_VARIANT: Record<string, "default" | "warning" | "success"> = {
+  lien_ke: "default",
+  shophouse: "warning",
+  can_ho: "success",
+};
+
+function StatBox({
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-md border border-border p-4">
+      <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="h-4 w-4 text-primary" />
+        {label}
+      </div>
+      <div className="text-2xl font-bold">{value}</div>
+      {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function RosterCard() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  // Debounce ô tìm kiếm.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebounced(search.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const statsQ = useQuery({ queryKey: ["ai-sales-stats"], queryFn: getAiSalesStats });
+  const listQ = useQuery({
+    queryKey: ["ai-sales-list", debounced, page],
+    queryFn: () =>
+      listAiSalesmen({ search: debounced || undefined, page, page_size: pageSize }),
+  });
+
+  const seedMut = useMutation({
+    mutationFn: () => seedAiSales(1000),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ai-sales-stats"] });
+      qc.invalidateQueries({ queryKey: ["ai-sales-list"] });
+    },
+  });
+
+  const stats = statsQ.data;
+  const isEmpty = !!stats && stats.total === 0;
+  const list = listQ.data;
+  const totalPages = list ? Math.max(1, Math.ceil(list.total / pageSize)) : 1;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <UsersRound className="h-4 w-4 text-primary" />
+              Đội 1000 Sale AI
+            </CardTitle>
+            <CardDescription>
+              Đội sale AI tự động gán vào khách để chăm sóc. Gán là dữ liệu nội bộ; mọi tin ra khách
+              vẫn chỉ là NHÁP cần duyệt.
+            </CardDescription>
+          </div>
+          {isEmpty && (
+            <Button onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
+              <Sparkles className={seedMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+              {seedMut.isPending ? "Đang khởi tạo…" : "Khởi tạo 1000 Sale AI"}
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Thẻ thống kê */}
+        {statsQ.isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : statsQ.isError || !stats ? (
+          <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+            Không tải được thống kê: {(statsQ.error as Error)?.message ?? "lỗi"}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatBox icon={Users} label="Tổng Sale AI" value={stats.total.toLocaleString("vi-VN")} />
+            <StatBox icon={UserCheck} label="Đang hoạt động" value={stats.active.toLocaleString("vi-VN")} />
+            <StatBox
+              icon={Bot}
+              label="Tổng khách đã gán"
+              value={stats.total_assigned.toLocaleString("vi-VN")}
+              hint={`Còn chỗ: ${stats.capacity_left.toLocaleString("vi-VN")}`}
+            />
+            <StatBox icon={Gauge} label="Tải trung bình" value={`${stats.avg_load}`} hint="khách / sale AI" />
+          </div>
+        )}
+
+        {/* Trạng thái roster trống */}
+        {isEmpty && (
+          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Roster đang trống. Nhấn <span className="font-medium">"Khởi tạo 1000 Sale AI"</span> để tạo
+            đội. Sau khi tạo, khách mới sẽ được tự động gán cho sale AI phù hợp (cân tải + khớp chuyên
+            môn).
+          </div>
+        )}
+        {seedMut.isError && (
+          <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+            Lỗi khởi tạo: {(seedMut.error as Error).message}
+          </div>
+        )}
+        {seedMut.data && (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            Đã tạo {seedMut.data.created.toLocaleString("vi-VN")} sale AI (tổng{" "}
+            {seedMut.data.total.toLocaleString("vi-VN")}).
+          </div>
+        )}
+
+        {/* Phân bổ theo chuyên môn */}
+        {stats && stats.total > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {stats.by_specialty.map((s) => (
+              <Badge key={s.key} variant={SPECIALTY_VARIANT[s.key] ?? "muted"}>
+                {s.label}: {s.count.toLocaleString("vi-VN")} · gán {s.assigned.toLocaleString("vi-VN")}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Danh sách roster (tìm kiếm + phân trang) */}
+        {!isEmpty && (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm theo tên / mã sale AI…"
+                className="pl-8"
+              />
+            </div>
+
+            {listQ.isLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : listQ.isError || !list ? (
+              <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+                Không tải được danh sách: {(listQ.error as Error)?.message ?? "lỗi"}
+              </div>
+            ) : list.items.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">Không có sale AI phù hợp.</p>
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-md border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Sale AI</th>
+                        <th className="px-3 py-2 font-medium">Chuyên môn</th>
+                        <th className="px-3 py-2 text-right font-medium">Đang chăm</th>
+                        <th className="px-3 py-2 text-center font-medium">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.items.map((s: AiSalesman) => (
+                        <tr key={s.id} className="border-t border-border">
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{s.name}</div>
+                            <div className="text-xs text-muted-foreground">{s.code}</div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge variant={SPECIALTY_VARIANT[s.specialty] ?? "muted"}>
+                              {s.specialty_label}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {s.assigned_count}
+                            <span className="text-muted-foreground"> / {s.capacity}</span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <Badge variant={s.status === "active" ? "success" : "muted"}>
+                              {s.status === "active" ? "Hoạt động" : "Tạm dừng"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Phân trang */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {list.total.toLocaleString("vi-VN")} sale AI · trang {list.page}/{totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Trước
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Sau
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

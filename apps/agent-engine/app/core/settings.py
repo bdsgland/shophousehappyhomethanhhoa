@@ -242,6 +242,15 @@ class Settings(BaseSettings):
     contact_logs_file: str = "data/_runtime/contact_logs.json"
     sale_tasks_file: str = "data/_runtime/sale_tasks.json"
 
+    # ----- ĐỘI SALE AI ("1000 saleman AI") — roster nhân viên sale ảo -----
+    # JSON store {salesmen:[...]} cho đội sale AI tự động gán + chăm sóc khách.
+    # Resolve giống leads_file (DATA_DIR Railway volume / agent-engine / CWD).
+    # TÍNH NĂNG CỘNG THÊM: roster trống thì auto-assign tự bỏ qua, không vỡ luồng
+    # lead/360 hiện tại. Mọi tin ra khách thật vẫn chỉ ở dạng NHÁP cần xác nhận.
+    ai_salesmen_file: str = "data/_runtime/ai_salesmen.json"
+    # Số khách tối đa 1 sale AI phụ trách (capacity mặc định khi seed roster).
+    ai_salesman_capacity: int = 50
+
     # ----- NHÂN SỰ (HR) — ma trận quyền theo vai trò + mục tiêu KPI -----
     # JSON store (resolve giống users_file: DATA_DIR / agent-engine / CWD). Sau
     # migrate PostgreSQL. Ma trận quyền tự seed mặc định khi file rỗng.
