@@ -36,6 +36,7 @@ import type {
   FinancePeriod,
   FinancePeriodSummary,
   FinanceRevenueResponse,
+  CrmBulkDeleteResult,
   CrmLeadDetail,
   CrmLeadPage,
   CrmStats,
@@ -745,6 +746,14 @@ export function softDeleteCrmLead(id: string) {
   return apiFetch<CrmLead>(`/admin/crm/leads/${id}`, { method: "DELETE" });
 }
 
+/** Xoá CỨNG hàng loạt khách theo danh sách id (dọn nhanh khi import sai). */
+export function bulkDeleteCrmLeads(ids: string[]) {
+  return apiFetch<CrmBulkDeleteResult>("/admin/crm/leads/bulk-delete", {
+    method: "POST",
+    body: { ids },
+  });
+}
+
 export function markCrmLeadHot(id: string) {
   return apiFetch<CrmLead>(`/admin/crm/leads/${id}/mark-hot`, { method: "POST" });
 }
@@ -905,10 +914,12 @@ export function getImportWorkspaceStatus() {
   return apiFetch<ImportWorkspaceStatus>("/admin/import/workspace-status");
 }
 
-/** Đọc Google Trang tính → headers + rows + gợi ý mapping (xem trước). */
+/** Đọc Google Trang tính → headers + rows + gợi ý mapping (xem trước).
+ *  `all_tabs=true` → đọc mọi tab, gắn nhãn tab vào vùng miền/tệp khách. */
 export function parseImportGoogleSheet(payload: {
   sheet_url: string;
   sheet_name?: string | null;
+  all_tabs?: boolean;
 }) {
   return apiFetch<ImportParsePreview>("/admin/import/google-sheet/parse", {
     method: "POST",
@@ -916,10 +927,12 @@ export function parseImportGoogleSheet(payload: {
   });
 }
 
-/** Upload CSV/XLSX (multipart) → headers + rows + gợi ý mapping. */
-export function parseImportFile(file: File) {
+/** Upload CSV/XLSX (multipart) → headers + rows + gợi ý mapping.
+ *  `allTabs=true` (XLSX nhiều sheet) → đọc mọi sheet, gắn nhãn sheet vào tệp khách. */
+export function parseImportFile(file: File, allTabs = false) {
   const form = new FormData();
   form.append("file", file);
+  form.append("all_tabs", allTabs ? "true" : "false");
   return apiUpload<ImportParsePreview>("/admin/import/file/parse", form);
 }
 

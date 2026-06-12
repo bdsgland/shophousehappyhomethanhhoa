@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.api.deps import require_admin
 from app.core import customer_import, lead_store, sheets_import, workspace_token_store
@@ -27,15 +27,41 @@ from app.schemas.customer_import import (
     ImportResult,
     ParsePreview,
     SheetParseRequest,
+    TabCount,
 )
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/import", tags=["crm-import"])
 
-# Giới hạn số dòng trả về preview (FE không cần xem hết để map cột).
-_PREVIEW_ROWS = 200
+# Trần an toàn số dòng GỬI VỀ FE để commit (FE chỉ HIỂN THỊ vài dòng đầu, nhưng
+# phải nhận đủ rows để nhập đúng số lượng — không giới hạn còn 200 như trước).
+_MAX_COMMIT_ROWS = 10000
 _MAX_FILE_BYTES = 10 * 1024 * 1024  # 10MB
+
+
+def _build_preview(
+    headers: list[str],
+    records: list[dict],
+    source_label: str,
+    *,
+    sheet_names=None,
+    multi_tab: bool = False,
+    tab_counts=None,
+) -> ParsePreview:
+    """Dựng ParsePreview chung: gợi ý mapping + trả ĐỦ rows (cắt trần an toàn)."""
+    mapping = customer_import.suggest_mapping(headers)
+    rows = records[:_MAX_COMMIT_ROWS]
+    return ParsePreview(
+        headers=headers,
+        rows=rows,
+        total=len(records),
+        suggested_mapping=ColumnMapping(**mapping),
+        sheet_names=sheet_names,
+        source_label=source_label,
+        multi_tab=multi_tab,
+        tab_counts=[TabCount(**t) for t in tab_counts] if tab_counts else None,
+    )
 
 
 @router.get("/workspace-status")
@@ -58,7 +84,11 @@ def import_workspace_status(_admin: dict = Depends(require_admin)) -> dict:
 async def parse_google_sheet(
     payload: SheetParseRequest, _admin: dict = Depends(require_admin)
 ) -> ParsePreview:
-    """Đọc Google Trang tính → headers + rows + gợi ý mapping."""
+    """Đọc Google Trang tính → headers + rows + gợi ý mapping.
+
+    `all_tabs=True` → đọc TẤT CẢ tab, gộp dòng (mỗi dòng gắn nhãn tab) để gắn vùng
+    miền / tệp khách theo tên tab. Ngược lại đọc 1 tab (sheet_name hoặc tab đầu).
+    """
     sid = sheets_import.extract_spreadsheet_id(payload.sheet_url)
     if not sid:
         raise HTTPException(
@@ -68,7 +98,13 @@ async def parse_google_sheet(
         )
     try:
         tabs = await sheets_import.list_sheet_tabs(sid)
-        table = await sheets_import.read_sheet_values(sid, payload.sheet_name)
+        if payload.all_tabs:
+            tables = [
+                (name, await sheets_import.read_sheet_values(sid, name))
+                for name in (tabs or [])
+            ]
+        else:
+            table = await sheets_import.read_sheet_values(sid, payload.sheet_name)
     except sheets_import.SheetsNotConfiguredError as e:
         raise HTTPException(status_code=409, detail=str(e))
     except sheets_import.SheetsScopeError as e:
@@ -76,30 +112,60 @@ async def parse_google_sheet(
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Lỗi đọc Google Trang tính: {e}")
 
+    if payload.all_tabs:
+        headers, records, tab_counts = customer_import.merge_tabbed_records(tables)
+        if not headers:
+            raise HTTPException(status_code=400, detail="Trang tính rỗng hoặc không có dữ liệu.")
+        return _build_preview(
+            headers, records, "google_sheet",
+            sheet_names=tabs or None, multi_tab=True, tab_counts=tab_counts,
+        )
+
     headers, records = customer_import.table_to_records(table)
     if not headers:
         raise HTTPException(status_code=400, detail="Trang tính rỗng hoặc không có dữ liệu.")
-    mapping = customer_import.suggest_mapping(headers)
-    return ParsePreview(
-        headers=headers,
-        rows=records[:_PREVIEW_ROWS],
-        total=len(records),
-        suggested_mapping=ColumnMapping(**mapping),
-        sheet_names=tabs or None,
-        source_label="google_sheet",
+    return _build_preview(
+        headers, records, "google_sheet", sheet_names=tabs or None,
     )
 
 
 @router.post("/file/parse", response_model=ParsePreview)
 async def parse_file_upload(
-    file: UploadFile = File(...), _admin: dict = Depends(require_admin)
+    file: UploadFile = File(...),
+    all_tabs: bool = Form(False),
+    _admin: dict = Depends(require_admin),
 ) -> ParsePreview:
-    """Upload CSV/XLSX → headers + rows + gợi ý mapping."""
+    """Upload CSV/XLSX → headers + rows + gợi ý mapping.
+
+    File XLSX nhiều sheet + `all_tabs=True` → đọc TẤT CẢ sheet, gắn nhãn sheet vào
+    vùng miền / tệp khách (giống import nhiều tab Google Sheet).
+    """
     content = await file.read()
     if len(content) > _MAX_FILE_BYTES:
         raise HTTPException(status_code=413, detail="File quá lớn (giới hạn 10MB).")
+    filename = file.filename or ""
+
+    # Liệt kê tên sheet (nếu là XLSX) để FE biết có nhiều tab hay không.
+    sheet_names = None
+    if filename.lower().endswith((".xlsx", ".xlsm")):
+        try:
+            sheet_names = [n for n, _ in customer_import.parse_xlsx_sheets(content)]
+        except Exception:  # noqa: BLE001
+            sheet_names = None
+
     try:
-        table = customer_import.parse_file(file.filename or "", content)
+        if all_tabs and filename.lower().endswith((".xlsx", ".xlsm")):
+            tables = customer_import.parse_xlsx_sheets(content)
+            headers, records, tab_counts = customer_import.merge_tabbed_records(tables)
+            if not headers:
+                raise HTTPException(status_code=400, detail="File rỗng hoặc không có dữ liệu.")
+            return _build_preview(
+                headers, records, "file_upload",
+                sheet_names=sheet_names or None, multi_tab=True, tab_counts=tab_counts,
+            )
+        table = customer_import.parse_file(filename, content)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001
@@ -108,13 +174,8 @@ async def parse_file_upload(
     headers, records = customer_import.table_to_records(table)
     if not headers:
         raise HTTPException(status_code=400, detail="File rỗng hoặc không có dữ liệu.")
-    mapping = customer_import.suggest_mapping(headers)
-    return ParsePreview(
-        headers=headers,
-        rows=records[:_PREVIEW_ROWS],
-        total=len(records),
-        suggested_mapping=ColumnMapping(**mapping),
-        source_label="file_upload",
+    return _build_preview(
+        headers, records, "file_upload", sheet_names=sheet_names or None,
     )
 
 

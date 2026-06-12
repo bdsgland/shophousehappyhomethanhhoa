@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs } from "@/components/ui/tabs";
 
 type TabKey = "google_sheet" | "file_upload";
@@ -88,6 +89,7 @@ function GoogleSheetTab({
 }) {
   const [sheetUrl, setSheetUrl] = useState("");
   const [sheetName, setSheetName] = useState<string>("");
+  const [allTabs, setAllTabs] = useState(false);
   const [preview, setPreview] = useState<ImportParsePreview | null>(null);
   const [scopeError, setScopeError] = useState(false);
 
@@ -97,15 +99,19 @@ function GoogleSheetTab({
   });
 
   const parseMut = useMutation({
-    mutationFn: (name?: string) =>
-      parseImportGoogleSheet({
+    mutationFn: (opts?: { name?: string; allTabs?: boolean }) => {
+      const useAll = opts?.allTabs ?? allTabs;
+      return parseImportGoogleSheet({
         sheet_url: sheetUrl.trim(),
-        sheet_name: name ?? sheetName ?? null,
-      }),
+        sheet_name: useAll ? null : opts?.name ?? sheetName ?? null,
+        all_tabs: useAll,
+      });
+    },
     onSuccess: (res) => {
       setPreview(res);
       setScopeError(false);
-      if (!sheetName && res.sheet_names?.length) setSheetName(res.sheet_names[0]);
+      if (!allTabs && !sheetName && res.sheet_names?.length)
+        setSheetName(res.sheet_names[0]);
     },
     onError: (e) => {
       setPreview(null);
@@ -147,6 +153,21 @@ function GoogleSheetTab({
             </Button>
           </div>
 
+          <label className="flex items-center gap-2.5 text-sm">
+            <Switch
+              checked={allTabs}
+              onChange={(v) => {
+                setAllTabs(v);
+                if (sheetUrl.trim()) parseMut.mutate({ allTabs: v });
+              }}
+              disabled={parseMut.isPending}
+            />
+            <span>
+              Nhập <b>tất cả tab</b> (mỗi tab = một vùng miền / tệp khách, tự gắn
+              nhãn theo tên tab)
+            </span>
+          </label>
+
           {statusQ.data && !sheetsReady && <WorkspaceScopeNotice />}
 
           {scopeError && <WorkspaceScopeNotice error={parseMut.error as Error} />}
@@ -158,7 +179,7 @@ function GoogleSheetTab({
             </div>
           )}
 
-          {preview?.sheet_names && preview.sheet_names.length > 0 && (
+          {!allTabs && preview?.sheet_names && preview.sheet_names.length > 0 && (
             <div className="space-y-1.5 sm:max-w-xs">
               <Label>Tab (sheet) trong workbook</Label>
               <Select
@@ -166,7 +187,7 @@ function GoogleSheetTab({
                 onChange={(e) => {
                   const name = e.target.value;
                   setSheetName(name);
-                  parseMut.mutate(name);
+                  parseMut.mutate({ name });
                 }}
                 disabled={parseMut.isPending}
               >
@@ -185,7 +206,7 @@ function GoogleSheetTab({
         <Card>
           <CardContent className="pt-5">
             <ImportMappingPanel
-              key={`gs-${sheetName}`}
+              key={`gs-${allTabs ? "all" : sheetName}-${preview.total}`}
               preview={preview}
               source="google_sheet"
               onImported={onImported}
@@ -228,20 +249,28 @@ function FileTab({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [allTabs, setAllTabs] = useState(false);
   const [preview, setPreview] = useState<ImportParsePreview | null>(null);
 
   const parseMut = useMutation({
-    mutationFn: (file: File) => parseImportFile(file),
+    mutationFn: (opts: { file: File; allTabs: boolean }) =>
+      parseImportFile(opts.file, opts.allTabs),
     onSuccess: (res) => setPreview(res),
     onError: () => setPreview(null),
   });
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-    parseMut.mutate(file);
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    setFile(picked);
+    setFileName(picked.name);
+    parseMut.mutate({ file: picked, allTabs });
   }
+
+  // File XLSX có >1 sheet → cho phép gộp tất cả sheet (gắn nhãn theo tên sheet).
+  const isXlsx = /\.(xlsx|xlsm)$/i.test(fileName);
+  const hasMultiSheet = (preview?.sheet_names?.length ?? 0) > 1;
 
   return (
     <div className="space-y-5">
@@ -279,6 +308,23 @@ function FileTab({
             </span>
           </div>
 
+          {isXlsx && hasMultiSheet && file && (
+            <label className="flex items-center gap-2.5 text-sm">
+              <Switch
+                checked={allTabs}
+                onChange={(v) => {
+                  setAllTabs(v);
+                  parseMut.mutate({ file, allTabs: v });
+                }}
+                disabled={parseMut.isPending}
+              />
+              <span>
+                Nhập <b>tất cả sheet</b> ({preview?.sheet_names?.length} sheet) — mỗi
+                sheet = một tệp khách, tự gắn nhãn theo tên sheet
+              </span>
+            </label>
+          )}
+
           {parseMut.isError && (
             <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -292,7 +338,7 @@ function FileTab({
         <Card>
           <CardContent className="pt-5">
             <ImportMappingPanel
-              key={`file-${fileName}`}
+              key={`file-${fileName}-${allTabs ? "all" : "one"}-${preview.total}`}
               preview={preview}
               source="file_upload"
               onImported={onImported}

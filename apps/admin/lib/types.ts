@@ -602,6 +602,13 @@ export interface CrmLead {
   created_at: string;
   updated_at: string;
   note: string | null;
+  // Trường phân loại / hồ sơ mở rộng (Customer 360) — đều tuỳ chọn.
+  region?: string | null;
+  customer_group?: string | null;
+  product_type?: string | null;
+  budget?: string | null;
+  purpose?: string | null;
+  project?: string | null;
   days_since_contact: number | null;
 }
 
@@ -629,6 +636,13 @@ export interface CrmLeadUpdate {
   status?: CrmLeadStatus;
   note?: string | null;
   assigned_sale_id?: string | null;
+  // Trường phân loại / hồ sơ mở rộng (Customer 360).
+  region?: string | null;
+  customer_group?: string | null;
+  product_type?: string | null;
+  budget?: string | null;
+  purpose?: string | null;
+  project?: string | null;
 }
 
 /** Kênh care feed = kênh liên hệ + 'note' (ghi chú thuần). */
@@ -667,6 +681,13 @@ export interface CrmLeadPage {
   items: CrmLead[];
 }
 
+/** Kết quả xoá hàng loạt khách — đồng bộ POST /admin/crm/leads/bulk-delete. */
+export interface CrmBulkDeleteResult {
+  deleted_count: number;
+  deleted_ids: string[];
+  not_found: string[];
+}
+
 export interface CrmStats {
   total_leads: number;
   hot_leads: number;
@@ -702,18 +723,33 @@ export interface ImportColumnMapping {
   source?: string | null;
   note?: string | null;
   demand?: string | null;
+  // Trường phân loại / hồ sơ mở rộng (Customer 360).
+  region?: string | null; // Vùng miền / khu vực
+  customer_group?: string | null; // Tệp khách / nhóm khách
+  product_type?: string | null; // Phân khúc / sản phẩm quan tâm
+  budget?: string | null; // Ngân sách
+  purpose?: string | null; // Mục đích (ở / đầu tư)
+  project?: string | null; // Dự án quan tâm
 }
 
 /** Khoá field map được + nhãn tiếng Việt (dựng UI map cột). */
 export type ImportMappingField = keyof ImportColumnMapping;
+
+/** Số dòng dữ liệu của 1 tab (báo "số dòng/tab"). */
+export interface ImportTabCount {
+  name: string;
+  count: number;
+}
 
 export interface ImportParsePreview {
   headers: string[];
   rows: Record<string, unknown>[];
   total: number;
   suggested_mapping: ImportColumnMapping;
-  sheet_names?: string[] | null; // với Google Sheet
+  sheet_names?: string[] | null; // với Google Sheet / file nhiều sheet
   source_label?: string | null; // "google_sheet" | "file_upload"
+  multi_tab?: boolean; // rows gộp từ nhiều tab
+  tab_counts?: ImportTabCount[] | null; // số dòng từng tab (khi multi_tab)
 }
 
 export interface ImportCommitPayload {

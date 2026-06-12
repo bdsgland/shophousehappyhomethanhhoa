@@ -118,6 +118,12 @@ class LeadEngagedBody(BaseModel):
     booked: bool = False
 
 
+class LeadBulkDeleteBody(BaseModel):
+    """Xoá CỨNG hàng loạt khách theo danh sách id (dọn nhanh khi import sai)."""
+
+    ids: list[str]
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -154,6 +160,12 @@ _FIELD_LABELS: dict[str, str] = {
     "status": "trạng thái",
     "note": "ghi chú",
     "assigned_sale_id": "người phụ trách",
+    "region": "vùng miền",
+    "customer_group": "tệp khách",
+    "product_type": "phân khúc quan tâm",
+    "budget": "ngân sách",
+    "purpose": "mục đích",
+    "project": "dự án quan tâm",
 }
 
 
@@ -482,6 +494,63 @@ def admin_soft_delete_lead(lead_id: str, _admin: dict = Depends(require_admin)) 
     if not updated:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
     return Lead(**updated)
+
+
+@admin_router.post("/leads/bulk-delete")
+def admin_bulk_delete_leads(
+    payload: LeadBulkDeleteBody,
+    admin: dict = Depends(require_admin),
+) -> dict:
+    """XOÁ CỨNG hàng loạt khách theo danh sách id — dọn nhanh khi import sai.
+
+    CHỈ admin (require_admin). KHÔNG hoàn tác được. Bỏ qua id không tồn tại
+    (trả trong `not_found`). Sau khi xoá, giảm assigned_count của Đội Sale AI
+    cho khớp (best-effort) và ghi audit `lead.bulk_delete`. CHỈ đụng dữ liệu
+    lead/khách — không xoá sang bảng khác.
+
+    Trả {deleted_count, deleted_ids, not_found}.
+    """
+    ids = [i for i in (payload.ids or []) if i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="Danh sách id rỗng")
+
+    result = lead_store.delete_leads(ids)
+    deleted = result["deleted"]
+
+    # Giảm tải Đội Sale AI cho các lead đã gán (best-effort — không vỡ luồng xoá).
+    freed = result.get("freed_ai_salesmen") or {}
+    if freed:
+        try:
+            from app.core import ai_salesman_store
+
+            ai_salesman_store.decrement_assigned(freed)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("giảm tải sale AI sau bulk-delete lỗi: %s", exc)
+
+    # Audit lead.bulk_delete (số lượng + ai xoá) — best-effort.
+    try:
+        from app.core import audit_store
+
+        audit_store.record(
+            "lead.bulk_delete",
+            {
+                "count": len(deleted),
+                "deleted_ids": deleted,
+                "not_found": result["not_found"],
+                "actor_id": admin.get("id"),
+                "actor_email": admin.get("email"),
+                "actor_name": admin.get("full_name"),
+            },
+            detail=f"admin {admin.get('email') or admin.get('id')} xoá {len(deleted)} khách",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("audit lead.bulk_delete lỗi: %s", exc)
+
+    return {
+        "deleted_count": len(deleted),
+        "deleted_ids": deleted,
+        "not_found": result["not_found"],
+    }
 
 
 @admin_router.post("/leads/{lead_id}/mark-hot", response_model=Lead)

@@ -24,9 +24,15 @@ const FIELD_META: { key: ImportMappingField; label: string; required?: boolean }
     { key: "name", label: "Tên khách" },
     { key: "phone", label: "Số điện thoại *" },
     { key: "email", label: "Email *" },
+    { key: "region", label: "Vùng miền / khu vực" },
+    { key: "customer_group", label: "Tệp khách / nhóm khách" },
+    { key: "product_type", label: "Phân khúc / SP quan tâm" },
+    { key: "budget", label: "Ngân sách" },
+    { key: "purpose", label: "Mục đích (ở / đầu tư)" },
+    { key: "project", label: "Dự án quan tâm" },
     { key: "source", label: "Nguồn" },
     { key: "note", label: "Ghi chú" },
-    { key: "demand", label: "Nhu cầu" },
+    { key: "demand", label: "Nhu cầu (tự do)" },
   ];
 
 const PREVIEW_ROWS = 8;
@@ -88,6 +94,24 @@ export function ImportMappingPanel({
 
   return (
     <div className="space-y-5">
+      {/* Banner nhiều tab: nhãn tab tự gắn vào Vùng miền + Tệp khách */}
+      {preview.multi_tab && preview.tab_counts && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <p className="font-medium">
+            Đã gộp {preview.tab_counts.length} tab — tên tab tự gắn vào{" "}
+            <b>Vùng miền</b> &amp; <b>Tệp khách</b> (giá trị riêng của dòng được ưu
+            tiên).
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {preview.tab_counts.map((t) => (
+              <Badge key={t.name} variant="muted">
+                {t.name}: {t.count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Map cột */}
       <div>
         <h3 className="mb-2 text-sm font-semibold">Ghép cột dữ liệu</h3>

@@ -103,6 +103,13 @@ class LeadAdminUpdate(BaseModel):
     status: Optional[LeadStatus] = None
     note: Optional[str] = None
     assigned_sale_id: Optional[str] = None
+    # Trường phân loại / hồ sơ mở rộng (Customer 360) — admin sửa được.
+    region: Optional[str] = None
+    customer_group: Optional[str] = None
+    product_type: Optional[str] = None
+    budget: Optional[str] = None
+    purpose: Optional[str] = None
+    project: Optional[str] = None
 
 
 class Lead(BaseModel):
@@ -125,6 +132,13 @@ class Lead(BaseModel):
     created_at: datetime
     updated_at: datetime
     note: Optional[str] = None
+    # Trường phân loại / hồ sơ mở rộng (Customer 360) — đều tuỳ chọn.
+    region: Optional[str] = None          # Vùng miền / khu vực
+    customer_group: Optional[str] = None  # Tệp khách / nhóm khách (nhãn tab import)
+    product_type: Optional[str] = None    # Phân khúc / sản phẩm quan tâm
+    budget: Optional[str] = None          # Ngân sách
+    purpose: Optional[str] = None         # Mục đích (ở / đầu tư)
+    project: Optional[str] = None         # Dự án quan tâm
     # Computed fields cho UI
     days_since_contact: Optional[int] = None
 

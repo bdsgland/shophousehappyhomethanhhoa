@@ -223,6 +223,18 @@ def apply_ai_insight(
 # Lead CRUD
 # ---------------------------------------------------------------------------
 
+# Trường phân loại/hồ sơ MỞ RỘNG (Customer 360) — đều TUỲ CHỌN, chỉ lưu khi có giá
+# trị để hồ sơ cũ (chỉ tên+SĐT) giữ nguyên hình dạng (backward compatible).
+_PROFILE_FIELDS = (
+    "region",          # Vùng miền / khu vực
+    "customer_group",  # Tệp khách / nhóm khách (nhãn tab khi import)
+    "product_type",    # Phân khúc / sản phẩm quan tâm (liền kề/shophouse/căn hộ)
+    "budget",          # Ngân sách
+    "purpose",         # Mục đích (ở / đầu tư)
+    "project",         # Dự án quan tâm
+)
+
+
 def _new_lead(
     *,
     name: str,
@@ -234,6 +246,7 @@ def _new_lead(
     assigned_sale_id: Optional[str],
     status: str = "cold",
     registered: bool = False,
+    profile: Optional[dict] = None,
 ) -> dict:
     now = _now()
     lead = {
@@ -256,6 +269,11 @@ def _new_lead(
         "updated_at": now,
         "note": (note or "").strip() or None,
     }
+    # Gắn trường phân loại mở rộng (chỉ khi có giá trị) — giữ tương thích ngược.
+    for key in _PROFILE_FIELDS:
+        val = (profile or {}).get(key)
+        if val is not None and str(val).strip():
+            lead[key] = str(val).strip()
     lead["ai_score"] = compute_ai_score(lead)
     return lead
 
@@ -297,10 +315,10 @@ def create_lead(
             assigned_sale_id=assigned,
             status=status,
             registered=registered,
+            # Trường phân loại mở rộng (region/tệp khách/ngân sách/mục đích/dự án/
+            # product_type) — _new_lead chỉ lưu key có giá trị.
+            profile={k: lead_data.get(k) for k in _PROFILE_FIELDS},
         )
-        # Lưu loại sản phẩm (nếu nguồn cung cấp) để Đội Sale AI ưu tiên khớp chuyên môn.
-        if lead_data.get("product_type"):
-            lead["product_type"] = str(lead_data["product_type"]).strip()
         data["leads"].append(lead)
         _save_leads(data)
         lead_id = lead["id"]
@@ -415,10 +433,10 @@ def import_customers(
                 imported_by_sale_id=imported_by_sale_id,
                 assigned_sale_id=assigned,
                 status=default_status,
+                # Trường phân loại mở rộng từ mapping import (region/tệp khách/...).
+                profile={k: raw.get(k) for k in _PROFILE_FIELDS},
             )
             lead["auto_care"] = bool(auto_care)
-            if raw.get("product_type"):
-                lead["product_type"] = str(raw["product_type"]).strip()
             leads.append(lead)
             created_ids.append(lead["id"])
             imported += 1
@@ -530,6 +548,8 @@ def update_lead(lead_id: str, **fields) -> Optional[dict]:
         "imported_by_sale_id", "booking_count", "registered",
         "last_contact_at", "hot_marker_at", "effective_contact_count",
         "contact_count", "ai_salesman_id", "product_type",
+        # Trường phân loại / hồ sơ mở rộng (Customer 360).
+        "region", "customer_group", "budget", "purpose", "project",
     }
     with _LOCK:
         data = _load_leads()
@@ -640,6 +660,54 @@ def soft_delete(lead_id: str) -> Optional[dict]:
 def mark_as_hot(lead_id: str) -> Optional[dict]:
     """Đánh dấu lead HOT + ghi mốc hot_marker_at."""
     return update_lead(lead_id, status="hot", hot_marker_at=_now())
+
+
+def delete_leads(ids: list[str]) -> dict:
+    """XOÁ CỨNG nhiều lead/khách theo danh sách id — dùng cho "dọn" khi import sai.
+
+    AN TOÀN:
+      - Atomic + có khóa (_LOCK): nạp 1 lần, lọc, ghi đè bằng atomic write (_write).
+      - Bỏ qua id không tồn tại (gom vào `not_found`), KHÔNG raise.
+      - Dedupe id đầu vào, bỏ id rỗng.
+      - CHỈ đụng file leads.json — KHÔNG xoá contact_logs hay bảng khác.
+
+    `freed_ai_salesmen`: {ai_salesman_id: số lead bị xoá đang gán} → tầng router
+    dùng để giảm assigned_count của Đội Sale AI cho khớp (bộ đếm không lệch).
+
+    Trả {deleted: [id...], not_found: [id...], freed_ai_salesmen: {ais_id: n}}.
+    """
+    # Dedupe + bỏ rỗng, giữ thứ tự đầu vào.
+    want: list[str] = []
+    seen: set[str] = set()
+    for i in ids or []:
+        if i and i not in seen:
+            seen.add(i)
+            want.append(i)
+
+    deleted: list[str] = []
+    freed: dict[str, int] = {}
+    if not want:
+        return {"deleted": [], "not_found": [], "freed_ai_salesmen": {}}
+
+    want_set = set(want)
+    with _LOCK:
+        data = _load_leads()
+        kept: list[dict] = []
+        for l in data["leads"]:
+            if l.get("id") in want_set:
+                deleted.append(l["id"])
+                aid = l.get("ai_salesman_id")
+                if aid:
+                    freed[aid] = freed.get(aid, 0) + 1
+            else:
+                kept.append(l)
+        if deleted:
+            data["leads"] = kept
+            _save_leads(data)
+
+    deleted_set = set(deleted)
+    not_found = [i for i in want if i not in deleted_set]
+    return {"deleted": deleted, "not_found": not_found, "freed_ai_salesmen": freed}
 
 
 def set_pipeline_stage(

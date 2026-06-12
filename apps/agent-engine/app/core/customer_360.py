@@ -471,6 +471,13 @@ def build_profile(
             "assigned_sale_name": assigned_sale_name,
             "registered": bool(lead.get("registered")),
             "note": lead.get("note"),
+            # Trường phân loại / hồ sơ mở rộng (Customer 360).
+            "region": lead.get("region"),
+            "customer_group": lead.get("customer_group"),
+            "product_type": lead.get("product_type"),
+            "budget": lead.get("budget"),
+            "purpose": lead.get("purpose"),
+            "project": lead.get("project"),
             "created_at": lead.get("created_at"),
             "updated_at": lead.get("updated_at"),
         },
