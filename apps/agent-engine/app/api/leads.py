@@ -3,6 +3,7 @@
 Giai đoạn 2 sẽ thay bằng PostgreSQL.
 """
 
+import logging
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
@@ -11,10 +12,75 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.api.deps import get_current_user, require_user_or_service
 from app.schemas.lead import Lead, LeadCreate
 
+log = logging.getLogger("api.leads")
+
 router = APIRouter(prefix="/leads", tags=["leads"])
 
 # In-memory store — chỉ dùng khi MVP. KHÔNG dùng ở production.
+#
+# LƯU Ý: `_LEADS` vẫn được nhiều module nội bộ dùng chung qua `leads_store._LEADS`
+# (webhook.py / bookings.py / automation.py / n8n_stubs.py / admin.py). Vì vậy KHÔNG
+# gỡ bỏ nó (tránh phá vỡ các module đó). Để bịt KHE HỞ ĐỒNG BỘ, mọi lead web form
+# công khai ngoài việc ghi vào `_LEADS` (giữ tương thích) còn được MIRROR sang CRM
+# thật (`app.core.lead_store`) — xem `_mirror_to_crm` — để không mất khi restart và
+# được khử trùng + tự gán sale AI + vào pipeline như khách import/CRM admin.
 _LEADS: dict[str, Lead] = {}
+
+
+def _mirror_to_crm(payload: LeadCreate) -> None:
+    """Đẩy lead web form công khai sang CRM thật (lead_store) — BEST-EFFORT.
+
+    - Khử trùng theo SĐT/email (find_by_contact): đã có thì cập nhật field thiếu;
+      chưa có thì create_lead (qua đó tự gán sale AI + vào pipeline).
+    - CHỈ tạo khi có ít nhất SĐT hoặc email (không tạo lead rác).
+    - Nuốt MỌI lỗi: endpoint công khai KHÔNG được vỡ vì lỗi mirror CRM.
+    - KHÔNG đổi response trả về client (PII không lộ thêm so với bản cũ).
+    """
+    try:
+        from app.core import lead_store
+
+        phone = (payload.phone or "").strip()
+        email = (payload.email or "").strip()
+        if not phone and not email:
+            return  # thiếu cả SĐT lẫn email → bỏ qua, không tạo lead rác
+
+        # Gộp facebook_url vào note để không mất thông tin (lead_store không có field này).
+        note_parts: list[str] = []
+        if payload.notes:
+            note_parts.append(payload.notes.strip())
+        if payload.facebook_url:
+            note_parts.append(f"Facebook: {payload.facebook_url.strip()}")
+        note = " | ".join(p for p in note_parts if p) or None
+
+        existing = lead_store.find_by_contact(phone or None, email or None)
+        if existing:
+            # Chỉ bổ sung field còn thiếu/đáng cập nhật — update_lead bỏ qua None
+            # và chỉ nhận key trong all-list của nó.
+            fields: dict = {}
+            if payload.full_name:
+                fields["name"] = payload.full_name.strip()
+            if email and not existing.get("email"):
+                fields["email"] = email
+            if note:
+                fields["note"] = note
+            if payload.project:
+                fields["project"] = payload.project.strip()
+            if fields:
+                lead_store.update_lead(existing["id"], **fields)
+        else:
+            lead_store.create_lead(
+                {
+                    "name": (payload.full_name or "").strip(),
+                    "phone": phone,
+                    "email": email or None,
+                    "note": note,
+                    "source": (payload.source_channel or "web").strip() or "web",
+                    # `project` là profile field hợp lệ của lead_store (chỉ lưu khi có).
+                    "project": (payload.project or "").strip() or None,
+                }
+            )
+    except Exception as exc:  # noqa: BLE001 — mirror CRM không được phá endpoint công khai
+        log.warning("mirror lead công khai sang CRM thất bại: %s", exc)
 
 
 def _find_existing(phone: Optional[str], email: Optional[str]) -> Optional[Lead]:
@@ -62,6 +128,10 @@ def create_lead(payload: LeadCreate, response: Response) -> Lead:
 
     Status code: 201 Created khi tạo mới, 200 OK khi cập nhật lead đã tồn tại.
     """
+    # Bịt KHE HỞ ĐỒNG BỘ: đẩy lead web form công khai về CRM thật (lead_store).
+    # Best-effort, đã nuốt lỗi bên trong — không ảnh hưởng response/luồng cũ.
+    _mirror_to_crm(payload)
+
     existing = _find_existing(payload.phone, payload.email)
     if existing:
         for field, value in payload.model_dump(exclude_unset=True).items():
