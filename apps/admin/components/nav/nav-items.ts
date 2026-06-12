@@ -5,7 +5,6 @@ import {
   BadgeDollarSign,
   Building2,
   BookOpen,
-  KanbanSquare,
   Medal,
   Radio,
   Settings,
@@ -15,6 +14,7 @@ import {
   UserCog,
   Megaphone,
   Bot,
+  UserSearch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,7 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/manager", label: "Điều hành", icon: Command },
   { href: "/live", label: "Live Match", icon: Radio },
   { href: "/customers", label: "Khách hàng", icon: UserSquare2 },
-  { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+  { href: "/customer-360", label: "Customer 360", icon: UserSearch },
   { href: "/customers/performance", label: "Hiệu suất Sale", icon: Medal },
   { href: "/users", label: "Người dùng", icon: Users },
   { href: "/hr", label: "Nhân sự", icon: UserCog },

@@ -69,7 +69,7 @@ export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"overview" | "profile360">("overview");
+  const [tab, setTab] = useState<"overview" | "profile360">("profile360");
   const [editOpen, setEditOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const leadQ = useQuery({ queryKey: ["crm-lead", id], queryFn: () => getCrmLead(id) });
@@ -217,8 +217,8 @@ export default function CustomerDetailPage() {
             value={tab}
             onChange={(k) => setTab(k as "overview" | "profile360")}
             tabs={[
-              { key: "overview", label: "Tổng quan", icon: <LayoutGrid className="h-4 w-4" /> },
               { key: "profile360", label: "Hồ sơ 360°", icon: <UserSquare2 className="h-4 w-4" /> },
+              { key: "overview", label: "Tổng quan", icon: <LayoutGrid className="h-4 w-4" /> },
             ]}
           />
 

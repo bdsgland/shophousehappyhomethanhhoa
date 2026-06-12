@@ -5,6 +5,8 @@ import {
   Download,
   Eye,
   Flame,
+  KanbanSquare,
+  List,
   RefreshCw,
   Search,
   Sparkles,
@@ -31,6 +33,7 @@ import {
 import type { CrmLead } from "@/lib/types";
 import { cn, shortDate } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { PipelineBoard } from "@/components/crm/PipelineBoard";
 import { ImportPanel } from "@/components/import/ImportPanel";
 import { StatCard } from "@/components/kpi/StatCard";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +92,8 @@ export default function CustomersPage() {
     queryFn: () => listAllCrmLeads(),
   });
 
+  // Chế độ xem: "list" = bảng khách (mặc định), "pipeline" = kanban giai đoạn.
+  const [view, setView] = useState<"list" | "pipeline">("list");
   const [status, setStatus] = useState("all");
   const [saleId, setSaleId] = useState("all");
   const [source, setSource] = useState("all");
@@ -306,6 +311,34 @@ export default function CustomersPage() {
         />
       </div>
 
+      {/* Bộ chuyển chế độ xem: Danh sách (bảng) | Pipeline (kanban) */}
+      <div className="mb-4 inline-flex rounded-md border border-border bg-secondary p-0.5">
+        <button
+          onClick={() => setView("list")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors",
+            view === "list"
+              ? "bg-primary text-primary-foreground"
+              : "text-secondary-foreground hover:bg-accent",
+          )}
+        >
+          <List className="h-4 w-4" />
+          Danh sách
+        </button>
+        <button
+          onClick={() => setView("pipeline")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors",
+            view === "pipeline"
+              ? "bg-primary text-primary-foreground"
+              : "text-secondary-foreground hover:bg-accent",
+          )}
+        >
+          <KanbanSquare className="h-4 w-4" />
+          Pipeline
+        </button>
+      </div>
+
       {banner && (
         <div className="mb-4 flex items-start justify-between gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm">
           <span>{banner}</span>
@@ -315,6 +348,10 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {view === "pipeline" ? (
+        <PipelineBoard />
+      ) : (
+        <>
       {/* Filter bar */}
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-1.5">
@@ -531,6 +568,8 @@ export default function CustomersPage() {
           </Button>
         </div>
       </div>
+        </>
+      )}
 
       {/* Import khách hàng modal */}
       <Dialog

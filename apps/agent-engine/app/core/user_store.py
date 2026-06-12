@@ -510,13 +510,26 @@ def soft_delete(user_id: str) -> Optional[dict]:
     return update_user(user_id, is_active=False)
 
 
+_VALID_ROLES = {"admin", "sale", "client"}
+
+
 def public_view(user: dict) -> dict:
+    """Chuẩn hoá 1 record user về payload an toàn cho UserOut.
+
+    Dùng `.get()` cho MỌI trường + chuẩn hoá role/created_at để 1 record dữ liệu
+    lệch (thiếu key, role lạ, created_at rỗng) KHÔNG làm raise ValidationError và
+    kéo sập cả danh sách (lớp lỗi từng gặp ở list lead/khách).
+    """
+    role = user.get("role", "sale")
+    if role not in _VALID_ROLES:
+        role = "sale"
+    created_at = user.get("created_at") or datetime.utcnow().isoformat()
     return {
-        "id": user["id"],
-        "email": user["email"],
-        "full_name": user["full_name"],
+        "id": str(user.get("id") or user.get("email") or uuid.uuid4().hex),
+        "email": user.get("email") or "",
+        "full_name": user.get("full_name") or user.get("email") or "(không tên)",
         "phone": user.get("phone"),
-        "role": user.get("role", "sale"),
+        "role": role,
         "is_active": user.get("is_active", True),
         "dob": user.get("dob"),
         "region": user.get("region"),
@@ -526,5 +539,5 @@ def public_view(user: dict) -> dict:
         "favorites": user.get("favorites") or [],
         "telegram_chat_id": user.get("telegram_chat_id"),
         "picture": user.get("picture"),
-        "created_at": user["created_at"],
+        "created_at": created_at,
     }

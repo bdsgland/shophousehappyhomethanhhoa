@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import secrets
 import string
 from datetime import datetime, timedelta
@@ -43,6 +44,8 @@ from app.schemas.admin import (
 )
 from app.schemas.user import UserOut, UserUpdate
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
@@ -66,7 +69,18 @@ def overview(_admin: dict = Depends(require_admin)) -> dict:
 
 @router.get("/users", response_model=list[UserOut])
 def list_users(_admin: dict = Depends(require_admin)) -> list[UserOut]:
-    return [UserOut(**user_store.public_view(u)) for u in user_store.list_users()]
+    out: list[UserOut] = []
+    for u in user_store.list_users():
+        try:
+            out.append(UserOut(**user_store.public_view(u)))
+        except Exception as exc:  # noqa: BLE001 — 1 record hỏng KHÔNG được sập cả list
+            log.warning(
+                "Bỏ qua user lỗi serialize (id=%s, email=%s): %s",
+                u.get("id"),
+                u.get("email"),
+                exc,
+            )
+    return out
 
 
 @router.patch("/users/{user_id}", response_model=UserOut)
