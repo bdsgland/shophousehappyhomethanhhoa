@@ -1,10 +1,15 @@
 """Dify client — "bộ não tri thức" RAG thay thế Open Notebook.
 
-Bọc API Dify (self-host) qua httpx. Đọc cấu hình từ `settings` (KHÔNG hardcode
-secret). Mọi đường dẫn lấy từ `settings.dify_api_url`; key lấy từ
-`settings.dify_api_key` (chatbot) và `settings.dify_dataset_api_key` (knowledge
-base). Khi thiếu env → raise `DifyNotConfigured` với thông báo rõ ràng để lớp gọi
-fallback an toàn (chatbot vẫn trả lời không cần RAG, KHÔNG crash).
+Bọc API Dify (self-host) qua httpx. Đọc cấu hình STORE-FIRST → ENV: ưu tiên
+credential admin nhập trên UI (integrations_store, service "dify") rồi mới tới
+biến môi trường (`settings.dify_*`). Nhờ vậy admin chỉ cần dán URL + key vào form
+Tích hợp là CÓ HIỆU LỰC NGAY, không cần đặt lại env Railway / redeploy; vẫn tương
+thích ngược khi store rỗng (env cũ vẫn chạy). KHÔNG hardcode secret.
+
+Mọi đường dẫn lấy từ `api_url`; key lấy từ `api_key` (chatbot) và
+`dataset_api_key` (knowledge base) qua `resolve_config()`. Khi thiếu → raise
+`DifyNotConfigured` với thông báo rõ ràng để lớp gọi fallback an toàn (chatbot vẫn
+trả lời không cần RAG, KHÔNG crash).
 
 Cung cấp cả bản SYNC (cho code chặn như OpenClaw bridge) và ASYNC (cho chatbot
 FastAPI async). Endpoint chính:
@@ -37,42 +42,82 @@ class DifyError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# Helpers cấu hình — đọc từ settings, không hardcode.
+# Helpers cấu hình — STORE-FIRST (UI admin) → ENV (settings) fallback.
 # ---------------------------------------------------------------------------
+def resolve_config() -> Dict[str, str]:
+    """Cấu hình Dify đầy đủ (full secret) — STORE trước → ENV sau.
+
+    Trả {api_url, api_key, dataset_api_key, dataset_id}. Dùng nội bộ server (gọi
+    Dify); KHÔNG trả ra FE. Khi store rỗng, integrations_store tự fallback về
+    settings.dify_* nên tương thích ngược với cấu hình env cũ.
+    """
+    try:
+        from app.core import integrations_store
+
+        creds = integrations_store.get_credential("dify") or {}
+    except Exception:  # noqa: BLE001 — store lỗi thì fallback env thuần.
+        creds = {}
+
+    def _pick(key: str, env_attr: str) -> str:
+        val = creds.get(key)
+        if val not in (None, ""):
+            return str(val).strip()
+        return (getattr(settings, env_attr, "") or "").strip()
+
+    return {
+        "api_url": _pick("api_url", "dify_api_url"),
+        "api_key": _pick("api_key", "dify_api_key"),
+        "dataset_api_key": _pick("dataset_api_key", "dify_dataset_api_key"),
+        "dataset_id": _pick("dataset_id", "dify_dataset_id"),
+    }
+
+
+def normalize_base_url(url: str) -> str:
+    """Chuẩn hoá URL gốc: bỏ '/' cuối và '/v1' thừa nếu người dùng dán kèm."""
+    u = (url or "").strip().rstrip("/")
+    if u.endswith("/v1"):
+        u = u[: -len("/v1")]
+    return u
+
+
 def is_configured() -> bool:
-    return settings.dify_configured()
+    """Đủ tối thiểu để gọi chatbot Dify (URL + app key) — store hoặc env."""
+    cfg = resolve_config()
+    return bool(cfg["api_url"] and cfg["api_key"])
 
 
 def is_dataset_configured() -> bool:
-    return settings.dify_dataset_configured()
+    """Đủ để gọi Knowledge Base API (URL + dataset key) — store hoặc env."""
+    cfg = resolve_config()
+    return bool(cfg["api_url"] and cfg["dataset_api_key"])
 
 
 def _base_url() -> str:
-    url = (settings.dify_api_url or "").strip().rstrip("/")
+    url = normalize_base_url(resolve_config()["api_url"])
     if not url:
         raise DifyNotConfigured(
-            "Dify chưa cấu hình: thiếu DIFY_API_URL (đặt env trỏ tới Dify self-host)."
+            "Dify chưa cấu hình: thiếu API URL (nhập ở admin → Tích hợp → Dify, "
+            "hoặc đặt env DIFY_API_URL)."
         )
-    # Cho phép người dùng lỡ kèm /v1 — chuẩn hoá về gốc.
-    if url.endswith("/v1"):
-        url = url[: -len("/v1")]
     return url
 
 
 def _chat_headers() -> Dict[str, str]:
-    key = (settings.dify_api_key or "").strip()
+    key = resolve_config()["api_key"]
     if not key:
         raise DifyNotConfigured(
-            "Dify chưa cấu hình: thiếu DIFY_API_KEY (App API key của chatbot Dify)."
+            "Dify chưa cấu hình: thiếu App API Key (nhập ở admin → Tích hợp → Dify, "
+            "hoặc đặt env DIFY_API_KEY)."
         )
     return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
 
 def _dataset_headers() -> Dict[str, str]:
-    key = (settings.dify_dataset_api_key or "").strip()
+    key = resolve_config()["dataset_api_key"]
     if not key:
         raise DifyNotConfigured(
-            "Dify Knowledge Base chưa cấu hình: thiếu DIFY_DATASET_API_KEY."
+            "Dify Knowledge Base chưa cấu hình: thiếu Dataset API Key (nhập ở admin "
+            "→ Tích hợp → Dify, hoặc đặt env DIFY_DATASET_API_KEY)."
         )
     return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
@@ -169,10 +214,11 @@ def _retrieve_payload(query: str, top_k: int) -> Dict[str, Any]:
 
 
 def _resolve_dataset_id(dataset_id: Optional[str]) -> str:
-    did = (dataset_id or settings.dify_dataset_id or "").strip()
+    did = (dataset_id or resolve_config()["dataset_id"] or "").strip()
     if not did:
         raise DifyNotConfigured(
-            "Thiếu dataset_id: truyền vào hoặc đặt env DIFY_DATASET_ID."
+            "Thiếu dataset_id: truyền vào, nhập ở admin → Tích hợp → Dify, hoặc "
+            "đặt env DIFY_DATASET_ID."
         )
     return did
 

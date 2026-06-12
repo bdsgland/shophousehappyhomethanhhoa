@@ -89,7 +89,7 @@ def call_config(user: dict = Depends(require_sale)) -> dict:
     """FE kiểm tra tổng đài đã sẵn sàng chưa (để ẩn/disable nút Gọi)."""
     return {
         "configured": stringee_client.is_configured(),
-        "from_number": settings.stringee_from_number or None,
+        "from_number": stringee_client.from_number() or None,
         "user_id": _stringee_user_id(user["id"]),
     }
 
@@ -166,7 +166,7 @@ def call_start(payload: CallStartBody, user: dict = Depends(require_sale)) -> di
         "mode": "web_sdk",
         "log_id": clog["id"],
         "to_number": to_number,
-        "from_number": settings.stringee_from_number or None,
+        "from_number": stringee_client.from_number() or None,
         "user_id": _stringee_user_id(user["id"]),
         # FE truyền custom_data vào makeCall → Stringee echo lại (clientCustomData)
         # trong sự kiện để khớp đúng contact log.
@@ -366,10 +366,10 @@ async def stringee_answer(request: Request):
     """
     params = await _read_params(request)
     # Caller-id của connect PHẢI là số tổng đài Stringee đã đăng ký, không lấy từ
-    # request (request `from` có thể là userId của Web SDK → bị từ chối).
-    caller = (settings.stringee_from_number or "").strip() or _extract_number(
-        params.get("from")
-    )
+    # request (request `from` có thể là userId của Web SDK → bị từ chối). Dùng
+    # stringee_client.from_number() (store-first→env) — CÙNG nguồn với callout,
+    # tránh lệch nguồn gây caller-id rỗng → CALL_NOT_ALLOWED_BY_YOUR_SERVER.
+    caller = stringee_client.from_number() or _extract_number(params.get("from"))
     to = _resolve_destination(params)
 
     scco: list[dict] = [

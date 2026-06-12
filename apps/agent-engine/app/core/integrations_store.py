@@ -200,6 +200,24 @@ SERVICES: list[dict[str, Any]] = [
         "guide_url": "https://console.anthropic.com/settings/keys",
     },
     {
+        "key": "dify",
+        "name": "Dify (Bộ não tri thức RAG)",
+        "group": "ai_infra",
+        "fields": [
+            _f("api_url", "API URL", placeholder="https://dify...", env="dify_api_url"),
+            _f("api_key", "App API Key (Chatbot)", secret=True, placeholder="app-...", env="dify_api_key"),
+            _f("dataset_api_key", "Dataset API Key (Knowledge Base)", secret=True, placeholder="dataset-...", env="dify_dataset_api_key"),
+            _f("dataset_id", "Dataset ID (tùy chọn)", env="dify_dataset_id"),
+        ],
+        "required": ["api_url", "api_key"],
+        "guide": "API URL là gốc Dify self-host (vd https://dify.example.net) — KHÔNG cần "
+        "kèm /v1, hệ thống tự bỏ. App API Key lấy trong ứng dụng Chatbot/Agent → "
+        "API Access (bắt đầu app-...). Dataset API Key lấy ở Knowledge → API "
+        "(bắt đầu dataset-...) chỉ cần khi dùng truy hồi tài liệu. Dataset ID là "
+        "dataset mặc định để truy hồi (tùy chọn).",
+        "guide_url": "https://docs.dify.ai/guides/application-publishing/developing-with-apis",
+    },
+    {
         "key": "n8n",
         "name": "n8n Automation",
         "group": "ai_infra",
@@ -544,6 +562,9 @@ def _validate(service: str, values: dict[str, Any]) -> None:
     if service == "n8n" and values.get("api_url"):
         if not str(values["api_url"]).startswith(("http://", "https://")):
             raise IntegrationError("Base URL n8n phải bắt đầu bằng http(s)://")
+    if service == "dify" and values.get("api_url"):
+        if not str(values["api_url"]).startswith(("http://", "https://")):
+            raise IntegrationError("API URL Dify phải bắt đầu bằng http(s)://")
 
 
 def save_credential(service: str, values: dict[str, Any], *, by: Optional[str] = None) -> dict:
@@ -799,8 +820,72 @@ async def _test_anthropic() -> dict:
     return {"ok": False, "detail": f"Anthropic trả HTTP {code}."}
 
 
+async def _test_dify() -> dict:
+    """Kiểm tra kết nối Dify (store-first-then-env qua dify_client).
+
+    Ưu tiên xác thực App API Key bằng GET /v1/parameters (200 = key hợp lệ). Nếu
+    chưa có app key nhưng có api_url → kiểm tra URL phản hồi (HTTP < 500 = sống).
+    Nếu chỉ có dataset key → thử GET /v1/datasets.
+    """
+    from app.core import dify_client
+
+    cfg = dify_client.resolve_config()
+    api_url = (cfg.get("api_url") or "").strip()
+    if not api_url:
+        return {"ok": False, "detail": "Chưa có API URL Dify."}
+    base = dify_client.normalize_base_url(api_url)
+    app_key = (cfg.get("api_key") or "").strip()
+    dataset_key = (cfg.get("dataset_api_key") or "").strip()
+
+    # 1) Có app key → xác thực qua /v1/parameters (cần user param).
+    if app_key:
+        code, data, text = await _http_get_json(
+            f"{base}/v1/parameters",
+            params={"user": "elc-healthcheck"},
+            headers={"Authorization": f"Bearer {app_key}"},
+        )
+        if code == 200:
+            return {"ok": True, "detail": "App API Key hợp lệ — kết nối Dify OK."}
+        if code in (401, 403):
+            return {"ok": False, "detail": "App API Key bị từ chối (401/403)."}
+        if code == 404:
+            return {
+                "ok": False,
+                "detail": "Endpoint /v1/parameters không thấy (404) — kiểm tra lại "
+                "API URL (gốc Dify) hoặc loại ứng dụng.",
+            }
+        return {"ok": False, "detail": f"Dify trả HTTP {code}."}
+
+    # 2) Chỉ có dataset key → thử list datasets.
+    if dataset_key:
+        code, data, text = await _http_get_json(
+            f"{base}/v1/datasets",
+            params={"page": 1, "limit": 1},
+            headers={"Authorization": f"Bearer {dataset_key}"},
+        )
+        if code == 200:
+            return {"ok": True, "detail": "Dataset API Key hợp lệ — kết nối Dify OK."}
+        if code in (401, 403):
+            return {"ok": False, "detail": "Dataset API Key bị từ chối (401/403)."}
+        return {"ok": False, "detail": f"Dify dataset trả HTTP {code}."}
+
+    # 3) Chỉ có URL → ping gốc xem dịch vụ có sống không.
+    try:
+        code, _data, _text = await _http_get_json(base, timeout=8.0)
+        if code < 500:
+            return {
+                "ok": True,
+                "detail": f"API URL phản hồi (HTTP {code}) nhưng CHƯA nhập App API "
+                "Key — thêm key để gọi chatbot.",
+            }
+        return {"ok": False, "detail": f"API URL trả HTTP {code} (lỗi máy chủ)."}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "detail": f"Không kết nối được API URL: {exc}"}
+
+
 _TEST_HANDLERS: dict[str, Callable] = {
     "chatwoot": _test_chatwoot,
+    "dify": _test_dify,
     "stringee": _test_stringee,
     "email_smtp": _test_smtp,
     "email_google": _test_email_google,

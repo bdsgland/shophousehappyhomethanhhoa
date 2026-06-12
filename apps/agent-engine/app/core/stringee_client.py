@@ -49,6 +49,16 @@ def is_configured() -> bool:
     return bool(c.get("api_key_sid") and c.get("api_key_secret"))
 
 
+def from_number() -> str:
+    """Số tổng đài (caller-id) — STORE (UI admin) trước → ENV. Trả "" nếu chưa đặt.
+
+    PHẢI dùng chung nguồn này ở MỌI nơi cần caller-id (callout + answer webhook)
+    để tránh lệch nguồn: callout đọc store-first còn answer webhook lỡ đọc thẳng
+    env → caller-id rỗng → Stringee từ chối CALL_NOT_ALLOWED_BY_YOUR_SERVER.
+    """
+    return (_cfg().get("from_number") or "").strip()
+
+
 def _require_keys() -> tuple[str, str]:
     c = _cfg()
     sid = c.get("api_key_sid")
