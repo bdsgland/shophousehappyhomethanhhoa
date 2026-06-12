@@ -571,7 +571,9 @@ export type CrmLeadSource =
   | "email"
   | "manual"
   | "google_sheet"
-  | "file_upload";
+  | "file_upload"
+  | "web"
+  | "chatbot";
 
 export type CrmLeadStatus = "cold" | "warm" | "hot" | "customer" | "lost";
 
@@ -896,6 +898,32 @@ export interface Profile360 {
   deals: Profile360Deals;
   channels: ChannelInteraction[];
   stats: Profile360Stats;
+}
+
+// ---- Hội thoại đa kênh hợp nhất theo khách (GET /crm/leads/{id}/conversations) ----
+
+export interface LeadConversationMessage {
+  channel: string; // zalo | facebook | email | web | call | sms | chatwoot | ...
+  channel_label: string;
+  source: "chatwoot" | "internal";
+  direction: "in" | "out";
+  sender: string | null;
+  content: string;
+  time: string | null;
+  conversation_id?: string | null;
+  web_url?: string | null;
+}
+
+export interface LeadConversationsResponse {
+  lead_id: string;
+  messages: LeadConversationMessage[];
+  count: number;
+  channels: string[];
+  chatwoot: {
+    configured: boolean;
+    error: boolean;
+    detail?: string | null;
+  };
 }
 
 // ---------------------------------------------------------------------------

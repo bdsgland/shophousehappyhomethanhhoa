@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 import logging
 
-from app.api.deps import require_sale
+from app.api.deps import require_admin, require_sale
 from app.core import (
     ai_crm,
     chatwoot_client,
@@ -72,6 +72,48 @@ async def get_profile_360(
     except Exception as exc:  # noqa: BLE001 — không để Chatwoot làm sập hồ sơ 360
         log.warning("[360] nối Chatwoot lỗi cho lead %s: %s", lead_id, exc)
     return profile
+
+
+@router.get("/leads/{lead_id}/conversations")
+async def get_lead_conversations(
+    lead_id: str,
+    user: dict = Depends(require_admin),
+) -> dict:
+    """TOÀN BỘ hội thoại đa kênh của 1 khách — hợp nhất 1 timeline tin nhắn.
+
+    Gộp: hội thoại Chatwoot match theo SĐT/email của lead (Zalo/FB/email/web, kèm
+    tin nhắn + deep link) + log liên hệ/care nội bộ. Chỉ admin (require_admin).
+
+    Fallback an toàn: Chatwoot CHƯA cấu hình / lỗi → vẫn trả log nội bộ, KHÔNG
+    crash; `chatwoot.configured=False` để FE báo "Chatwoot chưa kết nối".
+    """
+    lead = lead_store.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+
+    contact_logs = lead_store.list_contact_logs(lead_id)
+
+    cfg = chatwoot_client.config_status()
+    threads: list[dict] = []
+    cw_error = False
+    if cfg.get("configured"):
+        try:
+            threads = await chatwoot_client.conversation_threads_for_lead(lead)
+        except Exception as exc:  # noqa: BLE001 — Chatwoot không được làm sập khối hội thoại
+            cw_error = True
+            log.warning("[360] kéo hội thoại Chatwoot lỗi cho lead %s: %s", lead_id, exc)
+
+    result = customer_360.build_conversations(lead, contact_logs, threads)
+    result["chatwoot"] = {
+        "configured": bool(cfg.get("configured")),
+        "error": cw_error,
+        "detail": (
+            "Không gọi được Chatwoot — kiểm tra kết nối/token."
+            if cw_error
+            else cfg.get("detail")
+        ),
+    }
+    return result
 
 
 @router.post("/leads/{lead_id}/care", status_code=status.HTTP_201_CREATED)

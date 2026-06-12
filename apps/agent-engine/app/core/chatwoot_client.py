@@ -367,6 +367,19 @@ def _phone_match(a: Optional[str], b: Optional[str]) -> bool:
     return _phone_suffix(na) == _phone_suffix(nb)
 
 
+def web_url(raw_id) -> Optional[str]:
+    """Deep link tới hội thoại trong giao diện Chatwoot (cho Customer 360).
+
+    Dạng: {base}/app/accounts/{account_id}/conversations/{id}. None khi chưa cấu
+    hình base_url/account hoặc thiếu raw_id → FE không render link.
+    """
+    base = _base_url().rstrip("/")
+    acc = _account_id()
+    if not base or not acc or raw_id in (None, ""):
+        return None
+    return f"{base}/app/accounts/{acc}/conversations/{raw_id}"
+
+
 async def conversations_for_lead(lead: dict, status: str = "all") -> list[dict]:
     """Các hội thoại Chatwoot khớp 1 lead theo SĐT/email (cho Customer 360).
 
@@ -393,3 +406,26 @@ async def conversations_for_lead(lead: dict, status: str = "all") -> list[dict]:
         lead.get("id"), len(matched), len(convos),
     )
     return matched
+
+
+async def conversation_threads_for_lead(lead: dict, status: str = "all") -> list[dict]:
+    """Hội thoại Chatwoot khớp 1 lead KÈM TOÀN BỘ tin nhắn + deep link (cho 360).
+
+    Mở rộng `conversations_for_lead`: với mỗi hội thoại khớp, kéo thêm danh sách
+    tin nhắn (`list_messages`) và gắn `web_url` để FE mở thẳng trong Chatwoot.
+    Trả [] khi chưa cấu hình / lỗi / không khớp — KHÔNG raise (lỗi 1 hội thoại
+    không làm hỏng cả danh sách).
+    """
+    convos = await conversations_for_lead(lead, status=status)
+    threads: list[dict] = []
+    for c in convos:
+        raw = c.get("raw_id")
+        try:
+            msgs = await list_messages(int(raw)) if raw is not None else None
+        except (TypeError, ValueError):
+            msgs = None
+        except Exception as exc:  # noqa: BLE001 — 1 hội thoại lỗi không làm sập cả khối
+            log.warning("[chatwoot] list_messages lỗi conv=%s: %s", raw, exc)
+            msgs = None
+        threads.append({**c, "messages": msgs or [], "web_url": web_url(raw)})
+    return threads

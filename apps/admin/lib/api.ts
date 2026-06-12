@@ -18,6 +18,7 @@ import type {
   ConversationSummary,
   InboxListResponse,
   InboxMessagesResponse,
+  LeadConversationsResponse,
   CrmLead,
   CrmLeadUpdate,
   CareLogInput,
@@ -970,6 +971,12 @@ export function getProfile360(id: string, rescore = false) {
   return apiFetch<Profile360>(
     `/crm/leads/${id}/profile-360${rescore ? "?rescore=true" : ""}`,
   );
+}
+
+/** Toàn bộ hội thoại đa kênh của 1 khách (Chatwoot Zalo/FB/email/web + log nội
+ *  bộ) hợp nhất 1 timeline. Chatwoot chưa cấu hình → vẫn trả log nội bộ. */
+export function getLeadConversations(id: string) {
+  return apiFetch<LeadConversationsResponse>(`/crm/leads/${id}/conversations`);
 }
 
 /** Đăng 1 hoạt động chăm sóc (care feed) lên dòng thời gian hồ sơ 360°.

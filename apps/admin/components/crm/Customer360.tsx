@@ -1,24 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   Bot,
   Calendar,
   Check,
   Clock,
   Copy,
   Edit3,
+  ExternalLink,
   FileText,
   GitBranch,
-  Inbox,
   Lightbulb,
   ListChecks,
   Mail,
   MapPin,
   MessageCircle,
   MessageSquare,
+  MessagesSquare,
   Phone,
   Play,
   RefreshCw,
@@ -31,13 +32,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { addCareLog, getProfile360, runAiCareForLead } from "@/lib/api";
+import {
+  addCareLog,
+  getLeadConversations,
+  getProfile360,
+  runAiCareForLead,
+} from "@/lib/api";
 import { CallButton, RecordingPlayer } from "./CallButton";
 import type {
   AiCareResult,
   CareLogInput,
   ChannelInteraction,
   CrmCareChannel,
+  LeadConversationMessage,
+  LeadConversationsResponse,
   Profile360,
   TimelineItem,
 } from "@/lib/types";
@@ -386,6 +394,160 @@ function CareComposer({
   );
 }
 
+/** Màu badge theo kênh hội thoại đa kênh (Zalo/FB/Email/Web/Chatbot...). */
+const CONV_CHANNEL_BADGE: Record<string, string> = {
+  zalo: "bg-sky-500/15 text-sky-600",
+  facebook: "bg-blue-500/15 text-blue-600",
+  email: "bg-violet-500/15 text-violet-600",
+  web: "bg-emerald-500/15 text-emerald-600",
+  chatwoot: "bg-emerald-500/15 text-emerald-600",
+  call: "bg-green-500/15 text-green-600",
+  call_center: "bg-green-500/15 text-green-600",
+  sms: "bg-amber-500/15 text-amber-600",
+  whatsapp: "bg-green-500/15 text-green-600",
+  telegram: "bg-sky-500/15 text-sky-600",
+  inperson: "bg-orange-500/15 text-orange-600",
+};
+
+/**
+ * Khối "Hội thoại đa kênh": timeline hợp nhất MỌI hội thoại của khách qua các
+ * kênh (Chatwoot: Zalo/FB/Email/Web + log nội bộ), khớp theo SĐT/email. Chatwoot
+ * chưa kết nối → báo nhẹ + vẫn hiện log nội bộ. Dữ liệu lấy riêng để không ảnh
+ * hưởng luồng hồ sơ 360 chính.
+ */
+function ConversationsSection({ leadId }: { leadId: string }) {
+  const q = useQuery({
+    queryKey: ["lead-conversations", leadId],
+    queryFn: () => getLeadConversations(leadId),
+  });
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <MessagesSquare className="h-4 w-4 text-primary" /> Hội thoại đa kênh
+          {q.data ? (
+            <span className="text-xs font-normal text-muted-foreground">
+              ({q.data.count})
+            </span>
+          ) : null}
+        </h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => q.refetch()}
+          disabled={q.isFetching}
+        >
+          <RefreshCw className={q.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          Làm mới
+        </Button>
+      </div>
+
+      {q.isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="ml-auto h-12 w-2/3" />
+          <Skeleton className="h-12 w-1/2" />
+        </div>
+      ) : q.isError ? (
+        <p className="text-sm text-danger">
+          Không tải được hội thoại: {(q.error as Error)?.message}
+        </p>
+      ) : (
+        <ConversationsBody data={q.data} />
+      )}
+    </Card>
+  );
+}
+
+function ConversationsBody({
+  data,
+}: {
+  data: LeadConversationsResponse | undefined;
+}) {
+  if (!data) return null;
+  const messages = data.messages ?? [];
+  const cw = data.chatwoot;
+
+  return (
+    <div className="space-y-3">
+      {/* Thông báo nhẹ khi Chatwoot chưa kết nối / lỗi — vẫn hiện log nội bộ */}
+      {(!cw?.configured || cw?.error) && (
+        <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(38,92%,38%)]" />
+          <p className="text-muted-foreground">
+            {cw?.error
+              ? cw?.detail ?? "Không gọi được Chatwoot."
+              : "Chatwoot chưa kết nối — chưa đồng bộ hội thoại Zalo/Facebook/Email/Web."}{" "}
+            Đang hiển thị lịch sử liên hệ nội bộ.
+          </p>
+        </div>
+      )}
+
+      {messages.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Chưa có hội thoại nào cho khách này.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {messages.map((m, i) => (
+            <ConversationBubble key={i} m={m} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** 1 dòng tin nhắn: badge kênh + người gửi + nội dung + thời gian + link Chatwoot.
+ *  Tin của khách (in) canh trái; tin của mình/sale (out) canh phải. */
+function ConversationBubble({ m }: { m: LeadConversationMessage }) {
+  const isOut = m.direction === "out";
+  const badgeCls =
+    CONV_CHANNEL_BADGE[m.channel] ?? "bg-muted text-muted-foreground";
+  return (
+    <li className={isOut ? "flex flex-col items-end" : "flex flex-col items-start"}>
+      <div className="mb-1 flex items-center gap-1.5">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeCls}`}
+        >
+          {m.channel_label}
+        </span>
+        {m.source === "internal" && (
+          <span className="text-[11px] text-muted-foreground">nội bộ</span>
+        )}
+        {m.sender && (
+          <span className="text-[11px] text-muted-foreground">· {m.sender}</span>
+        )}
+      </div>
+      <div
+        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+          isOut
+            ? "bg-primary/10 text-foreground"
+            : "bg-muted/60 text-foreground"
+        }`}
+      >
+        <p className="whitespace-pre-line break-words">{m.content || "—"}</p>
+      </div>
+      <div className="mt-0.5 flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground" title={dt(m.time)}>
+          {relTime(m.time)}
+        </span>
+        {m.web_url && (
+          <a
+            href={m.web_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-[11px] text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" /> Chatwoot
+          </a>
+        )}
+      </div>
+    </li>
+  );
+}
+
 /**
  * Hồ sơ 360° 1 khách: header + khối AI + dòng thời gian đa nguồn + kênh đã
  * tương tác + giao dịch. Lấy dữ liệu qua /crm/leads/{id}/profile-360; nút "Chấm
@@ -503,9 +665,6 @@ export function Customer360({ leadId }: { leadId: string }) {
                   <Mail className="h-3.5 w-3.5 text-primary" /> Email
                 </a>
               )}
-              <Link href="/inbox" className={quickBtn} title="Mở Hộp thư">
-                <Inbox className="h-3.5 w-3.5" /> Hộp thư
-              </Link>
             </div>
           </div>
         </div>
@@ -563,6 +722,9 @@ export function Customer360({ leadId }: { leadId: string }) {
 
       {/* Chăm sóc bằng Sale AI — phân tích + tin NHÁP (không gửi thật) */}
       <AiCareCard leadId={leadId} salesmanName={p.ai_salesman?.name ?? null} />
+
+      {/* Hội thoại đa kênh hợp nhất (Chatwoot Zalo/FB/Email/Web + log nội bộ) */}
+      <ConversationsSection leadId={leadId} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Dòng thời gian + tường hoạt động chăm sóc */}
@@ -630,14 +792,6 @@ export function Customer360({ leadId }: { leadId: string }) {
                         <span className="text-xs text-muted-foreground">
                           {c.last_at ? shortDate(c.last_at) : "—"}
                         </span>
-                        {isChatwoot && (
-                          <Link
-                            href="/inbox"
-                            className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
-                          >
-                            <Inbox className="h-3 w-3" /> Xem trong Hộp thư
-                          </Link>
-                        )}
                       </span>
                     </li>
                   );

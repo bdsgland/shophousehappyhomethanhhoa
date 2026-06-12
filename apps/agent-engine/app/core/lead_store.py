@@ -111,9 +111,13 @@ def _auto_assign_ai_salesman(lead_id: str, product_type: Optional[str] = None) -
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
+    if isinstance(value, datetime):
+        return value
+    # CHỊU LỖI: giá trị không phải string (int/dict/...) trước đây ném AttributeError
+    # tại .replace() — không bắt ở đây sẽ làm vỡ public_view → list_all_leads (500).
     try:
-        return datetime.fromisoformat(value.replace("Z", ""))
-    except ValueError:
+        return datetime.fromisoformat(str(value).replace("Z", ""))
+    except (ValueError, AttributeError, TypeError):
         return None
 
 

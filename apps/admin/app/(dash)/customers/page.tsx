@@ -58,6 +58,8 @@ const SOURCE_LABEL: Record<string, string> = {
   manual: "Nhập tay",
   google_sheet: "Google Sheet",
   file_upload: "Tải file",
+  web: "Web form",
+  chatbot: "Chatbot",
 };
 const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "muted"> = {
   cold: "default",

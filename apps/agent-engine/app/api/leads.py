@@ -52,6 +52,14 @@ def _mirror_to_crm(payload: LeadCreate) -> None:
             note_parts.append(f"Facebook: {payload.facebook_url.strip()}")
         note = " | ".join(p for p in note_parts if p) or None
 
+        # Clamp source về 1 giá trị HỢP LỆ trong enum LeadSource — `source_channel`
+        # đến từ web form công khai nên có thể là chuỗi tuỳ ý; lưu giá trị lạ sẽ làm
+        # Lead(**l) raise khi serialize (bảng khách rỗng). Không khớp → "web".
+        from app.schemas.crm import LeadSource
+
+        raw_src = (payload.source_channel or "web").strip() or "web"
+        src = raw_src if raw_src in LeadSource._value2member_map_ else "web"
+
         existing = lead_store.find_by_contact(phone or None, email or None)
         if existing:
             # Chỉ bổ sung field còn thiếu/đáng cập nhật — update_lead bỏ qua None
@@ -74,7 +82,7 @@ def _mirror_to_crm(payload: LeadCreate) -> None:
                     "phone": phone,
                     "email": email or None,
                     "note": note,
-                    "source": (payload.source_channel or "web").strip() or "web",
+                    "source": src,
                     # `project` là profile field hợp lệ của lead_store (chỉ lưu khi có).
                     "project": (payload.project or "").strip() or None,
                 }

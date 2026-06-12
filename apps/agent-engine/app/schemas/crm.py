@@ -29,6 +29,8 @@ class LeadSource(str, Enum):
     MANUAL = "manual"  # admin nhập tay
     GOOGLE_SHEET = "google_sheet"  # admin import từ Google Trang tính
     FILE_UPLOAD = "file_upload"  # admin import từ file CSV/XLSX
+    WEB = "web"  # khách để lại liên hệ qua web form công khai (mirror sang CRM)
+    CHATBOT = "chatbot"  # khách để lại liên hệ trong hội thoại chatbot tư vấn
 
 
 class LeadStatus(str, Enum):

@@ -427,6 +427,128 @@ def apply_chatwoot(profile: dict, convos: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Hội thoại đa kênh hợp nhất theo từng khách (cho khối "Hội thoại đa kênh" 360)
+# ---------------------------------------------------------------------------
+
+def _conv_message(
+    *,
+    channel: str,
+    source: str,
+    direction: str,
+    sender: Optional[str],
+    content: str,
+    time,
+    conversation_id: Optional[str] = None,
+    web_url: Optional[str] = None,
+) -> dict:
+    """1 dòng tin nhắn trong timeline hội thoại hợp nhất.
+
+    `direction`: 'in' (khách gửi) | 'out' (mình/sale/bot gửi). `source`:
+    'chatwoot' (đa kênh thật) | 'internal' (log liên hệ/care nội bộ).
+    """
+    return {
+        "channel": channel,
+        "channel_label": channel_label(channel),
+        "source": source,
+        "direction": direction,
+        "sender": sender,
+        "content": content,
+        "time": _to_iso(time),
+        "conversation_id": conversation_id,
+        "web_url": web_url,
+    }
+
+
+def build_conversations(
+    lead: dict,
+    contact_logs: list[dict],
+    chatwoot_threads: list[dict],
+) -> dict:
+    """Hợp nhất hội thoại đa kênh của 1 khách thành 1 timeline tin nhắn (mới→cũ).
+
+    Nguồn:
+      • Chatwoot threads (đã match SĐT/email + kèm messages) → mỗi tin nhắn là 1
+        dòng, gắn kênh thật (zalo/facebook/email/web...) + deep link Chatwoot.
+      • Log liên hệ/care nội bộ (lead_store.contact_logs) → mỗi log là 1 dòng
+        'internal' (kênh call/zalo/sms..., người gửi = sale đã ghi nhận).
+
+    Hàm THUẦN (không IO). An toàn với time None/sai (đẩy xuống cuối). Trả
+    {messages, count, channels} — `channels` là tập kênh xuất hiện (cho badge lọc).
+    """
+    messages: list[dict] = []
+
+    # 1) Chatwoot — tách từng tin nhắn trong mỗi hội thoại đã match.
+    for thread in chatwoot_threads or []:
+        ch = thread.get("channel") or "chatwoot"
+        conv_id = thread.get("id")
+        url = thread.get("web_url")
+        contact = thread.get("contact") or {}
+        cust_name = contact.get("name") if isinstance(contact, dict) else None
+        msgs = thread.get("messages") or []
+        if msgs:
+            for m in msgs:
+                role = m.get("role")
+                direction = "in" if role == "user" else "out"
+                sender = m.get("sender") or (
+                    cust_name or "Khách" if direction == "in" else "Nhân viên"
+                )
+                messages.append(
+                    _conv_message(
+                        channel=ch,
+                        source="chatwoot",
+                        direction=direction,
+                        sender=sender,
+                        content=m.get("content") or "",
+                        time=m.get("at"),
+                        conversation_id=conv_id,
+                        web_url=url,
+                    )
+                )
+        else:
+            # Hội thoại match nhưng chưa kéo được tin nhắn → vẫn hiện 1 dòng tóm tắt.
+            messages.append(
+                _conv_message(
+                    channel=ch,
+                    source="chatwoot",
+                    direction="in",
+                    sender=cust_name or "Khách",
+                    content=thread.get("last_message") or "Hội thoại Chatwoot",
+                    time=thread.get("last_at"),
+                    conversation_id=conv_id,
+                    web_url=url,
+                )
+            )
+
+    # 2) Log liên hệ/care nội bộ — mỗi log là 1 dòng (mình/sale liên hệ khách).
+    for log in contact_logs or []:
+        ch = log.get("channel") or "system"
+        note = (log.get("note") or "").strip()
+        olabel = outcome_label(log.get("outcome"))
+        content = note or olabel or channel_label(ch)
+        if note and olabel:
+            content = f"{olabel} — {note}"
+        messages.append(
+            _conv_message(
+                channel=ch,
+                source="internal",
+                direction="out",
+                sender=log.get("created_by_name"),
+                content=content,
+                time=log.get("created_at"),
+            )
+        )
+
+    messages.sort(key=_sort_key, reverse=True)
+    channels = sorted({m["channel"] for m in messages})
+    return {
+        "lead_id": lead.get("id"),
+        "messages": messages,
+        "count": len(messages),
+        "channels": channels,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Hồ sơ tổng hợp
 # ---------------------------------------------------------------------------
 

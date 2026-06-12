@@ -61,7 +61,13 @@ def _serialize_lead(l: dict) -> dict:
     except Exception as e:  # noqa: BLE001 — không để 1 record làm hỏng cả list
         log.warning("CRM list: lead %s không khớp schema, trả raw: %s", l.get("id"), e)
         out = dict(l)
-    out["assigned_sale_name"] = _sale_name(l.get("assigned_sale_id"))
+    # Tra tên sale phụ trách — BỌC LỖI: trước đây nằm NGOÀI try nên 1 record lỗi
+    # (vd user_store hỏng) vẫn làm vỡ CẢ list (500) dù /stats vẫn ra số.
+    try:
+        out["assigned_sale_name"] = _sale_name(l.get("assigned_sale_id"))
+    except Exception as e:  # noqa: BLE001 — không để tra tên sale làm hỏng cả list
+        log.warning("CRM list: tra tên sale lỗi cho lead %s: %s", l.get("id"), e)
+        out["assigned_sale_name"] = None
     return out
 
 
