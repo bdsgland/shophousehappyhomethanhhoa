@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import {
   assignCrmLead,
   autoDistributeHotLeads,
+  bulkDeleteCrmLeads,
   getCrmStats,
   listAllCrmLeads,
   listSales,
@@ -96,11 +97,24 @@ export default function CustomersPage() {
   const [confirmDel, setConfirmDel] = useState<CrmLead | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  // Xoá hàng loạt: tập id đã chọn + hộp xác nhận 2 bước (gõ "XÓA").
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkConfirmText, setBulkConfirmText] = useState("");
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["crm-leads"] });
     qc.invalidateQueries({ queryKey: ["crm-stats"] });
   };
+
+  const clearSelection = () => setSelected(new Set());
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const assignMut = useMutation({
     mutationFn: ({ id, sale }: { id: string; sale: string }) => assignCrmLead(id, sale),
@@ -119,6 +133,18 @@ export default function CustomersPage() {
     onSuccess: () => {
       invalidate();
       setConfirmDel(null);
+    },
+  });
+  const bulkDelMut = useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteCrmLeads(ids),
+    onSuccess: (res) => {
+      invalidate();
+      clearSelection();
+      setBulkOpen(false);
+      setBulkConfirmText("");
+      const extra =
+        res.not_found.length > 0 ? ` (${res.not_found.length} id không tìm thấy)` : "";
+      setBanner(`Đã xoá ${res.deleted_count} khách hàng${extra}.`);
     },
   });
   const distributeMut = useMutation({
@@ -160,6 +186,17 @@ export default function CustomersPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const rows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Chọn tất cả áp dụng cho TRANG hiện tại (rows). Selection vẫn giữ qua các trang.
+  const pageIds = rows.map((l) => l.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const toggleAllPage = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
 
   function exportCsv() {
     const header = "name,phone,email,source,status,ai_score,assigned_sale,created_at";
@@ -343,12 +380,44 @@ export default function CustomersPage() {
         </div>
       </div>
 
+      {/* Thanh hành động xoá hàng loạt — hiện khi đã chọn ≥1 khách */}
+      {selected.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/40 bg-danger/5 px-4 py-2.5 text-sm">
+          <span className="font-medium">Đã chọn {selected.size} khách hàng</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              Bỏ chọn
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                setBulkConfirmText("");
+                setBulkOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Xoá hàng loạt
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                <th className="w-10 px-4 py-3 font-medium">
+                  <input
+                    type="checkbox"
+                    aria-label="Chọn tất cả trên trang"
+                    className="h-4 w-4 cursor-pointer accent-danger align-middle"
+                    checked={allPageSelected}
+                    onChange={toggleAllPage}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Tên</th>
                 <th className="px-4 py-3 font-medium">SĐT</th>
                 <th className="px-4 py-3 font-medium">Email</th>
@@ -364,20 +433,35 @@ export default function CustomersPage() {
               {leadsQ.isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="px-4 py-3" colSpan={9}>
+                    <td className="px-4 py-3" colSpan={10}>
                       <Skeleton className="h-5 w-full" />
                     </td>
                   </tr>
                 ))
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-10 text-center text-muted-foreground" colSpan={9}>
+                  <td className="px-4 py-10 text-center text-muted-foreground" colSpan={10}>
                     Không có khách hàng phù hợp.
                   </td>
                 </tr>
               ) : (
                 rows.map((l) => (
-                  <tr key={l.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                  <tr
+                    key={l.id}
+                    className={cn(
+                      "border-b border-border last:border-0 hover:bg-muted/30",
+                      selected.has(l.id) && "bg-danger/5",
+                    )}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Chọn ${l.name}`}
+                        className="h-4 w-4 cursor-pointer accent-danger align-middle"
+                        checked={selected.has(l.id)}
+                        onChange={() => toggleOne(l.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium">{l.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.email ?? "—"}</td>
@@ -519,6 +603,60 @@ export default function CustomersPage() {
           </Button>
           <Button variant="danger" disabled={delMut.isPending} onClick={() => confirmDel && delMut.mutate(confirmDel.id)}>
             {delMut.isPending ? "Đang lưu…" : "Xác nhận"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* Confirm XOÁ CỨNG hàng loạt — gõ "XÓA" để xác nhận lần 2 */}
+      <Dialog
+        open={bulkOpen}
+        onClose={() => {
+          setBulkOpen(false);
+          setBulkConfirmText("");
+        }}
+      >
+        <DialogHeader
+          title={`Xoá ${selected.size} khách hàng?`}
+          description="Thao tác này xoá CỨNG dữ liệu khách và KHÔNG hoàn tác được."
+          onClose={() => {
+            setBulkOpen(false);
+            setBulkConfirmText("");
+          }}
+        />
+        <DialogBody>
+          <div className="space-y-3">
+            <div className="rounded-md border border-danger/40 bg-danger/5 px-3 py-2.5 text-sm text-danger">
+              ⚠️ Sẽ xoá vĩnh viễn <b>{selected.size}</b> khách hàng đã chọn. Không thể khôi phục.
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">
+                Gõ <b className="text-foreground">XÓA</b> để xác nhận:
+              </label>
+              <Input
+                value={bulkConfirmText}
+                onChange={(e) => setBulkConfirmText(e.target.value)}
+                placeholder="XÓA"
+                autoFocus
+              />
+            </div>
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setBulkOpen(false);
+              setBulkConfirmText("");
+            }}
+          >
+            Huỷ
+          </Button>
+          <Button
+            variant="danger"
+            disabled={bulkConfirmText.trim().toUpperCase() !== "XÓA" || bulkDelMut.isPending}
+            onClick={() => bulkDelMut.mutate(Array.from(selected))}
+          >
+            {bulkDelMut.isPending ? "Đang xoá…" : `Xoá ${selected.size} khách`}
           </Button>
         </DialogFooter>
       </Dialog>

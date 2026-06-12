@@ -451,6 +451,29 @@ def auto_assign_new_lead(
 # Bảo trì: đồng bộ lại assigned_count từ leads thật (sửa lệch nếu có)
 # ---------------------------------------------------------------------------
 
+def decrement_assigned(counts: dict[str, int]) -> dict:
+    """Giảm assigned_count cho NHIỀU sale AI cùng lúc (1 lần ghi file).
+
+    Dùng khi XOÁ hàng loạt lead đang được gán sale AI — để bộ đếm tải không lệch.
+    `counts`: {ais_id: số lead bị gỡ}. An toàn: clamp >= 0, bỏ qua id không có
+    trong roster. Trả {updated: số bản ghi đổi}.
+    """
+    if not counts:
+        return {"updated": 0}
+    updated = 0
+    with _LOCK:
+        data = _load()
+        for r in data["salesmen"]:
+            delta = counts.get(r.get("id"))
+            if delta:
+                r["assigned_count"] = max(0, (r.get("assigned_count", 0) or 0) - int(delta))
+                r["updated_at"] = _now()
+                updated += 1
+        if updated:
+            _save(data)
+    return {"updated": updated}
+
+
 def recount_from_leads() -> dict:
     """Tính lại assigned_count cho mọi sale AI từ leads thật. Trả {updated}."""
     from app.core import lead_store  # lazy import
