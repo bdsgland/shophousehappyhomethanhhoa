@@ -70,6 +70,9 @@ import type {
   ManagerCommandResult,
   ManagerSystemReport,
   ManagerImprovementsResult,
+  ManagerDecisions,
+  ManagerDecisionActPayload,
+  ManagerDecisionActResult,
   PlatformsHealthResponse,
   ReferralNode,
   ResetPasswordResult,
@@ -1179,6 +1182,19 @@ export function managerGenerateImprovements(focus?: string) {
   return apiFetch<ManagerImprovementsResult>("/admin/manager/improvements", {
     method: "POST",
     body: focus ? { focus } : {},
+  });
+}
+
+/** Trung tâm quyết định — danh sách việc cần người điều hành duyệt/thực hiện/bỏ qua. */
+export function getManagerDecisions() {
+  return apiFetch<ManagerDecisions>("/admin/manager/decisions");
+}
+
+/** Thực thi 1 quyết định {type, id, action} (approve/execute/reject). */
+export function actOnDecision(payload: ManagerDecisionActPayload) {
+  return apiFetch<ManagerDecisionActResult>("/admin/manager/decisions/act", {
+    method: "POST",
+    body: payload,
   });
 }
 

@@ -46,6 +46,7 @@ from app.schemas.manager import (
     ManagerAssignHotLeads,
     ManagerBroadcast,
     ManagerCommand,
+    ManagerDecisionAct,
     ManagerImprovementsRequest,
 )
 
@@ -875,3 +876,398 @@ async def improvements(
         detail="sinh đề xuất cải tiến vận hành (gợi ý)",
     )
     return result
+
+
+# ===========================================================================
+# TRUNG TÂM QUYẾT ĐỊNH — gom mọi việc cần NGƯỜI ĐIỀU HÀNH ra quyết định
+# ===========================================================================
+# Mỗi NGUỒN việc tự bắt lỗi → trả [] nếu store chưa có / lỗi (KHÔNG để 1 nguồn
+# hỏng làm sập cả danh sách). Mỗi item gồm: id · type · title · context · priority
+# · created_at · actions (approve/execute/reject) · meta. Endpoint hành động
+# (/decisions/act) định tuyến tới store tương ứng + ghi audit.
+#
+# AN TOÀN: "execute"/"approve" CHỈ đổi trạng thái NỘI BỘ (gán sale, đánh dấu
+# duyệt). KHÔNG gửi tin / không giao dịch thật khi kênh chưa kết nối.
+
+# Ngưỡng SLA tiếp cận khách NÓNG (phút) — quá hạn mà chưa liên hệ → sla_breach.
+_HOT_SLA_MINUTES = 15
+
+# Loại việc + nhãn hiển thị (thứ tự nhóm trên FE).
+_DECISION_LABELS: Dict[str, str] = {
+    "hot_lead_unassigned": "Khách NÓNG chưa gán sale",
+    "sla_breach": "Quá SLA tiếp cận khách nóng",
+    "care_draft": "Nháp chăm sóc chờ duyệt",
+    "pipeline_publish": "Nội dung marketing chờ đăng",
+    "commission_approval": "Hoa hồng chờ duyệt",
+    "automation_error": "Automation n8n có lỗi",
+}
+_DECISION_TYPES = set(_DECISION_LABELS)
+_DECISION_ACTIONS = {"approve", "execute", "reject"}
+_PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+
+
+def _parse_iso(value: Any) -> Optional[datetime]:
+    """Parse ISO (kèm 'Z' hoặc naive) → datetime aware UTC. None nếu lỗi."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
+# ----------------------------- Nguồn việc -----------------------------
+def _dec_care_drafts() -> List[Dict[str, Any]]:
+    """Nháp chăm sóc của Đội Sale AI đang chờ duyệt (ai_care_queue_store)."""
+    out: List[Dict[str, Any]] = []
+    try:
+        from app.core import ai_care_queue_store
+
+        res = ai_care_queue_store.list_items(status="pending", page=1, page_size=50)
+        for it in res.get("items", []):
+            atype = it.get("action_type") or "nurture"
+            draft = (it.get("draft") or "").strip()
+            lead_name = it.get("lead_name") or it.get("lead_id") or "khách"
+            out.append({
+                "id": it.get("id"),
+                "type": "care_draft",
+                "title": f"Nháp chăm sóc: {lead_name}",
+                "context": it.get("summary") or draft[:200] or "Đề xuất chăm sóc khách.",
+                "priority": "high" if atype == "hot_follow_up" else "medium",
+                "created_at": it.get("created_at"),
+                "actions": ["approve", "reject"],
+                "meta": {
+                    "lead_id": it.get("lead_id"),
+                    "channel": it.get("channel"),
+                    "ai_salesman_name": it.get("ai_salesman_name"),
+                    "draft": draft,
+                    "action_type": atype,
+                },
+            })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decisions: care drafts lỗi: %s", exc)
+    return out
+
+
+def _dec_hot_leads() -> List[Dict[str, Any]]:
+    """Khách NÓNG: (a) chưa gán sale → hot_lead_unassigned; (b) đã gán nhưng quá
+    SLA tiếp cận mà chưa liên hệ → sla_breach. Đọc từ lead_store."""
+    out: List[Dict[str, Any]] = []
+    try:
+        res = lead_store.list_all_leads(status="hot", page=1, page_size=500)
+        leads = res.get("items") or res.get("leads") or []
+        now = datetime.now(timezone.utc)
+        for l in leads:
+            lid = l.get("id")
+            name = l.get("name") or lid or "khách"
+            assigned = l.get("assigned_sale_id")
+            marker = _parse_iso(l.get("hot_marker_at"))
+            if not assigned:
+                out.append({
+                    "id": lid,
+                    "type": "hot_lead_unassigned",
+                    "title": f"Khách nóng chưa gán: {name}",
+                    "context": (f"SĐT {l.get('phone') or '—'} · nguồn {l.get('source') or '—'}. "
+                                "Cần gán sale phụ trách ngay."),
+                    "priority": "high",
+                    "created_at": l.get("hot_marker_at") or l.get("updated_at"),
+                    "actions": ["execute", "reject"],
+                    "meta": {"phone": l.get("phone"), "source": l.get("source"),
+                             "ai_score": l.get("ai_score")},
+                })
+                continue
+            # Đã gán → kiểm tra SLA tiếp cận.
+            last = _parse_iso(l.get("last_contact_at"))
+            contacted_after = bool(last and marker and last >= marker)
+            overdue = bool(marker and (now - marker).total_seconds() > _HOT_SLA_MINUTES * 60)
+            if overdue and not contacted_after:
+                mins = int((now - marker).total_seconds() // 60) if marker else 0
+                out.append({
+                    "id": lid,
+                    "type": "sla_breach",
+                    "title": f"Quá SLA: {name}",
+                    "context": (f"Đã đánh dấu nóng ~{mins} phút trước nhưng chưa được liên hệ "
+                                f"(SLA {_HOT_SLA_MINUTES} phút). Cân nhắc chuyển sale khác / nhắc."),
+                    "priority": "high",
+                    "created_at": l.get("hot_marker_at"),
+                    "actions": ["execute", "reject"],
+                    "meta": {"phone": l.get("phone"), "assigned_sale_id": assigned,
+                             "overdue_minutes": mins},
+                })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decisions: hot leads lỗi: %s", exc)
+    return out
+
+
+def _dec_pipeline_publish() -> List[Dict[str, Any]]:
+    """Pipeline marketing đã có nội dung (content done) nhưng CHƯA đăng & chưa được
+    duyệt nội bộ → cần xác nhận đăng. Đọc từ marketing_pipeline_store."""
+    out: List[Dict[str, Any]] = []
+    try:
+        from app.core import marketing_pipeline_store
+
+        for p in marketing_pipeline_store.list_pipelines():
+            stages = p.get("stages") or {}
+            content = stages.get("content") or {}
+            publish = stages.get("publish") or {}
+            if content.get("status") != "done":
+                continue
+            if publish.get("status") == "done":
+                continue
+            res = publish.get("result") or {}
+            if isinstance(res, dict) and (res.get("approved") or res.get("rejected")):
+                continue
+            out.append({
+                "id": p.get("id"),
+                "type": "pipeline_publish",
+                "title": f"Chờ duyệt đăng: {p.get('name') or p.get('topic') or 'nội dung'}",
+                "context": (f"Kênh {p.get('channel') or '—'} · chủ đề “{p.get('topic') or '—'}”. "
+                            "Nội dung đã tạo, chờ xác nhận đăng."),
+                "priority": "medium",
+                "created_at": p.get("updated_at") or p.get("created_at"),
+                "actions": ["approve", "reject"],
+                "meta": {"channel": p.get("channel"), "topic": p.get("topic"),
+                         "preview": (content.get("output") or "")[:300]},
+            })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decisions: pipeline publish lỗi: %s", exc)
+    return out
+
+
+def _dec_commissions() -> List[Dict[str, Any]]:
+    """Bản ghi hoa hồng đang ở trạng thái pending → chờ người điều hành duyệt."""
+    out: List[Dict[str, Any]] = []
+    try:
+        for rec in commission_store.list_records(limit=500):
+            if rec.get("status") != "pending":
+                continue
+            total = sum(float(t.get("amount", 0) or 0) for t in rec.get("tiers", []))
+            deal_id = rec.get("deal_id")
+            if not deal_id:
+                continue
+            out.append({
+                "id": str(deal_id),
+                "type": "commission_approval",
+                "title": f"Hoa hồng deal {deal_id}",
+                "context": f"Tổng hoa hồng ~{round(total):,} VNĐ ({len(rec.get('tiers', []))} bậc). Chờ duyệt.",
+                "priority": "medium",
+                "created_at": rec.get("saved_at"),
+                "actions": ["approve", "reject"],
+                "meta": {"total_amount": round(total), "sale_id": rec.get("sale_id")},
+            })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decisions: commissions lỗi: %s", exc)
+    return out
+
+
+async def _dec_automation() -> List[Dict[str, Any]]:
+    """Tổng hợp lỗi automation n8n gần đây (1 việc gộp). reject = ghi nhận đã xem
+    (không đổi n8n; việc còn cho tới khi workflow hết lỗi)."""
+    out: List[Dict[str, Any]] = []
+    try:
+        auto = await _automation_overview()
+        errs = int(auto.get("errors_recent", 0) or 0) if auto.get("configured") else 0
+        if errs > 0:
+            out.append({
+                "id": "automation-errors",
+                "type": "automation_error",
+                "title": "Automation n8n có lỗi gần đây",
+                "context": (f"{errs} lần chạy lỗi trong lịch sử gần đây. Kiểm tra workflow để "
+                            "tránh gián đoạn phân bổ/chăm sóc."),
+                "priority": "high",
+                "created_at": _now_iso(),
+                "actions": ["reject"],
+                "meta": {"errors_recent": errs},
+            })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decisions: automation lỗi: %s", exc)
+    return out
+
+
+async def build_decisions() -> Dict[str, Any]:
+    """Gộp TOÀN BỘ việc cần quyết định từ mọi nguồn (mỗi nguồn tự bắt lỗi).
+
+    Read-only. Trả {generated_at, total, counts(theo type), groups(theo type với
+    nhãn + đếm + ưu tiên nhóm), items}. Dùng chung cho endpoint admin + MCP OpenClaw.
+    """
+    items: List[Dict[str, Any]] = []
+    items += _dec_hot_leads()
+    items += _dec_care_drafts()
+    items += _dec_pipeline_publish()
+    items += _dec_commissions()
+    items += await _dec_automation()
+
+    # Sắp xếp trong mỗi item theo ưu tiên rồi thời điểm (mới hơn trước trong cùng mức).
+    items.sort(key=lambda x: (_PRIORITY_RANK.get(x.get("priority"), 3),
+                              x.get("created_at") or ""))
+
+    counts: Dict[str, int] = {}
+    for it in items:
+        counts[it["type"]] = counts.get(it["type"], 0) + 1
+
+    groups: List[Dict[str, Any]] = []
+    for t, label in _DECISION_LABELS.items():
+        g_items = [i for i in items if i["type"] == t]
+        if not g_items:
+            continue
+        top_priority = min((_PRIORITY_RANK.get(i.get("priority"), 3) for i in g_items),
+                           default=3)
+        priority = next((k for k, v in _PRIORITY_RANK.items() if v == top_priority), "low")
+        groups.append({
+            "type": t,
+            "label": label,
+            "count": len(g_items),
+            "priority": priority,
+            "items": g_items,
+        })
+
+    return {
+        "generated_at": _now_iso(),
+        "total": len(items),
+        "counts": counts,
+        "groups": groups,
+        "items": items,
+    }
+
+
+@router.get("/decisions")
+async def decisions(_admin: dict = Depends(require_admin)) -> Dict[str, Any]:
+    """Trung tâm quyết định: DANH SÁCH việc cần người điều hành duyệt/thực hiện/bỏ
+    qua — gom từ khách nóng chưa gán / quá SLA, nháp chăm sóc AI, nội dung marketing
+    chờ đăng, hoa hồng chờ duyệt, lỗi automation. Đếm theo nhóm. Read-only."""
+    return await build_decisions()
+
+
+# ----------------------------- Định tuyến hành động -----------------------------
+def _act_care_draft(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    from app.core import ai_care_queue_store
+
+    by = admin.get("email") or admin.get("id")
+    if action in ("approve", "execute"):
+        item = ai_care_queue_store.approve(did, by=by)
+        if item is None:
+            raise HTTPException(404, "Không tìm thấy nháp chăm sóc.")
+        return {"ok": True, "status": item.get("status"),
+                "message": "Đã duyệt nháp — KHÔNG tự gửi cho khách. Nhân viên tự gửi sau khi duyệt."}
+    # reject
+    item = ai_care_queue_store.skip(did, by=by)
+    if item is None:
+        raise HTTPException(404, "Không tìm thấy nháp chăm sóc.")
+    return {"ok": True, "status": item.get("status"), "message": "Đã bỏ qua nháp chăm sóc."}
+
+
+def _act_pipeline_publish(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    from app.core import marketing_pipeline_store
+
+    now = _now_iso()
+    by = admin.get("email") or admin.get("id")
+    if action in ("approve", "execute"):
+        # AN TOÀN: CHỈ đánh dấu DUYỆT nội bộ — KHÔNG tự đăng (kênh có thể chưa kết
+        # nối). Việc đăng thật vẫn phải qua luồng publish riêng có confirm.
+        p = marketing_pipeline_store.set_stage(
+            did, "publish",
+            result={"approved": True, "approved_by": by, "approved_at": now,
+                    "note": "Đã duyệt nội bộ — chưa đăng (giữ an toàn nếu kênh chưa kết nối)."},
+        )
+        if p is None:
+            raise HTTPException(404, "Không tìm thấy pipeline marketing.")
+        return {"ok": True, "message": "Đã duyệt nội bộ — chưa đăng. Đăng thật cần luồng publish có xác nhận."}
+    # reject
+    p = marketing_pipeline_store.set_stage(
+        did, "publish",
+        result={"rejected": True, "rejected_by": by, "rejected_at": now,
+                "note": "Người điều hành từ chối đăng."},
+    )
+    if p is None:
+        raise HTTPException(404, "Không tìm thấy pipeline marketing.")
+    return {"ok": True, "message": "Đã bỏ qua — không đăng nội dung này."}
+
+
+def _act_hot_lead_unassigned(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    if action in ("execute", "approve"):
+        sale_id = lead_store.auto_distribute_hot_lead(did)
+        if not sale_id:
+            return {"ok": False, "message": "Chưa gán được — không có sale khả dụng."}
+        return {"ok": True, "assigned_sale_id": sale_id, "message": "Đã gán khách nóng cho sale phù hợp."}
+    # reject = bỏ qua (chỉ ghi nhận; khách vẫn giữ nguyên trạng thái).
+    return {"ok": True, "message": "Đã bỏ qua (khách vẫn giữ nguyên, có thể xuất hiện lại)."}
+
+
+def _act_sla_breach(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    if action in ("execute", "approve"):
+        # Chuyển/nhắc: phân bổ lại cho sale top eligibility (có thể khác sale cũ).
+        sale_id = lead_store.auto_distribute_hot_lead(did)
+        if not sale_id:
+            return {"ok": False, "message": "Không có sale khả dụng để chuyển."}
+        return {"ok": True, "assigned_sale_id": sale_id,
+                "message": "Đã chuyển khách cho sale phù hợp (nhắc tiếp cận ngay)."}
+    return {"ok": True, "message": "Đã bỏ qua cảnh báo SLA (khách vẫn giữ nguyên)."}
+
+
+def _act_commission(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    now = _now_iso()
+    if action in ("approve", "execute"):
+        rec = commission_store.set_status(did, status="approved", approved_at=now)
+        if rec is None:
+            raise HTTPException(404, "Không tìm thấy bản ghi hoa hồng.")
+        return {"ok": True, "status": "approved", "message": "Đã duyệt hoa hồng (chưa chi trả)."}
+    rec = commission_store.set_status(did, status="rejected")
+    if rec is None:
+        raise HTTPException(404, "Không tìm thấy bản ghi hoa hồng.")
+    return {"ok": True, "status": "rejected", "message": "Đã từ chối hoa hồng."}
+
+
+def _act_automation_error(did: str, action: str, admin: dict) -> Dict[str, Any]:
+    # Không có store đổi trạng thái n8n từ đây — chỉ ghi nhận đã xem (audit).
+    return {"ok": True, "message": "Đã ghi nhận. Việc còn cho tới khi workflow n8n hết lỗi."}
+
+
+def act_on_decision(dtype: str, did: str, action: str, admin: dict) -> Dict[str, Any]:
+    """Thực thi 1 quyết định trên 1 việc. Định tuyến tới store tương ứng + ghi audit.
+
+    AN TOÀN: execute/approve CHỈ đổi trạng thái nội bộ (gán sale, đánh dấu duyệt),
+    KHÔNG gửi tin / giao dịch thật. Loại/hành động ngoài whitelist → 400.
+    """
+    if dtype not in _DECISION_TYPES:
+        raise HTTPException(400, "Loại việc không hợp lệ.")
+    if action not in _DECISION_ACTIONS:
+        raise HTTPException(400, "Hành động không hợp lệ.")
+
+    routes = {
+        "care_draft": _act_care_draft,
+        "pipeline_publish": _act_pipeline_publish,
+        "hot_lead_unassigned": _act_hot_lead_unassigned,
+        "sla_breach": _act_sla_breach,
+        "commission_approval": _act_commission,
+        "automation_error": _act_automation_error,
+    }
+    try:
+        result = routes[dtype](did, action, admin)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decision act lỗi (%s/%s/%s): %s", dtype, did, action, exc)
+        raise HTTPException(502, "Không thực hiện được quyết định (lỗi nội bộ).")
+
+    audit_store.record_admin(
+        "manager.decision_act", admin,
+        target=f"{dtype}:{did}",
+        new_value={"action": action, "result_ok": result.get("ok")},
+        detail=f"quyết định {action} trên {dtype} (id={did})",
+    )
+    return {"type": dtype, "id": did, "action": action, **result}
+
+
+@router.post("/decisions/act")
+def decisions_act(
+    body: ManagerDecisionAct, admin: dict = Depends(require_admin)
+) -> Dict[str, Any]:
+    """Thực thi 1 quyết định: {type, id, action}. approve=phê duyệt, execute=thực
+    hiện (gán sale...), reject=bỏ qua. Định tuyến tới store tương ứng + ghi audit.
+
+    AN TOÀN: KHÔNG gửi tin / giao dịch thật khi kênh chưa kết nối — chỉ đổi trạng
+    thái nội bộ. FE phải xác nhận trước các hành động có hệ quả."""
+    return act_on_decision(body.type, body.id, body.action, admin)

@@ -423,6 +423,38 @@ def _h_manager_generate_improvements(a: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+# Actor "ảo" cho hành động quyết định gọi từ MCP (ghi audit who/what/when).
+_DECISION_ACTOR = {
+    "id": "openclaw",
+    "principal": "openclaw_ceo",
+    "role": "god",
+    "full_name": "OpenClaw — Trợ lý AI CEO",
+    "email": "openclaw@eurowindowlightcity.net",
+}
+
+
+def _h_manager_list_decisions(a: Dict[str, Any]) -> Dict[str, Any]:
+    """ĐỌC danh sách VIỆC CẦN QUYẾT ĐỊNH cho người điều hành (khách nóng chưa gán /
+    quá SLA, nháp chăm sóc AI chờ duyệt, nội dung marketing chờ đăng, hoa hồng chờ
+    duyệt, lỗi automation). Gom theo nhóm + đếm. Read-only, KHÔNG side-effect."""
+    from app.api import manager
+
+    return asyncio.run(manager.build_decisions())
+
+
+def _h_manager_act_on_decision(a: Dict[str, Any]) -> Dict[str, Any]:
+    """THỰC HIỆN 1 quyết định theo lệnh người điều hành: {type, id, action}.
+
+    approve=phê duyệt, execute=thực hiện (gán sale...), reject=bỏ qua. AN TOÀN:
+    KHÔNG gửi tin / giao dịch thật khi kênh chưa kết nối — chỉ đổi trạng thái nội
+    bộ. Ghi audit. Loại/hành động ngoài whitelist → báo lỗi (không crash)."""
+    from app.api import manager
+
+    return manager.act_on_decision(
+        a["type"], a["id"], a["action"], dict(_DECISION_ACTOR)
+    )
+
+
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
 # inputSchema (JSON Schema) · handler · write (đánh dấu hành động ghi).
 TOOLS: List[Dict[str, Any]] = [
@@ -969,6 +1001,33 @@ TOOLS: List[Dict[str, Any]] = [
             "additionalProperties": False,
         },
         "handler": _h_manager_generate_improvements,
+        "write": True,
+    },
+    {
+        "name": "list_decisions",
+        "description": "ĐỌC danh sách VIỆC CẦN NGƯỜI ĐIỀU HÀNH QUYẾT ĐỊNH (Trung tâm quyết định): khách NÓNG chưa gán sale / quá SLA tiếp cận, nháp chăm sóc của Đội Sale AI chờ duyệt, nội dung marketing chờ đăng, hoa hồng chờ duyệt, lỗi automation n8n. Trả các nhóm theo type + đếm số lượng + ưu tiên, mỗi việc kèm id/title/ngữ cảnh/các hành động khả dụng (approve/execute/reject). Read-only. Dùng khi CEO hỏi 'có việc gì cần duyệt', 'trình các việc cần quyết định'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "handler": _h_manager_list_decisions,
+        "write": False,
+    },
+    {
+        "name": "act_on_decision",
+        "description": "⚠️ HÀNH ĐỘNG GHI — CẦN XÁC NHẬN. Thực hiện 1 quyết định trên 1 việc trong Trung tâm quyết định theo lệnh người điều hành. Tham số: type (care_draft | pipeline_publish | hot_lead_unassigned | sla_breach | commission_approval | automation_error), id (id việc từ list_decisions), action (approve=phê duyệt | execute=thực hiện, vd gán sale | reject=bỏ qua). AN TOÀN: KHÔNG gửi tin / giao dịch thật khi kênh chưa kết nối — chỉ đổi trạng thái nội bộ. Mọi quyết định đều ghi audit.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "description": "Loại việc (lấy từ list_decisions)"},
+                "id": {"type": "string", "description": "ID việc cần xử lý"},
+                "action": {"type": "string", "enum": ["approve", "execute", "reject"]},
+            },
+            "required": ["type", "id", "action"],
+            "additionalProperties": False,
+        },
+        "handler": _h_manager_act_on_decision,
         "write": True,
     },
 ]

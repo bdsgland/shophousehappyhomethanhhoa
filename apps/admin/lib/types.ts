@@ -1308,6 +1308,62 @@ export interface ManagerImprovementsResult {
   report?: ManagerSystemReport;
 }
 
+// ---- Trung tâm quyết định (/admin/manager/decisions) ----
+
+export type ManagerDecisionType =
+  | "hot_lead_unassigned"
+  | "sla_breach"
+  | "care_draft"
+  | "pipeline_publish"
+  | "commission_approval"
+  | "automation_error";
+
+export type ManagerDecisionAction = "approve" | "execute" | "reject";
+
+export type ManagerDecisionPriority = "high" | "medium" | "low";
+
+export interface ManagerDecisionItem {
+  id: string;
+  type: ManagerDecisionType | string;
+  title: string;
+  context?: string;
+  priority?: ManagerDecisionPriority | string;
+  created_at?: string | null;
+  actions: (ManagerDecisionAction | string)[];
+  meta?: Record<string, unknown>;
+}
+
+export interface ManagerDecisionGroup {
+  type: ManagerDecisionType | string;
+  label: string;
+  count: number;
+  priority?: ManagerDecisionPriority | string;
+  items: ManagerDecisionItem[];
+}
+
+export interface ManagerDecisions {
+  generated_at: string;
+  total: number;
+  counts: Record<string, number>;
+  groups: ManagerDecisionGroup[];
+  items: ManagerDecisionItem[];
+}
+
+export interface ManagerDecisionActPayload {
+  type: string;
+  id: string;
+  action: ManagerDecisionAction;
+}
+
+export interface ManagerDecisionActResult {
+  ok: boolean;
+  type: string;
+  id: string;
+  action: string;
+  message?: string;
+  [k: string]: unknown;
+}
+
 // ---- Tài chính (/admin/finance) ----
 
 export type CostCategory =

@@ -63,3 +63,24 @@ class ManagerImprovementsRequest(BaseModel):
     """
 
     focus: Optional[str] = Field(default=None, max_length=300)
+
+
+# ---------------------------------------------------------------------------
+# Decisions — Trung tâm quyết định: hành động trên 1 việc cần người điều hành duyệt
+# ---------------------------------------------------------------------------
+class ManagerDecisionAct(BaseModel):
+    """Một quyết định của người điều hành trên 1 việc trong hàng chờ.
+
+    `type`   : loại việc (care_draft | pipeline_publish | hot_lead_unassigned |
+               sla_breach | commission_approval | automation_error).
+    `id`     : id của việc trong store tương ứng.
+    `action` : approve (phê duyệt) | execute (thực hiện) | reject (bỏ qua).
+
+    AN TOÀN: "execute" CHỈ đổi trạng thái nội bộ (gán sale, đánh dấu duyệt) —
+    KHÔNG gửi tin / giao dịch thật khi kênh chưa kết nối. Định tuyến + whitelist
+    do tầng router (manager.act_on_decision) kiểm soát.
+    """
+
+    type: str = Field(..., min_length=1, max_length=60)
+    id: str = Field(..., min_length=1, max_length=200)
+    action: Literal["approve", "execute", "reject"]
