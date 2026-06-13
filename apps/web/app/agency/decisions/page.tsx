@@ -97,7 +97,7 @@ export default function AgencyDecisionsPage() {
         dấu duyệt) — không tự gửi tin hay giao dịch thật.
       </div>
 
-      {error && <AgencyError error={error} onRetry={load} />}
+      {error ? <AgencyError error={error} onRetry={load} /> : null}
       {!error && loading && !data && <AgencyLoading />}
 
       {!error && data && data.total === 0 && (

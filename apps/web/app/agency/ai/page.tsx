@@ -91,7 +91,7 @@ export default function AgencyAiPage() {
         </button>
       </Card>
 
-      {error && <AgencyError error={error} onRetry={onGenerate} />}
+      {error ? <AgencyError error={error} onRetry={onGenerate} /> : null}
       {loading && !data && <AgencyLoading label="AI đang phân tích số liệu…" />}
 
       {!error && data && (

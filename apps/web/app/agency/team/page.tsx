@@ -63,7 +63,7 @@ export default function AgencyTeamPage() {
         refreshing={loading}
       />
 
-      {error && <AgencyError error={error} onRetry={load} />}
+      {error ? <AgencyError error={error} onRetry={load} /> : null}
       {!error && loading && !overview && <AgencyLoading />}
 
       {!error && overview && (
