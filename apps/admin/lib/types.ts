@@ -1202,6 +1202,112 @@ export interface ManagerCommandResult {
   result?: { type: string; data?: unknown; message?: string };
 }
 
+// ---- Báo cáo hệ thống (/admin/manager/system-report) ----
+
+export interface ManagerReportLeads {
+  available: boolean;
+  total?: number;
+  hot?: number;
+  warm?: number;
+  cold?: number;
+  customers?: number;
+  lost?: number;
+  conversion_rate?: number;
+  top_sources?: { source: string; count: number }[];
+}
+
+export interface ManagerFunnelStage {
+  key: string;
+  label: string;
+  count: number | null;
+}
+
+export interface ManagerReportFinance {
+  available: boolean;
+  period_label?: string;
+  revenue?: number;
+  cost?: number;
+  profit?: number;
+  margin?: number;
+  deal_count?: number;
+  commission?: {
+    deals: number;
+    total_amount: number;
+    by_status: Record<string, { count: number; amount: number }>;
+  };
+}
+
+export interface ManagerReportAiCare {
+  available: boolean;
+  total?: number;
+  pending?: number;
+  approved?: number;
+  skipped?: number;
+  sent?: number;
+}
+
+export interface ManagerReportAiSales {
+  available: boolean;
+  total?: number;
+  active?: number;
+  inactive?: number;
+  total_capacity?: number;
+  total_assigned?: number;
+  capacity_left?: number;
+  avg_load?: number;
+  load_ratio?: number;
+}
+
+export interface ManagerReportMarketingChannel {
+  channel: string;
+  leads: number;
+  spent: number;
+  cpl: number;
+}
+
+export interface ManagerReportMarketing {
+  available: boolean;
+  total_spent?: number;
+  total_leads?: number;
+  avg_cpl?: number;
+  roi?: number;
+  by_channel?: ManagerReportMarketingChannel[];
+}
+
+export interface ManagerSystemReport {
+  generated_at: string;
+  leads: ManagerReportLeads;
+  funnel: ManagerFunnelStage[];
+  sales: ManagerSalesKpi;
+  finance: ManagerReportFinance;
+  ai_care: ManagerReportAiCare;
+  ai_sales: ManagerReportAiSales;
+  marketing: ManagerReportMarketing;
+  platforms: ManagerPlatform[];
+  automation: ManagerAutomationKpi;
+  openclaw: ManagerOpenClawStatus;
+}
+
+// ---- Đề xuất cải tiến (/admin/manager/improvements) ----
+
+export type ManagerImprovementSeverity = "high" | "medium" | "low";
+
+export interface ManagerImprovement {
+  title: string;
+  area?: string;
+  severity?: ManagerImprovementSeverity | string;
+  detail?: string;
+  suggested_action?: string;
+}
+
+export interface ManagerImprovementsResult {
+  generated_by: "ai" | "fallback" | string;
+  generated_at: string;
+  focus?: string | null;
+  improvements: ManagerImprovement[];
+  report?: ManagerSystemReport;
+}
+
 // ---- Tài chính (/admin/finance) ----
 
 export type CostCategory =

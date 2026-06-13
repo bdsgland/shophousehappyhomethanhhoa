@@ -68,6 +68,8 @@ import type {
   ManagerAssignHotResult,
   ManagerCommandPayload,
   ManagerCommandResult,
+  ManagerSystemReport,
+  ManagerImprovementsResult,
   PlatformsHealthResponse,
   ReferralNode,
   ResetPasswordResult,
@@ -1164,6 +1166,19 @@ export function managerCommand(payload: ManagerCommandPayload) {
   return apiFetch<ManagerCommandResult>("/admin/manager/command", {
     method: "POST",
     body: payload,
+  });
+}
+
+/** Báo cáo hệ thống — số thật cho mục "Giới thiệu hệ thống". */
+export function getManagerSystemReport() {
+  return apiFetch<ManagerSystemReport>("/admin/manager/system-report");
+}
+
+/** Sinh đề xuất cải tiến vận hành (AI/OpenClaw, chỉ gợi ý). */
+export function managerGenerateImprovements(focus?: string) {
+  return apiFetch<ManagerImprovementsResult>("/admin/manager/improvements", {
+    method: "POST",
+    body: focus ? { focus } : {},
   });
 }
 

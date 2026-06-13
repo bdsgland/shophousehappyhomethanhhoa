@@ -29,6 +29,7 @@ URL CUỐI CÙNG (production):  https://api.eurowindowlightcity.net/mcp
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import secrets
@@ -376,6 +377,50 @@ def _h_approve_care_action(a: Dict[str, Any]) -> Dict[str, Any]:
         return {"ok": False, "error": f"Không tìm thấy mục hàng đợi: {a['item_id']}"}
     return {"ok": True, "item": item, "auto_sent": False,
             "note": "Đã duyệt — KHÔNG tự gửi. Nhân viên tự gửi tin sau khi duyệt."}
+
+
+# ----------------------- TRUNG TÂM ĐIỀU HÀNH (Manager) -----------------------
+def _h_manager_system_report(a: Dict[str, Any]) -> Dict[str, Any]:
+    """ĐỌC báo cáo HỆ THỐNG (số thật): lead + phân bố nhiệt, phễu chuyển đổi,
+    tài chính/hoa hồng, hàng đợi chăm sóc AI, đội Sale AI + tải, marketing, sức
+    khoẻ nền tảng. Tái dùng đúng builder của manager (KHÔNG side-effect)."""
+    from app.api import manager
+
+    return asyncio.run(manager.build_system_report())
+
+
+def _h_manager_generate_improvements(a: Dict[str, Any]) -> Dict[str, Any]:
+    """SINH đề xuất cải tiến vận hành (AI, CHỈ GỢI Ý) từ báo cáo hệ thống hiện tại.
+
+    Tuỳ chọn push_telegram=true → gửi tóm tắt đề xuất qua Telegram (CEO chat mặc
+    định hoặc chat_id truyền vào). Bản thân đề xuất KHÔNG tự thực thi hành động nào.
+    """
+    from app.api import manager
+
+    result = asyncio.run(manager.generate_improvements(focus=a.get("focus")))
+
+    if a.get("push_telegram"):
+        try:
+            from app.schemas.openclaw import OpenClawTelegramSend
+
+            items = result.get("improvements", [])
+            lines = [f"🛠️ Đề xuất cải tiến (nguồn: {result.get('generated_by')})", ""]
+            for i, imp in enumerate(items[:10], 1):
+                sev = str(imp.get("severity", "")).upper()
+                lines.append(f"{i}. [{sev}] {imp.get('title', '')}")
+                if imp.get("suggested_action"):
+                    lines.append(f"   → {imp.get('suggested_action')}")
+            text = "\n".join(lines) or "Không có đề xuất."
+            tg = bridge.telegram_send(
+                OpenClawTelegramSend(chat_id=a.get("chat_id"), text=text, parse_mode=None),
+                actor=_ACTOR,
+            )
+            result["telegram"] = tg
+        except HTTPException as exc:
+            result["telegram"] = {"ok": False, "error": f"{exc.status_code}: {exc.detail}"}
+        except Exception as exc:  # noqa: BLE001
+            result["telegram"] = {"ok": False, "error": str(exc)}
+    return result
 
 
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
@@ -897,6 +942,33 @@ TOOLS: List[Dict[str, Any]] = [
             "additionalProperties": False,
         },
         "handler": _h_approve_care_action,
+        "write": True,
+    },
+    # -------------------- TRUNG TÂM ĐIỀU HÀNH (Manager) --------------------
+    {
+        "name": "manager_system_report",
+        "description": "ĐỌC báo cáo HỆ THỐNG tổng hợp SỐ THẬT cho người điều hành: tổng lead + phân bố Nóng/Ấm/Lạnh, phễu chuyển đổi (lead→hẹn→cọc→ký→khách), tài chính (doanh thu/chi phí/lợi nhuận kỳ) + tổng hoa hồng, hàng đợi chăm sóc của Đội Sale AI, đội Sale AI + tải, marketing (chi phí/lead theo kênh), sức khoẻ nền tảng, automation. Khối thiếu dữ liệu → null. Dùng khi CEO hỏi 'báo cáo hệ thống', 'tình hình vận hành tổng thể'. KHÔNG side-effect.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "handler": _h_manager_system_report,
+        "write": False,
+    },
+    {
+        "name": "manager_generate_improvements",
+        "description": "SINH danh sách ĐỀ XUẤT CẢI TIẾN vận hành (do AI tạo, CHỈ GỢI Ý) bằng cách phân tích báo cáo hệ thống số thật (vd 'kênh X chi phí/lead cao → giảm ngân sách', 'SLA nhận khách nóng chậm', 'nhiều nháp chăm sóc AI chờ duyệt', 'tải đội Sale AI cao'). Thiếu API key → tự rơi về phân tích heuristic. Tham số: focus (gợi ý trọng tâm, tuỳ chọn); push_telegram (true = gửi tóm tắt đề xuất qua Telegram); chat_id (chat đích, trống = CEO mặc định). ĐỀ XUẤT KHÔNG tự thực thi hành động — chỉ để người điều hành quyết định.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "focus": {"type": "string", "description": "Trọng tâm phân tích (tuỳ chọn)"},
+                "push_telegram": {"type": "boolean", "description": "Gửi tóm tắt qua Telegram", "default": False},
+                "chat_id": {"type": "string", "description": "Chat Telegram đích (trống = CEO mặc định)"},
+            },
+            "additionalProperties": False,
+        },
+        "handler": _h_manager_generate_improvements,
         "write": True,
     },
 ]

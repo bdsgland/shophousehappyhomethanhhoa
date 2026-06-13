@@ -44,6 +44,7 @@ import type {
   ManagerOverview,
 } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
+import SystemIntro from "./SystemIntro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -236,9 +237,12 @@ function ReportSection({ data }: { data: ManagerOverview }) {
 // ---------------------------------------------------------------------------
 // Trang chính
 // ---------------------------------------------------------------------------
+type ManagerTab = "dieu-hanh" | "gioi-thieu";
+
 export default function ManagerPage() {
   const qc = useQueryClient();
   const [toast, setToast] = useState<string | null>(null);
+  const [tab, setTab] = useState<ManagerTab>("dieu-hanh");
 
   const overview = useQuery({
     queryKey: ["manager-overview"],
@@ -347,6 +351,34 @@ export default function ManagerPage() {
         }
       />
 
+      {/* Tab điều hướng */}
+      <div className="flex gap-1 border-b border-border">
+        <button
+          onClick={() => setTab("dieu-hanh")}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+            tab === "dieu-hanh"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Điều hành
+        </button>
+        <button
+          onClick={() => setTab("gioi-thieu")}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+            tab === "gioi-thieu"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Giới thiệu hệ thống
+        </button>
+      </div>
+
+      {tab === "gioi-thieu" && <SystemIntro />}
+
+      {tab === "dieu-hanh" && (
+        <>
       {/* Trạng thái OpenClaw */}
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -564,6 +596,8 @@ export default function ManagerPage() {
           </p>
         </CardContent>
       </Card>
+        </>
+      )}
 
       {toast && (
         <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-lg">

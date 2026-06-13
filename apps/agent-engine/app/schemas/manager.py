@@ -49,3 +49,17 @@ class ManagerCommand(BaseModel):
     confirm: bool = False
     action: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Improvements — đề xuất cải tiến vận hành do AI tạo (chỉ gợi ý, KHÔNG tự thực thi)
+# ---------------------------------------------------------------------------
+class ManagerImprovementsRequest(BaseModel):
+    """Yêu cầu sinh đề xuất cải tiến từ số liệu hệ thống hiện tại.
+
+    AN TOÀN: đề xuất CHỈ là gợi ý cho người điều hành, KHÔNG kích hoạt bất kỳ
+    hành động side-effect nào. `focus` là gợi ý tuỳ chọn để AI tập trung (vd
+    "chi phí marketing", "SLA nhận khách nóng").
+    """
+
+    focus: Optional[str] = Field(default=None, max_length=300)

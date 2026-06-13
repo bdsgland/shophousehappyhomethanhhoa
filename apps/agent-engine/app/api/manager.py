@@ -46,6 +46,7 @@ from app.schemas.manager import (
     ManagerAssignHotLeads,
     ManagerBroadcast,
     ManagerCommand,
+    ManagerImprovementsRequest,
 )
 
 log = logging.getLogger("admin.manager")
@@ -231,6 +232,166 @@ async def overview(_admin: dict = Depends(require_admin)) -> Dict[str, Any]:
     """Tổng hợp KPI điều hành cho trang Manager (doanh số · lead funnel · hoa hồng
     · automation · sức khoẻ nền tảng)."""
     return await _build_overview()
+
+
+# ===========================================================================
+# Báo cáo HỆ THỐNG — số thật tổng hợp cho mục "Giới thiệu hệ thống" (read-only)
+# ===========================================================================
+# Mỗi mảng tự bắt lỗi và trả null khi store chưa có dữ liệu — KHÔNG để 1 phần
+# hỏng làm sập cả báo cáo. FE hiển thị "—" cho mọi giá trị null.
+
+def _leads_section() -> Dict[str, Any]:
+    """Tổng lead + phân bố Nóng/Ấm/Lạnh (số thật từ lead_store)."""
+    try:
+        stats = lead_store.compute_stats()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: lead stats lỗi: %s", exc)
+        return {"available": False}
+    return {
+        "available": True,
+        "total": stats.get("total_leads", 0),
+        "hot": stats.get("hot_leads", 0),
+        "warm": stats.get("warm_leads", 0),
+        "cold": stats.get("cold_leads", 0),
+        "customers": stats.get("customers", 0),
+        "lost": stats.get("lost_leads", 0),
+        "conversion_rate": stats.get("conversion_rate", 0.0),
+        "top_sources": stats.get("top_sources", []),
+    }
+
+
+def _funnel_section(leads: Dict[str, Any], sales: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Phễu chuyển đổi lead → hẹn (meet) → cọc → ký. Chặng thiếu dữ liệu → count=None."""
+    inv = sales.get("inventory", {}) if isinstance(sales, dict) else {}
+    is_demo = bool(inv.get("is_demo", True))
+
+    # Số lịch hẹn (Google Meet / booking) — best-effort.
+    meet_count: Optional[int] = None
+    try:
+        from app.core import booking_store
+
+        bookings = booking_store.list_all()
+        meet_count = len(bookings) if bookings else None
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: booking count lỗi: %s", exc)
+
+    total = leads.get("total") if leads.get("available") else None
+    customers = leads.get("customers") if leads.get("available") else None
+    deposit = inv.get("reserved") if not is_demo else None
+    signed = inv.get("sold") if not is_demo else None
+
+    return [
+        {"key": "lead", "label": "Lead", "count": total},
+        {"key": "meet", "label": "Hẹn gặp / Meet", "count": meet_count},
+        {"key": "deposit", "label": "Đặt cọc", "count": deposit},
+        {"key": "sign", "label": "Ký HĐ", "count": signed},
+        {"key": "customer", "label": "Khách chốt", "count": customers},
+    ]
+
+
+def _ai_care_section() -> Dict[str, Any]:
+    """Hàng đợi chăm sóc của Đội Sale AI (số nháp chờ duyệt...)."""
+    try:
+        from app.core import ai_care_queue_store
+
+        return {"available": True, **ai_care_queue_store.compute_stats()}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: ai_care queue lỗi: %s", exc)
+        return {"available": False}
+
+
+def _ai_sales_section() -> Dict[str, Any]:
+    """Đội Sale AI — số lượng + tải (load_ratio = assigned / capacity)."""
+    try:
+        from app.core import ai_salesman_store
+
+        stats = ai_salesman_store.compute_stats()
+        cap = stats.get("total_capacity", 0) or 0
+        assigned = stats.get("total_assigned", 0) or 0
+        stats["load_ratio"] = round(assigned / cap, 3) if cap > 0 else 0.0
+        return {"available": True, **stats}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: ai_salesman lỗi: %s", exc)
+        return {"available": False}
+
+
+def _finance_section() -> Dict[str, Any]:
+    """Doanh thu / chi phí / lợi nhuận kỳ hiện tại + tổng hoa hồng đã ghi."""
+    out: Dict[str, Any] = {"available": False}
+    try:
+        from app.core import finance_service
+
+        summary = finance_service.period_summary("month")
+        out = {
+            "available": True,
+            "period_label": summary.get("period_label"),
+            "revenue": summary.get("revenue", 0.0),
+            "cost": summary.get("cost", 0.0),
+            "profit": summary.get("profit", 0.0),
+            "margin": summary.get("margin", 0.0),
+            "deal_count": summary.get("deal_count", 0),
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: finance lỗi: %s", exc)
+    try:
+        out["commission"] = _commission_summary()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: commission lỗi: %s", exc)
+    return out
+
+
+def _marketing_section() -> Dict[str, Any]:
+    """Tổng quan marketing: chi tiêu, CPL trung bình, CPL theo kênh (best-effort)."""
+    try:
+        from app.api.admin_marketing import _build_overview as _mkt_overview
+
+        ov = _mkt_overview()
+        return {
+            "available": True,
+            "total_spent": ov.get("total_spent", 0.0),
+            "total_leads": ov.get("total_leads", 0),
+            "avg_cpl": ov.get("avg_cpl", 0.0),
+            "roi": ov.get("roi", 0.0),
+            "by_channel": [
+                {"channel": c.get("channel"), "leads": c.get("leads", 0),
+                 "spent": c.get("spent", 0.0), "cpl": c.get("cpl", 0.0)}
+                for c in ov.get("by_channel", [])
+            ],
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("system-report: marketing lỗi: %s", exc)
+        return {"available": False}
+
+
+async def build_system_report() -> Dict[str, Any]:
+    """Gộp TOÀN BỘ số thật cho mục "Giới thiệu hệ thống".
+
+    Read-only. Mỗi section tự bắt lỗi → available=false / null khi thiếu dữ liệu.
+    Dùng chung cho endpoint admin (/system-report) và MCP OpenClaw.
+    """
+    sales = _sales_kpi()
+    leads = _leads_section()
+    return {
+        "generated_at": _now_iso(),
+        "leads": leads,
+        "funnel": _funnel_section(leads, sales),
+        "sales": sales,
+        "finance": _finance_section(),
+        "ai_care": _ai_care_section(),
+        "ai_sales": _ai_sales_section(),
+        "marketing": _marketing_section(),
+        "platforms": await _platforms_health(),
+        "automation": await _automation_overview(),
+        "openclaw": _openclaw_status(),
+    }
+
+
+@router.get("/system-report")
+async def system_report(_admin: dict = Depends(require_admin)) -> Dict[str, Any]:
+    """Báo cáo dữ liệu trực tuyến (SỐ THẬT) cho mục "Giới thiệu hệ thống":
+    lead + phân bố nhiệt, phễu chuyển đổi, tài chính/hoa hồng, hàng đợi chăm sóc
+    AI, đội Sale AI + tải, marketing, sức khoẻ nền tảng. Khối thiếu dữ liệu → null."""
+    return await build_system_report()
 
 
 # ===========================================================================
@@ -538,3 +699,179 @@ async def command(body: ManagerCommand, admin: dict = Depends(require_admin)) ->
         "summary": summary,
         "message": "Hành động có ảnh hưởng hệ thống — vui lòng xác nhận để thực thi.",
     }
+
+
+# ===========================================================================
+# Đề xuất cải tiến vận hành (AI) — CHỈ GỢI Ý, KHÔNG tự thực thi
+# ===========================================================================
+# OpenClaw có thể gọi qua MCP (manager_generate_improvements) để tự lấy báo cáo
+# + tạo đề xuất rồi (tuỳ chọn) đẩy qua Telegram. Endpoint admin dưới đây chỉ sinh
+# danh sách gợi ý — KHÔNG kèm bất kỳ side-effect nào.
+
+_IMPROVEMENTS_SYSTEM = (
+    "Bạn là cố vấn vận hành cho trung tâm điều hành của một công ty bất động sản "
+    "dùng nhiều AI & tự động hoá. Bạn nhận một bản BÁO CÁO SỐ THẬT (JSON) về lead, "
+    "phễu chuyển đổi, tài chính/hoa hồng, hàng đợi chăm sóc AI, đội Sale AI + tải, "
+    "marketing (chi phí/lead theo kênh), sức khoẻ nền tảng. Nhiệm vụ: phân tích số "
+    "liệu và đề xuất các CẢI TIẾN VẬN HÀNH cụ thể, có căn cứ từ số liệu (vd 'kênh X "
+    "có chi phí/lead cao hơn trung bình → cân nhắc giảm ngân sách', 'SLA nhận khách "
+    "nóng đang chậm', 'nhiều nháp chăm sóc AI tồn chờ duyệt', 'tải đội Sale AI cao "
+    "→ tăng năng lực'). Mỗi đề xuất KÈM lý do dựa trên số. TUYỆT ĐỐI KHÔNG bịa số "
+    "không có trong báo cáo; nếu thiếu dữ liệu thì nói rõ là 'chưa đủ dữ liệu'. "
+    "Đây CHỈ là gợi ý cho con người quyết định — KHÔNG ra lệnh thực thi.\n"
+    'CHỈ trả JSON đúng dạng: {"improvements": [{"title": <ngắn gọn>, '
+    '"area": <lead|marketing|sales_ai|care|finance|platform|automation|other>, '
+    '"severity": <high|medium|low>, "detail": <giải thích kèm số liệu>, '
+    '"suggested_action": <hành động đề xuất cho người điều hành>}]}'
+)
+
+
+def _heuristic_improvements(report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fallback KHÔNG cần LLM: suy luận đề xuất trực tiếp từ số liệu báo cáo.
+
+    Dùng khi thiếu ANTHROPIC_API_KEY hoặc gọi Claude lỗi. An toàn, không bịa số.
+    """
+    out: List[Dict[str, Any]] = []
+
+    leads = report.get("leads") or {}
+    if leads.get("available"):
+        hot = leads.get("hot", 0) or 0
+        if hot > 0:
+            out.append({
+                "title": "Có hot lead cần nhận nhanh",
+                "area": "lead", "severity": "high",
+                "detail": f"Đang có {hot} hot lead. Khách nóng nguội nhanh nếu chậm liên hệ.",
+                "suggested_action": "Phân bổ hot lead cho sale ngay và bảo đảm SLA tiếp cận <15 phút.",
+            })
+        conv = leads.get("conversion_rate", 0) or 0
+        if (leads.get("total", 0) or 0) >= 20 and conv < 5:
+            out.append({
+                "title": "Tỉ lệ chuyển đổi lead thấp",
+                "area": "lead", "severity": "medium",
+                "detail": f"Tỉ lệ chuyển đổi đang ở {conv}% trên tổng {leads.get('total')} lead.",
+                "suggested_action": "Rà kịch bản chăm sóc & chất lượng nguồn lead; bổ sung tri thức Dify cho bot.",
+            })
+
+    care = report.get("ai_care") or {}
+    if care.get("available") and (care.get("pending", 0) or 0) >= 10:
+        out.append({
+            "title": "Nhiều nháp chăm sóc AI tồn chờ duyệt",
+            "area": "care", "severity": "medium",
+            "detail": f"Hàng đợi đang có {care.get('pending')} nháp ở trạng thái chờ duyệt.",
+            "suggested_action": "Duyệt/lọc bớt hàng đợi để đội AI tiếp tục chăm khách, tránh ùn tắc.",
+        })
+
+    ai_sales = report.get("ai_sales") or {}
+    if ai_sales.get("available"):
+        load = ai_sales.get("load_ratio", 0) or 0
+        if load >= 0.85:
+            out.append({
+                "title": "Tải đội Sale AI cao",
+                "area": "sales_ai", "severity": "high",
+                "detail": f"Tỉ lệ tải đội Sale AI ~{round(load * 100)}% sức chứa.",
+                "suggested_action": "Tăng năng lực (capacity) hoặc thêm sale AI để tránh nghẽn chăm sóc.",
+            })
+
+    mkt = report.get("marketing") or {}
+    if mkt.get("available"):
+        channels = mkt.get("by_channel") or []
+        avg = mkt.get("avg_cpl", 0) or 0
+        for ch in channels:
+            cpl = ch.get("cpl", 0) or 0
+            if avg > 0 and cpl > avg * 1.5 and (ch.get("leads", 0) or 0) > 0:
+                out.append({
+                    "title": f"Chi phí/lead kênh {ch.get('channel')} cao",
+                    "area": "marketing", "severity": "medium",
+                    "detail": (f"CPL kênh {ch.get('channel')} ≈ {cpl} so với trung bình {avg}. "
+                               f"Kênh thu {ch.get('leads')} lead."),
+                    "suggested_action": "Cân nhắc giảm ngân sách kênh này hoặc tối ưu nhắm mục tiêu/nội dung.",
+                })
+
+    automation = report.get("automation") or {}
+    if automation.get("configured") and (automation.get("errors_recent", 0) or 0) > 0:
+        out.append({
+            "title": "Automation có lỗi gần đây",
+            "area": "automation", "severity": "high",
+            "detail": f"{automation.get('errors_recent')} lần chạy lỗi trong lịch sử gần đây.",
+            "suggested_action": "Kiểm tra workflow n8n đang lỗi để tránh gián đoạn phân bổ/chăm sóc.",
+        })
+
+    for p in report.get("platforms") or []:
+        if p.get("status") == "down":
+            out.append({
+                "title": f"Nền tảng '{p.get('name')}' không phản hồi",
+                "area": "platform", "severity": "high",
+                "detail": f"Health check tới {p.get('name')} trả trạng thái down.",
+                "suggested_action": "Kiểm tra dịch vụ và redeploy nếu cần (mục Nền tảng).",
+            })
+
+    if not out:
+        out.append({
+            "title": "Hệ thống đang ổn định",
+            "area": "other", "severity": "low",
+            "detail": "Chưa phát hiện chỉ số bất thường rõ rệt từ số liệu hiện tại.",
+            "suggested_action": "Tiếp tục theo dõi phễu chuyển đổi và chi phí/lead theo kênh.",
+        })
+    return out
+
+
+async def generate_improvements(
+    report: Optional[Dict[str, Any]] = None, *, focus: Optional[str] = None
+) -> Dict[str, Any]:
+    """Sinh danh sách đề xuất cải tiến từ báo cáo hệ thống.
+
+    - Tự build báo cáo nếu chưa truyền vào.
+    - Ưu tiên Claude; thiếu key / lỗi / output sai dạng → fallback heuristic.
+    - KHÔNG side-effect. Trả {generated_by, generated_at, improvements, report}.
+    """
+    if report is None:
+        report = await build_system_report()
+
+    generated_by = "fallback"
+    improvements: List[Dict[str, Any]] = []
+    try:
+        import json as _json
+
+        from app.core import ai_crm
+
+        user = "BÁO CÁO SỐ THẬT (JSON):\n" + _json.dumps(report, ensure_ascii=False, default=str)
+        if focus:
+            user += f"\n\nƯU TIÊN PHÂN TÍCH: {focus}"
+        parsed = await ai_crm._call_claude_json(_IMPROVEMENTS_SYSTEM, user, max_tokens=1200)
+        if isinstance(parsed, dict) and isinstance(parsed.get("improvements"), list):
+            cleaned = [i for i in parsed["improvements"] if isinstance(i, dict) and i.get("title")]
+            if cleaned:
+                improvements = cleaned
+                generated_by = "ai"
+    except Exception as exc:  # noqa: BLE001 — luôn fallback an toàn
+        log.warning("improvements: gọi Claude lỗi: %s", exc)
+
+    if not improvements:
+        improvements = _heuristic_improvements(report)
+
+    return {
+        "generated_by": generated_by,
+        "generated_at": _now_iso(),
+        "focus": focus,
+        "improvements": improvements,
+        "report": report,
+    }
+
+
+@router.post("/improvements")
+async def improvements(
+    body: Optional[ManagerImprovementsRequest] = None,
+    admin: dict = Depends(require_admin),
+) -> Dict[str, Any]:
+    """Tạo đề xuất cải tiến vận hành (do AI/OpenClaw tạo) từ số liệu hiện tại.
+
+    CHỈ GỢI Ý — KHÔNG thực thi bất kỳ hành động nào. Thiếu ANTHROPIC_API_KEY →
+    tự rơi về phân tích heuristic dựa trên số liệu (không vỡ)."""
+    focus = body.focus if body else None
+    result = await generate_improvements(focus=focus)
+    audit_store.record_admin(
+        "manager.generate_improvements", admin,
+        new_value={"count": len(result["improvements"]), "by": result["generated_by"]},
+        detail="sinh đề xuất cải tiến vận hành (gợi ý)",
+    )
+    return result
