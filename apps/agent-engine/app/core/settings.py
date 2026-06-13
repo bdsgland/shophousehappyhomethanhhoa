@@ -241,6 +241,9 @@ class Settings(BaseSettings):
     leads_file: str = "data/_runtime/leads.json"
     contact_logs_file: str = "data/_runtime/contact_logs.json"
     sale_tasks_file: str = "data/_runtime/sale_tasks.json"
+    # Đơn ĐĂNG KÝ ĐẠI LÝ / hợp tác chủ sàn (B2B — admin duyệt). KHÁC đăng ký
+    # khách/sale (auth). Resolve giống leads_file (DATA_DIR / agent-engine / CWD).
+    agency_applications_file: str = "data/_runtime/agency_applications.json"
 
     # ----- ĐỘI SALE AI ("1000 saleman AI") — roster nhân viên sale ảo -----
     # JSON store {salesmen:[...]} cho đội sale AI tự động gán + chăm sóc khách.

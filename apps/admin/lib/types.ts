@@ -2302,3 +2302,62 @@ export interface ProjectHistoryEntry {
   updated_by?: string | null;
   note?: string | null;
 }
+
+// ---- Đại lý F2 (đăng ký + duyệt) ----
+
+export interface AgencySale {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface AgencyBusinessInfo {
+  ten_dn?: string | null;
+  ma_so_thue?: string | null;
+  dia_chi?: string | null;
+  nguoi_dai_dien_phap_luat?: string | null;
+}
+
+export interface AgencyProgress {
+  business_ok: boolean;
+  brokerage_ok: boolean;
+  sales_count: number;
+  sales_required: number;
+  sales_ok: boolean;
+  eligible: boolean;
+}
+
+export type AgencyStatus = "pending" | "active" | "rejected";
+
+export interface Agency {
+  id: string;
+  owner_user_id: string;
+  ten_san: string;
+  nguoi_dai_dien?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status: AgencyStatus;
+  commission_tier: string;
+  commission_pct?: number | null;
+  business_info: AgencyBusinessInfo;
+  brokerage_declared: boolean;
+  gpkd_so?: string | null;
+  sales: AgencySale[];
+  can_config_sale_commission: boolean;
+  submitted_for_review: boolean;
+  eligible: boolean;
+  progress: AgencyProgress;
+  review_note?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  ghi_chu?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgencyStats {
+  total: number;
+  pending: number;
+  active: number;
+  rejected: number;
+}

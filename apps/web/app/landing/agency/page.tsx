@@ -93,7 +93,7 @@ export default function LandingAgencyPage() {
               Đăng nhập chủ sàn
             </Link>
             <Link
-              href="/register?type=sale"
+              href="/register-agency"
               className="rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
             >
               Đăng ký làm đại lý
@@ -122,7 +122,7 @@ export default function LandingAgencyPage() {
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/register?type=sale"
+                href="/register-agency"
                 className="inline-flex items-center justify-center rounded-xl bg-brand-500 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-brand-600"
               >
                 Đăng ký làm đại lý
@@ -290,7 +290,7 @@ export default function LandingAgencyPage() {
                 Đăng nhập chủ sàn
               </Link>
               <Link
-                href="/register?type=sale"
+                href="/register-agency"
                 className="inline-flex items-center justify-center rounded-xl bg-brand-500 px-7 py-3 text-base font-semibold text-white transition hover:bg-brand-600"
               >
                 Đăng ký làm đại lý

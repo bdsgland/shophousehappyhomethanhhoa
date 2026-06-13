@@ -108,6 +108,9 @@ export function isAgencyRole(role: string | undefined | null): boolean {
  * - sale          → CRM
  */
 export function redirectByRole(role: string | undefined | null): string {
+  // Đại lý F2 tự đăng ký (role "agency"): vào khu onboarding/hồ sơ điều kiện F2.
+  // KHÔNG đẩy vào /agency (khu điều hành toàn nền tảng — chỉ admin/manager).
+  if (role === "agency") return "/agency-onboarding";
   if (isAgencyRole(role)) return "/agency";
   return getDashboardUrl(role);
 }

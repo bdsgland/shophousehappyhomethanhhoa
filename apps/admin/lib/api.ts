@@ -2,6 +2,9 @@
 
 import { clearToken, getToken } from "./auth";
 import type {
+  Agency,
+  AgencyStats,
+  AgencyStatus,
   AuditEvent,
   AutomationExecutionsResponse,
   AutomationOverviewResponse,
@@ -236,6 +239,34 @@ async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+// ---- Đại lý F2 (đăng ký + duyệt) ----
+
+export function listAgencyApplications(status?: AgencyStatus): Promise<Agency[]> {
+  const qs = status ? `?status_filter=${encodeURIComponent(status)}` : "";
+  return apiFetch<Agency[]>(`/admin/agency-applications${qs}`);
+}
+
+export function getAgencyStats(): Promise<AgencyStats> {
+  return apiFetch<AgencyStats>("/admin/agency-applications/stats");
+}
+
+export function approveAgency(
+  id: string,
+  reviewNote?: string,
+): Promise<Agency> {
+  return apiFetch<Agency>(`/admin/agency-applications/${id}/approve`, {
+    method: "POST",
+    body: { review_note: reviewNote },
+  });
+}
+
+export function rejectAgency(id: string, reviewNote?: string): Promise<Agency> {
+  return apiFetch<Agency>(`/admin/agency-applications/${id}/reject`, {
+    method: "POST",
+    body: { review_note: reviewNote },
+  });
 }
 
 // ---- Phase 2: Users ----

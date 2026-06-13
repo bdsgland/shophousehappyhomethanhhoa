@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   "/leads",
   "/admin",
   "/agency",
+  "/agency-onboarding",
   "/dashboard",
   "/agent",
   "/client",
@@ -27,7 +28,10 @@ const STAFF_PREFIXES = ["/leads", "/dashboard", "/agent", "/admin", "/agency"];
 function redirectToPortal(req: NextRequest, role: string | undefined) {
   const url = req.nextUrl.clone();
   url.search = "";
-  if (isAgencyRole(role)) {
+  if (role === "agency") {
+    // Đại lý F2 tự đăng ký → khu onboarding/hồ sơ riêng (không phải /agency điều hành).
+    url.pathname = "/agency-onboarding";
+  } else if (isAgencyRole(role)) {
     url.pathname = "/agency";
   } else if (role === "client") {
     url.pathname = "/client";
@@ -116,6 +120,8 @@ export const config = {
     "/admin",
     "/agency/:path*",
     "/agency",
+    "/agency-onboarding/:path*",
+    "/agency-onboarding",
     "/dashboard/:path*",
     "/dashboard",
     "/agent/:path*",

@@ -152,6 +152,107 @@ export function authLogin(payload: {
   return postJson<AuthTokenResponse>("/auth/login", payload);
 }
 
+// ----- Đại lý F2 (đăng ký nhanh + hồ sơ điều kiện trong /agency) -----
+
+export type AgencySaleInput = {
+  name: string;
+  phone?: string;
+  email?: string;
+};
+
+export type AgencyRegisterPayload = {
+  ten_san: string;
+  nguoi_dai_dien: string;
+  email: string;
+  phone?: string;
+  password: string;
+};
+
+export type AgencyBusinessInfo = {
+  ten_dn?: string | null;
+  ma_so_thue?: string | null;
+  dia_chi?: string | null;
+  nguoi_dai_dien_phap_luat?: string | null;
+};
+
+export type AgencyProgress = {
+  business_ok: boolean;
+  brokerage_ok: boolean;
+  sales_count: number;
+  sales_required: number;
+  sales_ok: boolean;
+  eligible: boolean;
+};
+
+export type Agency = {
+  id: string;
+  owner_user_id: string;
+  ten_san: string;
+  nguoi_dai_dien: string | null;
+  phone: string | null;
+  email: string | null;
+  status: "pending" | "active" | "rejected";
+  commission_tier: string;
+  commission_pct: number | null;
+  business_info: AgencyBusinessInfo;
+  brokerage_declared: boolean;
+  gpkd_so: string | null;
+  sales: AgencySaleInput[];
+  can_config_sale_commission: boolean;
+  submitted_for_review: boolean;
+  eligible: boolean;
+  progress: AgencyProgress;
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  ghi_chu: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgencyProfileUpdate = {
+  ten_san?: string;
+  nguoi_dai_dien?: string;
+  phone?: string;
+  business_info?: AgencyBusinessInfo;
+  brokerage_declared?: boolean;
+  gpkd_so?: string;
+  sales?: AgencySaleInput[];
+  ghi_chu?: string;
+};
+
+/** Đăng ký nhanh làm đại lý → tạo tài khoản agency + trả token (auto login). */
+export function agencyRegister(
+  payload: AgencyRegisterPayload,
+): Promise<AuthTokenResponse> {
+  return postJson<AuthTokenResponse>("/agency/register", payload);
+}
+
+/** Hồ sơ đại lý của tài khoản hiện tại (role agency). */
+export function fetchAgencyMe(token: string): Promise<Agency> {
+  return requestJson<Agency>("/agency/me", { token });
+}
+
+/** Chủ sàn tự cập nhật hồ sơ điều kiện F2. */
+export function updateAgencyProfile(
+  token: string,
+  body: AgencyProfileUpdate,
+): Promise<Agency> {
+  return requestJson<Agency>("/agency/me/profile", {
+    method: "PUT",
+    token,
+    body,
+  });
+}
+
+/** Gửi hồ sơ F2 cho admin duyệt (chỉ khi đủ điều kiện). */
+export function submitAgencyForReview(token: string): Promise<Agency> {
+  return requestJson<Agency>("/agency/me/submit-for-review", {
+    method: "POST",
+    token,
+  });
+}
+
 export async function fetchAdminOverview(
   token: string,
 ): Promise<AdminOverview | null> {

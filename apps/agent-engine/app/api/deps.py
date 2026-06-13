@@ -193,6 +193,18 @@ def require_admin(
     )
 
 
+def require_agency(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency cho chủ sàn ĐẠI LÝ F2 (role="agency"). Admin cũng được phép
+    (để hỗ trợ/giám sát). Tài khoản agency tự đăng ký KHÔNG có quyền admin toàn
+    nền tảng — chỉ thao tác trên hồ sơ/đội của CHÍNH MÌNH ở tầng endpoint."""
+    if user.get("role") not in ("agency", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yêu cầu tài khoản đại lý (agency)",
+        )
+    return user
+
+
 def require_sale(user: dict = Depends(get_current_user)) -> dict:
     """Dependency đảm bảo user hiện tại là sale (admin cũng được phép thao tác).
 

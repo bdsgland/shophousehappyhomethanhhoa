@@ -13,6 +13,7 @@ import {
   Megaphone,
   Bot,
   UserSearch,
+  Store,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/customers", label: "Khách hàng", icon: UserSquare2 },
   { href: "/customer-360", label: "Customer 360", icon: UserSearch },
   { href: "/users", label: "Người dùng", icon: Users },
+  { href: "/agencies", label: "Đại lý F2", icon: Store },
   { href: "/hr", label: "Nhân sự", icon: UserCog },
   { href: "/sales", label: "Sale & Hoa hồng", icon: BadgeDollarSign },
   { href: "/finance", label: "Tài chính", icon: Wallet },
