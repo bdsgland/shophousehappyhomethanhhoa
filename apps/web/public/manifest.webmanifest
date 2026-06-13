@@ -1,0 +1,28 @@
+{
+  "name": "Eurowindow Light City",
+  "short_name": "ELC",
+  "description": "Cổng khách hàng & công cụ kinh doanh Khu đô thị Eurowindow Light City — tư vấn AI, bảng hàng, phiếu giá, đặt lịch, Live Match.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#b8893e",
+  "background_color": "#fbf7f0",
+  "categories": ["business", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

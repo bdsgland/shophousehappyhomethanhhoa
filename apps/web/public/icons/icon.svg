@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Eurowindow Light City">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c79a4f"/>
+      <stop offset="1" stop-color="#82591f"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#fff6e0"/>
+      <stop offset="1" stop-color="#f3e8d3"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <circle cx="256" cy="212" r="74" fill="url(#sun)" opacity="0.95"/>
+  <g fill="#ffffff" font-family="Inter, system-ui, sans-serif" font-weight="800" text-anchor="middle">
+    <text x="256" y="392" font-size="150" letter-spacing="6">ELC</text>
+  </g>
+</svg>

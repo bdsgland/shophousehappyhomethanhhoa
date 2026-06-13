@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { AuthBar } from "@/components/AuthBar";
+import { BottomNav } from "@/components/pwa/BottomNav";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,14 +32,17 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           <AuthBar />
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
-      <footer className="border-t border-brand-100 bg-white">
+      <main className="mx-auto max-w-6xl px-6 py-10 pb-24 lg:pb-10">
+        {children}
+      </main>
+      <footer className="border-t border-brand-100 bg-white pb-16 lg:pb-0">
         <div className="mx-auto max-w-6xl px-6 py-6 text-xs text-brand-700">
           © Eurowindow Holding — Khu đô thị Eurowindow Light City, phường Nguyệt
           Viên, TP Thanh Hoá. Trang giới thiệu mang tính tham khảo; thông tin chi
           tiết (giá, chính sách) vui lòng liên hệ chuyên viên kinh doanh.
         </div>
       </footer>
+      <BottomNav />
     </>
   );
 }

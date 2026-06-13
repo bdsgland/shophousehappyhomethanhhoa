@@ -1122,11 +1122,11 @@ function PolicyTab({
       </div>
 
       {/* Bảng giá tham khảo */}
-      <div className="overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-brand-100 bg-white shadow-sm">
         <div className="border-b border-brand-100 bg-brand-50 px-5 py-3 text-sm font-bold uppercase tracking-wide text-brand-900">
           Bảng giá tham khảo
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="text-left text-xs font-bold uppercase tracking-wide text-brand-700">
               <th className="px-5 py-2.5">Loại sản phẩm</th>
