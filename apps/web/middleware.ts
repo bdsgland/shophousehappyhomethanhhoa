@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   "/leads",
   "/admin",
   "/agency",
+  "/agency-admin",
   "/agency-onboarding",
   "/dashboard",
   "/agent",
@@ -15,6 +16,9 @@ const PROTECTED_PREFIXES = [
 const ADMIN_PREFIX = "/admin";
 // Khu điều hành chủ sàn (Agency) — chỉ admin/manager.
 const AGENCY_PREFIX = "/agency";
+// Khu QUẢN TRỊ SÀN F2 (đại lý tự đăng ký, role="agency") — đa-tenant, tách khỏi
+// /agency (vốn dành admin/manager toàn nền tảng).
+const AGENCY_ADMIN_PREFIX = "/agency-admin";
 const CLIENT_PREFIX = "/client";
 // Khu vực nội bộ (sale/admin) — khách hàng (client) không được vào.
 const STAFF_PREFIXES = ["/leads", "/dashboard", "/agent", "/admin", "/agency"];
@@ -29,8 +33,9 @@ function redirectToPortal(req: NextRequest, role: string | undefined) {
   const url = req.nextUrl.clone();
   url.search = "";
   if (role === "agency") {
-    // Đại lý F2 tự đăng ký → khu onboarding/hồ sơ riêng (không phải /agency điều hành).
-    url.pathname = "/agency-onboarding";
+    // Đại lý F2 tự đăng ký → khu QUẢN TRỊ SÀN F2 đa-tenant (không phải /agency
+    // điều hành toàn nền tảng). Khu này tự gồm link sang hồ sơ/onboarding.
+    url.pathname = "/agency-admin";
   } else if (isAgencyRole(role)) {
     url.pathname = "/agency";
   } else if (role === "client") {
@@ -97,6 +102,15 @@ export function middleware(req: NextRequest) {
     return redirectToPortal(req, role);
   }
 
+  // Khu QUẢN TRỊ SÀN F2 (đa-tenant): chỉ role "agency" (admin được vào để hỗ trợ).
+  if (
+    startsWithPrefix(pathname, AGENCY_ADMIN_PREFIX) &&
+    role !== "agency" &&
+    role !== "admin"
+  ) {
+    return redirectToPortal(req, role);
+  }
+
   // Khu /client: chỉ khách hàng. Sale/admin bị đẩy về portal của họ.
   if (startsWithPrefix(pathname, CLIENT_PREFIX) && role !== "client") {
     return redirectToPortal(req, role);
@@ -106,6 +120,12 @@ export function middleware(req: NextRequest) {
   const inStaffArea = STAFF_PREFIXES.some((p) => startsWithPrefix(pathname, p));
   if (inStaffArea && role === "client") {
     return redirectToPortal(req, "client");
+  }
+
+  // Chủ sàn F2 (agency) KHÔNG được vào khu sale/dashboard nội bộ → đẩy về khu
+  // quản trị sàn riêng. Gốc lỗi cũ: agency lọt vào /agent/crm (dashboard sale).
+  if (inStaffArea && role === "agency") {
+    return redirectToPortal(req, "agency");
   }
 
   return NextResponse.next();
@@ -120,6 +140,8 @@ export const config = {
     "/admin",
     "/agency/:path*",
     "/agency",
+    "/agency-admin/:path*",
+    "/agency-admin",
     "/agency-onboarding/:path*",
     "/agency-onboarding",
     "/dashboard/:path*",

@@ -251,6 +251,7 @@ def _new_lead(
     status: str = "cold",
     registered: bool = False,
     profile: Optional[dict] = None,
+    agency_id: Optional[str] = None,
 ) -> dict:
     now = _now()
     lead = {
@@ -278,6 +279,10 @@ def _new_lead(
         val = (profile or {}).get(key)
         if val is not None and str(val).strip():
             lead[key] = str(val).strip()
+    # Đa-tenant F2: đóng dấu sàn cho khách MỚI (chỉ khi có giá trị) → hồ sơ cũ
+    # không có key này vẫn giữ nguyên hình dạng (backward compatible).
+    if agency_id is not None and str(agency_id).strip():
+        lead["agency_id"] = str(agency_id).strip()
     lead["ai_score"] = compute_ai_score(lead)
     return lead
 
@@ -490,6 +495,45 @@ def list_leads_for_sale(
     return [public_view(l) for l in rows]
 
 
+def list_leads_for_agency(
+    agency_id: str,
+    sale_ids,
+    *,
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    search: Optional[str] = None,
+) -> list[dict]:
+    """Danh sách KHÁCH CỦA SÀN F2 (đa-tenant) — LỌC CỨNG, không phân trang.
+
+    Khách của sàn = lead thoả MỘT trong hai (3.2 trong kế hoạch):
+      1. Suy diễn: `assigned_sale_id` thuộc TẬP sale của sàn (`sale_ids`).
+      2. Đóng dấu: `lead.agency_id == agency_id` (khi đã backfill/tạo mới có dấu).
+
+    Dùng (1) làm nguồn chính (lead cũ không có agency_id vẫn hiện đúng) + (2) để
+    bắt cả lead đã đóng dấu kể cả khi sale rời sàn. agency_id rỗng → trả [] (an
+    toàn: không trả nhầm dữ liệu sàn khác / toàn nền tảng)."""
+    aid = (agency_id or "").strip()
+    if not aid:
+        return []
+    sale_set = {s for s in (sale_ids or []) if s}
+    with _LOCK:
+        data = _load_leads()
+        rows = [
+            l
+            for l in data["leads"]
+            if (l.get("assigned_sale_id") in sale_set)
+            or ((l.get("agency_id") or "") == aid)
+        ]
+    if status:
+        rows = [l for l in rows if l.get("status") == status]
+    if source:
+        rows = [l for l in rows if l.get("source") == source]
+    if search:
+        rows = [l for l in rows if _matches_search(l, search)]
+    rows.sort(key=lambda l: l.get("updated_at") or "", reverse=True)
+    return [public_view(l) for l in rows]
+
+
 def list_all_leads(
     *,
     status: Optional[str] = None,
@@ -554,6 +598,8 @@ def update_lead(lead_id: str, **fields) -> Optional[dict]:
         "contact_count", "ai_salesman_id", "product_type",
         # Trường phân loại / hồ sơ mở rộng (Customer 360).
         "region", "customer_group", "budget", "purpose", "project",
+        # Đa-tenant F2: đóng dấu/đổi sàn của khách.
+        "agency_id",
     }
     with _LOCK:
         data = _load_leads()

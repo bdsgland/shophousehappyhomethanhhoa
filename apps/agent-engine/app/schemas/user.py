@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 # và tránh phụ thuộc cứng vào package email-validator khi đăng nhập.
 EmailStr = str
 
-UserRole = Literal["admin", "sale", "client"]
+UserRole = Literal["admin", "sale", "client", "agency"]
 
 # Role được phép đăng ký công khai (admin chỉ tạo qua seed/quản trị).
 PublicRole = Literal["sale", "client"]
@@ -59,6 +59,8 @@ class UserOut(BaseModel):
     favorites: list[str] = Field(default_factory=list)
     telegram_chat_id: Optional[str] = None
     picture: Optional[str] = None
+    # Đa-tenant F2: sàn của sale (None = nền tảng/F1). Tuỳ chọn, tương thích ngược.
+    agency_id: Optional[str] = None
     created_at: datetime
 
 

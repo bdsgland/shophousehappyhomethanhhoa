@@ -177,6 +177,32 @@ def get_my_agency(user: dict = Depends(require_agency)) -> AgencyOut:
     return AgencyOut(**_own_agency_or_404(user))
 
 
+def _stamp_declared_sales(agency_id: str, sales: list[dict]) -> None:
+    """Đóng dấu agency_id cho các SALE KHAI BÁO đã có TÀI KHOẢN THẬT (đa-tenant F2).
+
+    Danh bạ `sales[]` trong hồ sơ chỉ là {name,phone,email} (chưa chắc là tài
+    khoản đăng nhập). Nếu một dòng có email khớp 1 user role="sale" đang tồn tại →
+    gắn `agency_id` cho user đó để khu quản trị sàn nhận diện là 'đội của sàn'.
+
+    AN TOÀN: best-effort, nuốt mọi lỗi; KHÔNG đụng user role khác (admin/client/
+    agency); KHÔNG gỡ liên kết của sale đã thuộc sàn khác (chỉ set khi chưa có)."""
+    if not agency_id:
+        return
+    for s in sales or []:
+        email = (s.get("email") or "").strip().lower()
+        if not email:
+            continue
+        try:
+            u = user_store.find_by_email(email)
+            if not u or u.get("role") != "sale":
+                continue
+            # Chỉ đóng dấu khi sale chưa thuộc sàn nào (tránh cướp sale sàn khác).
+            if not (u.get("agency_id") or "").strip():
+                user_store.set_agency_id(u["id"], agency_id)
+        except Exception:  # noqa: BLE001 — không để stamping làm hỏng lưu hồ sơ
+            log.warning("Đóng dấu agency_id cho sale %s lỗi", email)
+
+
 @router.put("/me/profile", response_model=AgencyOut)
 def update_my_agency(
     payload: AgencyProfileUpdate, user: dict = Depends(require_agency)
@@ -186,6 +212,8 @@ def update_my_agency(
     rec = store.update_profile(user["id"], **fields)
     if rec is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ đại lý")
+    # Đa-tenant: đóng dấu sàn cho các sale khai báo đã có tài khoản (best-effort).
+    _stamp_declared_sales(rec.get("id", ""), rec.get("sales") or [])
     return AgencyOut(**rec)
 
 

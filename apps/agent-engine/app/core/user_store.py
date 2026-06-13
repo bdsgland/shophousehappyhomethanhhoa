@@ -123,6 +123,11 @@ def _migrate(data: dict) -> bool:
         if "picture" not in u:
             u["picture"] = None
             changed = True
+        # Đa-tenant (F2): sale thuộc sàn nào. Mặc định None = sale nền tảng/F1.
+        # Field TUỲ CHỌN, đọc bằng .get() ở mọi nơi → tương thích ngược tuyệt đối.
+        if "agency_id" not in u:
+            u["agency_id"] = None
+            changed = True
         # Khách hàng (client) không có mã giới thiệu; chỉ sinh cho admin/sale.
         if u.get("role") != "client" and not u.get("referral_code"):
             code = _gen_referral_code(u.get("full_name", ""), existing_codes)
@@ -268,6 +273,7 @@ def create_user(
     facebook_url: Optional[str] = None,
     google_id: Optional[str] = None,
     picture: Optional[str] = None,
+    agency_id: Optional[str] = None,
 ) -> dict:
     with _LOCK:
         data = _load()
@@ -303,6 +309,9 @@ def create_user(
             "facebook_url": (facebook_url or "").strip() or None,
             "google_id": (google_id or "").strip() or None,
             "picture": (picture or "").strip() or None,
+            # Đa-tenant F2: gắn sale vào sàn (agency_application_store.id). None =
+            # sale nền tảng/F1. Chỉ set khi tạo sale cho một sàn cụ thể.
+            "agency_id": (agency_id or "").strip() or None,
             "password_hash": password_hash,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
@@ -468,10 +477,12 @@ def update_user(
     email: Optional[str] = None,
     region: Optional[str] = None,
     upline_email: Optional[str] = None,
+    agency_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Cập nhật thông tin user (admin). Trả về user đã cập nhật, None nếu không thấy.
 
     Đổi email kiểm tra trùng với user khác trước khi ghi.
+    `agency_id`: gắn/đổi sàn của sale (đa-tenant F2). Bỏ qua nếu None (không gỡ).
     """
     with _LOCK:
         data = _load()
@@ -496,10 +507,42 @@ def update_user(
                     u["region"] = region.strip() or None
                 if upline_email is not None:
                     u["upline_email"] = upline_email.strip().lower() or None
+                if agency_id is not None:
+                    u["agency_id"] = (str(agency_id).strip() or None)
                 _save(data)
                 _mirror(u)
                 return u
     return None
+
+
+def set_agency_id(user_id: str, agency_id: Optional[str]) -> Optional[dict]:
+    """Gắn sale vào 1 sàn (đa-tenant F2). `agency_id=None` để GỠ khỏi sàn.
+
+    Tách riêng update_user (vốn bỏ qua None) để cho phép gỡ liên kết. Trả user đã
+    cập nhật, None nếu không tìm thấy."""
+    aid = (str(agency_id).strip() or None) if agency_id is not None else None
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                u["agency_id"] = aid
+                _save(data)
+                _mirror(u)
+                return u
+    return None
+
+
+def list_by_agency(agency_id: str) -> list[dict]:
+    """Danh sách user (sale) THUỘC một sàn F2 — lọc cứng theo agency_id.
+
+    Dùng cho khu quản trị sàn: 'đội sale của sàn'. agency_id rỗng → trả [] để
+    KHÔNG vô tình trả toàn bộ sale nền tảng (an toàn đa-tenant)."""
+    aid = (agency_id or "").strip()
+    if not aid:
+        return []
+    with _LOCK:
+        data = _load()
+        return [u for u in data["users"] if (u.get("agency_id") or "") == aid]
 
 
 def soft_delete(user_id: str) -> Optional[dict]:
@@ -510,7 +553,7 @@ def soft_delete(user_id: str) -> Optional[dict]:
     return update_user(user_id, is_active=False)
 
 
-_VALID_ROLES = {"admin", "sale", "client"}
+_VALID_ROLES = {"admin", "sale", "client", "agency"}
 
 
 def public_view(user: dict) -> dict:
@@ -539,5 +582,6 @@ def public_view(user: dict) -> dict:
         "favorites": user.get("favorites") or [],
         "telegram_chat_id": user.get("telegram_chat_id"),
         "picture": user.get("picture"),
+        "agency_id": user.get("agency_id"),
         "created_at": created_at,
     }

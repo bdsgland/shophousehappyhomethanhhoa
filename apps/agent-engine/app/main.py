@@ -210,6 +210,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("bookings", "me_router", {}),
     ("agency", "router", {}),  # Đại lý F2: đăng ký nhanh + hồ sơ — /agency/register, /agency/me
     ("agency", "admin_router", {}),  # Admin duyệt đại lý F2 — /admin/agency-applications
+    ("agency_admin", "router", {}),  # Khu QUẢN TRỊ SÀN F2 (đa-tenant, scoped) — /agency-admin/*
 
     ("crm", "sale_router", {}),
     ("crm", "admin_router", {}),

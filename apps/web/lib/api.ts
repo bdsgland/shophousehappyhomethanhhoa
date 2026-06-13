@@ -1222,3 +1222,170 @@ export function fetchCareQueueStats(token: string): Promise<CareQueueStats> {
     token,
   );
 }
+
+// ===========================================================================
+// KHU QUẢN TRỊ SÀN F2 (đa-tenant) — gọi /agency-admin/* (backend scoped theo
+// agency_id lấy từ TOKEN; require_agency gác). Lỗi 401/403 → ApiError để UI báo
+// "Tài khoản không có quyền". Dữ liệu đã LỌC CỨNG theo sàn của chủ sàn.
+// ===========================================================================
+
+export type AgencyAdminInfo = {
+  id: string;
+  ten_san: string | null;
+  status: "pending" | "active" | "rejected" | string;
+  commission_tier: string;
+  commission_pct: number | null;
+  can_config_sale_commission: boolean;
+};
+
+export type AgencyAdminKpi = {
+  sales_count: number;
+  leads_total: number;
+  leads_hot: number;
+  leads_warm: number;
+  leads_cold: number;
+  customers: number;
+  conversion_rate: number;
+  revenue: number | null;
+  commission: number | null;
+};
+
+export type AgencyAdminOverview = {
+  agency: AgencyAdminInfo;
+  kpi: AgencyAdminKpi;
+  notes?: Record<string, string>;
+};
+
+export type AgencyTeamMember = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_active: boolean;
+  region: string | null;
+  referral_code: string | null;
+  created_at: string | null;
+  leads_count: number;
+  customers_count: number;
+};
+
+export type AgencyTeamResponse = {
+  agency_id: string;
+  total: number;
+  items: AgencyTeamMember[];
+};
+
+export type AgencyLeadRow = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  status: string;
+  source: string | null;
+  assigned_sale_id: string | null;
+  ai_score: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AgencyLeadsResponse = {
+  agency_id: string;
+  total: number;
+  items: AgencyLeadRow[];
+};
+
+export type AgencyReportBySale = {
+  sale_id: string | null;
+  sale_name: string | null;
+  leads: number;
+  customers: number;
+  hot: number;
+};
+
+export type AgencyReport = {
+  agency_id: string;
+  summary: {
+    sales_count: number;
+    total: number;
+    hot: number;
+    warm: number;
+    cold: number;
+    customers: number;
+    lost: number;
+    conversion_rate: number;
+    revenue: number | null;
+    commission: number | null;
+  };
+  by_sale: AgencyReportBySale[];
+  notes?: Record<string, string>;
+};
+
+export type AgencyCommissionConfig = {
+  agency_id: string;
+  frontline_pct: number;
+  note: string | null;
+  version: number;
+  updated_at: string | null;
+  is_default: boolean;
+};
+
+export type AgencyCommissionResponse = {
+  agency_id: string;
+  config: AgencyCommissionConfig;
+  can_config: boolean;
+  commission_tier?: string;
+  status?: string;
+  locked_reason?: string | null;
+  note?: string;
+};
+
+export function fetchAgencyAdminOverview(
+  token: string,
+): Promise<AgencyAdminOverview> {
+  return managerRequest<AgencyAdminOverview>("/agency-admin/overview", token);
+}
+
+export function fetchAgencyAdminTeam(
+  token: string,
+): Promise<AgencyTeamResponse> {
+  return managerRequest<AgencyTeamResponse>("/agency-admin/team", token);
+}
+
+export function fetchAgencyAdminLeads(
+  token: string,
+  opts?: { status?: string; source?: string; search?: string },
+): Promise<AgencyLeadsResponse> {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.source) params.set("source", opts.source);
+  if (opts?.search) params.set("search", opts.search);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return managerRequest<AgencyLeadsResponse>(
+    `/agency-admin/leads${qs}`,
+    token,
+  );
+}
+
+export function fetchAgencyAdminReport(token: string): Promise<AgencyReport> {
+  return managerRequest<AgencyReport>("/agency-admin/report", token);
+}
+
+export function fetchAgencyCommission(
+  token: string,
+): Promise<AgencyCommissionResponse> {
+  return managerRequest<AgencyCommissionResponse>(
+    "/agency-admin/commission",
+    token,
+  );
+}
+
+export function updateAgencyCommission(
+  token: string,
+  body: { frontline_pct?: number; note?: string },
+): Promise<AgencyCommissionResponse> {
+  return managerRequest<AgencyCommissionResponse>(
+    "/agency-admin/commission",
+    token,
+    { method: "PUT", body },
+  );
+}

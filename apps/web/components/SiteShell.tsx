@@ -11,8 +11,12 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   // "/" và các trang landing host-based (/landing/app, /landing/agency) render
   // bare, không kèm app chrome (header/AuthBar/BottomNav) để giữ tông marketing.
   const isLanding = pathname === "/" || pathname.startsWith("/landing");
+  // Khu QUẢN TRỊ SÀN F2 (/agency-admin) tự quản toàn bộ chrome riêng (header +
+  // sidebar + nav) → render bare để KHÔNG chồng header www và BottomNav /agency.
+  const isAgencyAdmin =
+    pathname === "/agency-admin" || pathname.startsWith("/agency-admin/");
 
-  if (isLanding) {
+  if (isLanding || isAgencyAdmin) {
     return <>{children}</>;
   }
 

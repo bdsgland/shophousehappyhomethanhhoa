@@ -111,3 +111,16 @@ class AgencyOut(BaseModel):
 
 class AgencyReviewIn(BaseModel):
     review_note: Optional[str] = Field(default=None, max_length=2000)
+
+
+# ---------------------------------------------------------------------------
+# Khu QUẢN TRỊ SÀN F2 (đa-tenant) — cấu hình hoa hồng cho sale của sàn (NỀN)
+# ---------------------------------------------------------------------------
+
+class AgencyCommissionUpdate(BaseModel):
+    """Cập nhật cấu hình hoa hồng cho ĐỘI SALE của sàn (bước nền).
+
+    `frontline_pct`: % chia cho sale frontline của sàn (trong phần sàn hưởng)."""
+
+    frontline_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    note: Optional[str] = Field(default=None, max_length=2000)
