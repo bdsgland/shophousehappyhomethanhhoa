@@ -7,10 +7,12 @@ import { useEffect, useState } from "react";
 import {
   Calendar,
   Calculator,
+  ClipboardList,
   Grid,
   Home,
   MessageCircle,
   Phone,
+  Sparkles,
   User,
   Users,
 } from "@/components/dashboard/icons";
@@ -58,6 +60,15 @@ const AGENT_TABS: Tab[] = [
   { href: "/agent/profile", label: "Tài khoản", Icon: User },
 ];
 
+// Quản lý / Chủ sàn (Agency) — 5 tab điều hành trên điện thoại.
+const AGENCY_TABS: Tab[] = [
+  { href: "/agency/overview", label: "Tổng quan", Icon: Home },
+  { href: "/agency/decisions", label: "Quyết định", Icon: ClipboardList },
+  { href: "/agency/team", label: "Đội sale", Icon: Users },
+  { href: "/agency/ai", label: "AI", Icon: Sparkles },
+  { href: "/agency/account", label: "Tài khoản", Icon: User },
+];
+
 // Route ẩn bottom nav.
 const HIDDEN_PREFIXES = ["/login", "/register", "/auth", "/offline", "/admin"];
 
@@ -69,6 +80,7 @@ function tabsForContext(
   if (HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)))
     return null;
 
+  if (pathname.startsWith("/agency")) return AGENCY_TABS;
   if (pathname.startsWith("/agent")) return AGENT_TABS;
   if (pathname.startsWith("/client")) return CLIENT_TABS;
   // Trang dùng chung (/dashboard/...): quyết định theo role.

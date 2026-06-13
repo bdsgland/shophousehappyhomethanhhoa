@@ -1,32 +1,39 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { AUTH_COOKIE } from "@/lib/auth";
+import { AUTH_COOKIE, isAgencyRole } from "@/lib/auth";
 import { decodeJwtPayload } from "@/lib/jwt";
 
-const PROTECTED_PREFIXES = ["/leads", "/admin", "/dashboard", "/agent", "/client"];
+const PROTECTED_PREFIXES = [
+  "/leads",
+  "/admin",
+  "/agency",
+  "/dashboard",
+  "/agent",
+  "/client",
+];
 const ADMIN_PREFIX = "/admin";
+// Khu điều hành chủ sàn (Agency) — chỉ admin/manager.
+const AGENCY_PREFIX = "/agency";
 const CLIENT_PREFIX = "/client";
 // Khu vực nội bộ (sale/admin) — khách hàng (client) không được vào.
-const STAFF_PREFIXES = ["/leads", "/dashboard", "/agent", "/admin"];
-
-// App Admin riêng (đồng bộ với ADMIN_APP_URL bên lib/auth.ts).
-const ADMIN_APP_URL =
-  process.env.NEXT_PUBLIC_ADMIN_APP_URL ??
-  "https://admin.eurowindowlightcity.net";
+const STAFF_PREFIXES = ["/leads", "/dashboard", "/agent", "/admin", "/agency"];
 
 /**
  * Redirect "về portal của tôi" khi bị chặn vào khu không thuộc quyền.
- * - admin → app Admin riêng (external)
- * - sale  → CRM
- * - client→ khu khách hàng
+ * - admin/manager → khu điều hành chủ sàn PWA "/agency" (giữ trong domain www)
+ * - sale          → CRM
+ * - client        → khu khách hàng
  */
 function redirectToPortal(req: NextRequest, role: string | undefined) {
-  if (role === "admin") {
-    return NextResponse.redirect(ADMIN_APP_URL);
-  }
   const url = req.nextUrl.clone();
-  url.pathname = role === "client" ? "/client" : "/agent/crm";
   url.search = "";
+  if (isAgencyRole(role)) {
+    url.pathname = "/agency";
+  } else if (role === "client") {
+    url.pathname = "/client";
+  } else {
+    url.pathname = "/agent/crm";
+  }
   return NextResponse.redirect(url);
 }
 
@@ -62,6 +69,11 @@ export function middleware(req: NextRequest) {
     return redirectToPortal(req, role);
   }
 
+  // Khu điều hành chủ sàn (Agency): chỉ admin/manager. Còn lại bị đẩy về portal.
+  if (startsWithPrefix(pathname, AGENCY_PREFIX) && !isAgencyRole(role)) {
+    return redirectToPortal(req, role);
+  }
+
   // Khu /client: chỉ khách hàng. Sale/admin bị đẩy về portal của họ.
   if (startsWithPrefix(pathname, CLIENT_PREFIX) && role !== "client") {
     return redirectToPortal(req, role);
@@ -83,6 +95,8 @@ export const config = {
     "/leads",
     "/admin/:path*",
     "/admin",
+    "/agency/:path*",
+    "/agency",
     "/dashboard/:path*",
     "/dashboard",
     "/agent/:path*",

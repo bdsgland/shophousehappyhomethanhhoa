@@ -775,3 +775,349 @@ export async function postChat(args: {
   }
   return (await res.json()) as ChatReply;
 }
+
+// ===========================================================================
+// AGENCY / Quản lý điều hành — gọi /admin/manager/* và /admin/ai-sales/*
+// ---------------------------------------------------------------------------
+// Mọi endpoint dưới đây backend gác bằng require_admin (JWT role=admin HOẶC API
+// key admin_full). FE chỉ truyền Bearer JWT của tài khoản quản lý. Lỗi 401/403 →
+// ApiError(status) để UI hiển thị "Tài khoản không có quyền quản lý".
+// ===========================================================================
+
+/** Lỗi API mang theo HTTP status để phân biệt 401/403 (thiếu quyền). */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/** true nếu lỗi là do thiếu quyền/đăng nhập (401/403). */
+export function isPermissionError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
+
+async function managerRequest<T>(
+  path: string,
+  token: string | null | undefined,
+  opts?: { method?: string; body?: unknown },
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${AGENT_ENGINE_URL}${path}`, {
+      method: opts?.method ?? "GET",
+      headers: {
+        ...authHeaders(token ?? undefined),
+        ...(opts?.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
+      },
+      body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError(0, "Không kết nối được máy chủ. Kiểm tra kết nối mạng.");
+  }
+  const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+        ? detail
+            .map((d: { msg?: string }) =>
+              typeof d?.msg === "string" ? d.msg : JSON.stringify(d),
+            )
+            .join(", ")
+        : `Lỗi ${res.status}`;
+    throw new ApiError(res.status, message);
+  }
+  return data as T;
+}
+
+// ----- Types: báo cáo hệ thống (/admin/manager/system-report) -----
+
+export type SystemReportLeads = {
+  available: boolean;
+  total?: number;
+  hot?: number;
+  warm?: number;
+  cold?: number;
+  customers?: number;
+  lost?: number;
+  conversion_rate?: number;
+  top_sources?: Array<{ source?: string; count?: number } | unknown>;
+};
+
+export type SystemReportFunnel = {
+  key: string;
+  label: string;
+  count: number | null;
+};
+
+export type SystemReportInventory = {
+  total: number;
+  available: number;
+  sold: number;
+  reserved: number;
+  is_demo: boolean;
+};
+
+export type SystemReportSales = {
+  orders_reserved: number;
+  revenue_projection_ty: number;
+  commission_rate: number;
+  inventory: SystemReportInventory;
+};
+
+export type CommissionByStatus = Record<
+  string,
+  { count: number; amount: number }
+>;
+
+export type CommissionSummary = {
+  deals: number;
+  total_amount: number;
+  by_status: CommissionByStatus;
+};
+
+export type SystemReportFinance = {
+  available: boolean;
+  period_label?: string;
+  revenue?: number;
+  cost?: number;
+  profit?: number;
+  margin?: number;
+  deal_count?: number;
+  commission?: CommissionSummary;
+};
+
+export type SystemReportAiCare = {
+  available: boolean;
+  total?: number;
+  pending?: number;
+  approved?: number;
+  skipped?: number;
+  sent?: number;
+};
+
+export type SystemReportAiSales = {
+  available: boolean;
+  total?: number;
+  active?: number;
+  inactive?: number;
+  total_capacity?: number;
+  total_assigned?: number;
+  avg_load?: number;
+  capacity_left?: number;
+  load_ratio?: number;
+};
+
+export type MarketingChannel = {
+  channel: string;
+  leads: number;
+  spent: number;
+  cpl: number;
+};
+
+export type SystemReportMarketing = {
+  available: boolean;
+  total_spent?: number;
+  total_leads?: number;
+  avg_cpl?: number;
+  roi?: number;
+  by_channel?: MarketingChannel[];
+};
+
+export type PlatformHealth = {
+  key: string;
+  name: string;
+  url: string;
+  status?: string;
+  code?: number | null;
+  error?: string;
+};
+
+export type AutomationOverview = {
+  configured: boolean;
+  total?: number;
+  active?: number;
+  inactive?: number;
+  runs_today?: number;
+  errors_recent?: number;
+  error?: string;
+};
+
+export type SystemReport = {
+  generated_at: string;
+  leads: SystemReportLeads;
+  funnel: SystemReportFunnel[];
+  sales: SystemReportSales;
+  finance: SystemReportFinance;
+  ai_care: SystemReportAiCare;
+  ai_sales: SystemReportAiSales;
+  marketing: SystemReportMarketing;
+  platforms: PlatformHealth[];
+  automation: AutomationOverview;
+  openclaw: { configured: boolean; telegram_configured: boolean; bot_url?: string };
+};
+
+export function fetchManagerSystemReport(token: string): Promise<SystemReport> {
+  return managerRequest<SystemReport>("/admin/manager/system-report", token);
+}
+
+// ----- Types: overview điều hành (/admin/manager/overview) -----
+
+export type SalePerformance = {
+  sale_id: string;
+  sale_name: string;
+  week_start?: string;
+  avg_daily_score?: number;
+  total_leads_added?: number;
+  total_hot_leads_received?: number;
+  total_deals_closed?: number;
+  eligibility_score?: number;
+  rank?: number;
+};
+
+export type ManagerOverview = {
+  generated_at: string;
+  sales: SystemReportSales;
+  leads: Record<string, unknown>;
+  top_sales: SalePerformance[];
+  commission: CommissionSummary;
+  automation: AutomationOverview;
+  platforms: PlatformHealth[];
+  openclaw: { configured: boolean; telegram_configured: boolean; bot_url?: string };
+};
+
+export function fetchManagerOverview(token: string): Promise<ManagerOverview> {
+  return managerRequest<ManagerOverview>("/admin/manager/overview", token);
+}
+
+// ----- Types: Trung tâm quyết định (/admin/manager/decisions) -----
+
+export type DecisionItem = {
+  id: string;
+  type: string;
+  title: string;
+  context: string;
+  priority: "high" | "medium" | "low" | string;
+  created_at?: string | null;
+  actions: string[];
+  meta?: Record<string, unknown>;
+};
+
+export type DecisionGroup = {
+  type: string;
+  label: string;
+  count: number;
+  priority: string;
+  items: DecisionItem[];
+};
+
+export type DecisionsResponse = {
+  generated_at: string;
+  total: number;
+  counts: Record<string, number>;
+  groups: DecisionGroup[];
+  items: DecisionItem[];
+};
+
+export type DecisionAction = "approve" | "execute" | "reject";
+
+export type DecisionActResult = {
+  type: string;
+  id: string;
+  action: string;
+  ok?: boolean;
+  message?: string;
+  assigned_sale_id?: string;
+  status?: string;
+};
+
+export function fetchManagerDecisions(token: string): Promise<DecisionsResponse> {
+  return managerRequest<DecisionsResponse>("/admin/manager/decisions", token);
+}
+
+export function actOnManagerDecision(
+  token: string,
+  body: { type: string; id: string; action: DecisionAction },
+): Promise<DecisionActResult> {
+  return managerRequest<DecisionActResult>(
+    "/admin/manager/decisions/act",
+    token,
+    { method: "POST", body },
+  );
+}
+
+// ----- Types: Đề xuất cải tiến AI (/admin/manager/improvements) -----
+
+export type Improvement = {
+  title: string;
+  area: string;
+  severity: "high" | "medium" | "low" | string;
+  detail: string;
+  suggested_action: string;
+};
+
+export type ImprovementsResponse = {
+  generated_by: string;
+  generated_at: string;
+  focus: string | null;
+  improvements: Improvement[];
+  report?: unknown;
+};
+
+export function generateManagerImprovements(
+  token: string,
+  focus?: string,
+): Promise<ImprovementsResponse> {
+  return managerRequest<ImprovementsResponse>(
+    "/admin/manager/improvements",
+    token,
+    { method: "POST", body: focus ? { focus } : {} },
+  );
+}
+
+// ----- Types: Đội Sale AI + hàng đợi chăm sóc (/admin/ai-sales/*) -----
+
+export type AiSalesStats = {
+  total?: number;
+  active?: number;
+  inactive?: number;
+  total_capacity?: number;
+  total_assigned?: number;
+  avg_load?: number;
+  capacity_left?: number;
+  by_specialty?: Array<{
+    key: string;
+    label: string;
+    count: number;
+    assigned: number;
+  }>;
+};
+
+export type CareQueueStats = {
+  total?: number;
+  pending?: number;
+  approved?: number;
+  skipped?: number;
+  sent?: number;
+  by_status?: Record<string, number>;
+  config?: Record<string, unknown>;
+};
+
+export function fetchAiSalesStats(token: string): Promise<AiSalesStats> {
+  return managerRequest<AiSalesStats>("/admin/ai-sales/stats", token);
+}
+
+export function fetchCareQueueStats(token: string): Promise<CareQueueStats> {
+  return managerRequest<CareQueueStats>(
+    "/admin/ai-sales/care-queue/stats",
+    token,
+  );
+}

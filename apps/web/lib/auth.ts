@@ -86,18 +86,28 @@ export function getDashboardUrl(role: string | undefined | null): string {
 }
 
 /**
+ * Vai trò "Quản lý / Chủ sàn" (Agency) trong khu điều hành PWA.
+ *
+ * Hệ thống backend chỉ phát JWT với role "admin" (require_admin gác /admin/*).
+ * "manager" được chấp nhận thêm ở FE để dự phòng tương lai nếu backend bổ sung
+ * role này — KHÔNG nới lỏng bảo mật vì backend vẫn là người gác cuối cùng.
+ */
+export function isAgencyRole(role: string | undefined | null): boolean {
+  return role === "admin" || role === "manager";
+}
+
+/**
  * Đích điều hướng NGAY SAU khi đăng nhập/đăng ký TRÊN WEB www.
  *
  * Khác với getDashboardUrl (nút "vào dashboard" cho admin đang lướt www, có thể
  * sang app Admin riêng): sau khi đăng nhập ở www, user phải LUÔN ở lại domain
- * www, không bị bounce sang ADMIN_APP_URL. App Admin (apps/admin) có cổng login
- * Google riêng nên admin không bị khoá khỏi admin.
+ * www, không bị bounce sang ADMIN_APP_URL.
  *
- * - admin  → trang chủ www "/" (KHÔNG dùng URL admin tuyệt đối)
- * - client → khu khách hàng
- * - sale   → CRM
+ * - admin/manager → khu điều hành PWA "/agency" (chủ sàn điều hành trên điện thoại)
+ * - client        → khu khách hàng
+ * - sale          → CRM
  */
 export function redirectByRole(role: string | undefined | null): string {
-  if (role === "admin") return "/";
+  if (isAgencyRole(role)) return "/agency";
   return getDashboardUrl(role);
 }
