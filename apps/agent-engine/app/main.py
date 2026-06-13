@@ -112,9 +112,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — cho phép MỌI subdomain của eurowindowlightcity.net (www/app/agency/admin/
+# api... + subdomain tương lai) qua regex, KHÔNG phải sửa env mỗi lần thêm subdomain.
+# Vẫn giữ allow_origins (env CORS_ALLOW_ORIGINS hoặc default) để có localhost dev +
+# tương thích cũ. Starlette cho phép origin nếu KHỚP allow_origins HOẶC allow_origin_regex.
+# Regex khớp http/https + (subdomain tùy chọn) + domain gốc, KHÔNG kèm path/port lạ.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()],
+    allow_origin_regex=r"https?://([a-z0-9-]+\.)?eurowindowlightcity\.net",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
