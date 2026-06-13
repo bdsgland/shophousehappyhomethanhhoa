@@ -335,6 +335,49 @@ def _h_run_care_for_lead(a: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+# ----------------------- AUTO-CARE (chu kỳ + hàng đợi NHÁP) -----------------------
+def _h_run_care_cycle(a: Dict[str, Any]) -> Dict[str, Any]:
+    """Chạy 1 chu kỳ chăm sóc tự động → tạo các mục NHÁP vào hàng đợi.
+
+    READ/ĐỀ-XUẤT: CHỈ sinh nháp, KHÔNG gửi tin cho khách (requires_confirmation).
+    Có batch_limit chống tốn token. dry_run=true để chỉ xem trước ứng viên."""
+    from app.core import ai_care_engine
+
+    return ai_care_engine.run_cycle(
+        due_days=a.get("due_days"),
+        batch_limit=a.get("batch_limit"),
+        channel=a.get("channel", "zalo"),
+        requested_by=_ACTOR,
+        dry_run=bool(a.get("dry_run", False)),
+    )
+
+
+def _h_list_care_queue(a: Dict[str, Any]) -> Dict[str, Any]:
+    """ĐỌC hàng đợi hành động chăm sóc (mặc định các NHÁP đang chờ duyệt)."""
+    from app.core import ai_care_queue_store
+
+    status = a.get("status", "pending")
+    status = None if status in ("all", "", None) else status
+    return ai_care_queue_store.list_items(
+        status=status,
+        ai_salesman_id=a.get("ai_salesman_id"),
+        lead_id=a.get("lead_id"),
+        page=int(a.get("page", 1)),
+        page_size=int(a.get("page_size", 50)),
+    )
+
+
+def _h_approve_care_action(a: Dict[str, Any]) -> Dict[str, Any]:
+    """DUYỆT 1 mục NHÁP trong hàng đợi (ghi + audit). KHÔNG tự gửi tin cho khách."""
+    from app.core import ai_care_queue_store
+
+    item = ai_care_queue_store.approve(a["item_id"], by=_ACTOR)
+    if item is None:
+        return {"ok": False, "error": f"Không tìm thấy mục hàng đợi: {a['item_id']}"}
+    return {"ok": True, "item": item, "auto_sent": False,
+            "note": "Đã duyệt — KHÔNG tự gửi. Nhân viên tự gửi tin sau khi duyệt."}
+
+
 # Khai báo tool: name · description (tiếng Việt, cho LLM hiểu khi nào dùng) ·
 # inputSchema (JSON Schema) · handler · write (đánh dấu hành động ghi).
 TOOLS: List[Dict[str, Any]] = [
@@ -807,6 +850,54 @@ TOOLS: List[Dict[str, Any]] = [
         },
         "handler": _h_run_care_for_lead,
         "write": False,
+    },
+    # ----------------------- AUTO-CARE (chu kỳ + hàng đợi) -----------------------
+    {
+        "name": "run_care_cycle",
+        "description": "CHẠY chu kỳ chăm sóc tự động của 'Đội Sale AI': quét khách được gán cần chăm (lâu chưa liên hệ / đang nóng) → phân tích → tạo TIN NHẮN NHÁP vào hàng đợi chờ duyệt. CHỈ ĐỀ XUẤT, KHÔNG gửi tin / KHÔNG ghi CRM. Tham số: due_days (ngưỡng ngày chưa liên hệ), batch_limit (giới hạn số khách, chống tốn token), channel (zalo/sms/email), dry_run (true = chỉ xem trước ứng viên, không gọi LLM). Dùng khi CEO muốn 'cho đội AI chạy chăm khách ngay'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "due_days": {"type": "integer", "minimum": 0, "maximum": 365, "description": "Ngưỡng ngày chưa liên hệ (trống = mặc định)"},
+                "batch_limit": {"type": "integer", "minimum": 0, "maximum": 200, "description": "Giới hạn số khách xử lý (trống = mặc định)"},
+                "channel": {"type": "string", "description": "Kênh tin nháp: zalo/sms/email", "default": "zalo"},
+                "dry_run": {"type": "boolean", "description": "Chỉ xem trước ứng viên, không tạo nháp", "default": False},
+            },
+            "additionalProperties": False,
+        },
+        "handler": _h_run_care_cycle,
+        "write": False,
+    },
+    {
+        "name": "list_care_queue",
+        "description": "ĐỌC hàng đợi hành động chăm sóc của Đội Sale AI (các TIN NHẮN NHÁP chờ duyệt). Tham số: status (pending/approved/skipped/sent/all, mặc định pending), ai_salesman_id, lead_id, page, page_size. Dùng khi CEO hỏi 'có nháp nào chờ duyệt', 'đội AI đang đề xuất gì'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "Lọc trạng thái: pending/approved/skipped/sent/all", "default": "pending"},
+                "ai_salesman_id": {"type": "string", "description": "Lọc theo sale AI"},
+                "lead_id": {"type": "string", "description": "Lọc theo khách"},
+                "page": {"type": "integer", "minimum": 1, "default": 1},
+                "page_size": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+            },
+            "additionalProperties": False,
+        },
+        "handler": _h_list_care_queue,
+        "write": False,
+    },
+    {
+        "name": "approve_care_action",
+        "description": "⚠️ HÀNH ĐỘNG GHI (có audit). DUYỆT 1 mục NHÁP trong hàng đợi chăm sóc (đánh dấu approved). AN TOÀN: KHÔNG tự gửi tin cho khách (ai_care_auto_send mặc định TẮT) — nhân viên tự gửi sau khi duyệt. Tham số: item_id (bắt buộc).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "string", "description": "ID mục hàng đợi (vd care_xxxxxxxx)"},
+            },
+            "required": ["item_id"],
+            "additionalProperties": False,
+        },
+        "handler": _h_approve_care_action,
+        "write": True,
     },
 ]
 

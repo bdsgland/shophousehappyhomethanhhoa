@@ -251,6 +251,30 @@ class Settings(BaseSettings):
     # Số khách tối đa 1 sale AI phụ trách (capacity mặc định khi seed roster).
     ai_salesman_capacity: int = 50
 
+    # ----- AUTO-CARE ENGINE — để "Đội Sale AI" TỰ ĐỘNG CHẠY chăm khách định kỳ -----
+    # Hàng đợi hành động chăm sóc (JSON store {items:[...]}) — resolve giống leads_file.
+    ai_care_queue_file: str = "data/_runtime/ai_care_queue.json"
+    # Bật tạo NHÁP chăm sóc tự động khi quét chu kỳ (mặc định BẬT — chỉ tạo nháp,
+    # KHÔNG gửi gì cho khách). Tắt → /run-cycle trả 0 mục.
+    ai_care_enabled: bool = True
+    # ⚠️ TỰ ĐỘNG GỬI tin thật khi duyệt? MẶC ĐỊNH TẮT (an toàn tuyệt đối). Khi TẮT,
+    # approve chỉ đánh dấu "approved" — người thật tự gửi. Chỉ bật khi đã có kênh
+    # kết nối + hiểu rủi ro. (Hiện tại kể cả bật, hệ thống vẫn KHÔNG có kênh gửi tự
+    # động — cờ này để dành cho tương lai, mặc định FALSE.)
+    ai_care_auto_send: bool = False
+    # Ngưỡng "cần chăm": số ngày kể từ lần liên hệ gần nhất (>= → đưa vào quét).
+    ai_care_due_days: int = 7
+    # Giới hạn số khách xử lý mỗi lần /run-cycle (bảo vệ token + thời gian).
+    ai_care_batch_limit: int = 20
+    # Model Claude RẺ cho quét hàng loạt (haiku). Trống → crew_model_resolved().
+    ai_care_model: str = "claude-haiku-4-5-20251001"
+    # Số mục hàng đợi giữ tối đa (rotate cũ nhất khi vượt) — chặn phình file.
+    ai_care_queue_keep: int = 2000
+
+    def ai_care_model_resolved(self) -> str:
+        """Model dùng cho quét hàng loạt Auto-Care — ưu tiên ai_care_model."""
+        return (self.ai_care_model or self.crew_model_resolved()).strip()
+
     # ----- NHÂN SỰ (HR) — ma trận quyền theo vai trò + mục tiêu KPI -----
     # JSON store (resolve giống users_file: DATA_DIR / agent-engine / CWD). Sau
     # migrate PostgreSQL. Ma trận quyền tự seed mặc định khi file rỗng.
@@ -274,6 +298,19 @@ class Settings(BaseSettings):
     # phiếu tính giá. Cùng pattern store với commission_config (version + backup).
     sales_policy_file: str = "data/_runtime/sales_policy.json"
     sales_policy_backup_keep: int = 10
+
+    # ----- DỰ ÁN (Project CMS) — nội dung biên tập các tab trang Chi tiết dự án -----
+    # Mỗi dự án 1 file JSON data/_runtime/projects/{slug}.json (atomic + version +
+    # backup, resolve giống inventory/sales_policy). Chỉ lưu nội dung TỰ DO
+    # (overview/vị trí/đào tạo/phân khu/360/tiến độ/tin tức + mô tả chính sách);
+    # quỹ căn ở inventory_store, tài liệu ở learning_store, số liệu giá ở
+    # sales_policy_store. Backup trong projects/backups/{slug}-*.json.
+    projects_dir: str = "data/_runtime/projects"
+    projects_backup_keep: int = 10
+    # Model Claude cho "Sửa bằng AI" nội dung dự án. Trống → fallback llm_model.
+    project_ai_model: str = ""
+    # max_tokens mỗi lần AI chỉnh 1 section (JSON có cấu trúc) — chặn chi phí.
+    project_ai_max_tokens: int = 2000
 
     # ----- TÀI CHÍNH (chi phí + doanh thu thủ công) -----
     # JSON store {costs:[], manual_revenue:[]} cho module "Tài chính" admin.

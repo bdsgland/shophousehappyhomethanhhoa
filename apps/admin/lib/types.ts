@@ -893,6 +893,8 @@ export interface Profile360 {
   ai: Profile360Ai;
   /** Sale AI đang phụ trách (Đội Sale AI) — null nếu chưa gán / chưa seed roster. */
   ai_salesman?: AiSalesmanRef | null;
+  /** BĐS phù hợp nhu cầu khách (inventory matching) — [] nếu chưa khớp được. */
+  matched_units?: MatchedUnit[];
   pipeline: Profile360Pipeline;
   timeline: TimelineItem[];
   deals: Profile360Deals;
@@ -1726,20 +1728,49 @@ export interface CrewRecommendedAction {
 export interface CrewDraftMessage {
   channel: string;
   draft: string;
-  requires_confirmation: boolean;
-  auto_sent: boolean;
+  suggested_time?: string;
+  requires_confirmation?: boolean;
+  auto_sent?: boolean;
 }
 
-/** Khối phân tích — union heuristic | crewai (field tuỳ engine). */
+/** Next-best-action — hành động kế tiếp tốt nhất + thời điểm. */
+export interface CrewNextBestAction {
+  action: string;
+  reason?: string;
+  timing?: string;
+}
+
+/** 1 căn BĐS đề xuất (đã khớp nhu cầu khách). */
+export interface MatchedUnit {
+  id?: string;
+  lo?: string;
+  phan_khu?: string;
+  loai?: string;
+  dien_tich?: number;
+  mat_tien?: number;
+  trang_thai?: string;
+  gia?: string;
+  gia_tri?: number;
+  huong?: string;
+  view?: string;
+  match_percent?: number;
+  reasons?: string[];
+}
+
+/** Khối phân tích — siêu tập heuristic | claude-direct | crewai. */
 export interface CrewAnalysis {
-  engine: string; // "heuristic" | "crewai"
+  engine: string; // "heuristic" | "claude-direct" | "crewai"
   model?: string | null;
   summary: string;
   agents: string[];
   draft_messages?: CrewDraftMessage[];
-  // chỉ engine=heuristic:
   readiness?: number;
   recommended_actions?: CrewRecommendedAction[];
+  // bộ não mạnh (claude-direct/heuristic):
+  potential_score?: number;
+  potential_reason?: string;
+  next_best_action?: CrewNextBestAction | null;
+  matched_units?: MatchedUnit[];
   // chỉ engine=crewai:
   task_outputs?: string[];
 }
@@ -1761,6 +1792,7 @@ export interface CrewRunResult {
   notes: string[];
   // có khi ok=true:
   analysis?: CrewAnalysis;
+  matched_units?: MatchedUnit[];
   knowledge?: CrewKnowledge;
 }
 
@@ -1850,4 +1882,261 @@ export interface AiSalesAssignResult {
 /** POST run-care = CrewRunResult + sale AI phụ trách. */
 export interface AiCareResult extends CrewRunResult {
   ai_salesman?: AiSalesmanRef | null;
+}
+
+// ---------------------------------------------------------------------------
+// AUTO-CARE — hàng đợi hành động chăm sóc (NHÁP chờ duyệt) + chạy chu kỳ
+// ---------------------------------------------------------------------------
+
+/** Căn rút gọn đính kèm mục hàng đợi. */
+export interface CareQueueUnitRef {
+  id?: string;
+  loai?: string;
+  phan_khu?: string;
+  gia?: string;
+  match_percent?: number;
+}
+
+/** 1 mục hành động chăm sóc trong hàng đợi. */
+export interface CareQueueItem {
+  id: string;
+  lead_id: string;
+  lead_name?: string | null;
+  ai_salesman_id?: string | null;
+  ai_salesman_name?: string | null;
+  action_type: string;
+  channel: string;
+  draft: string;
+  suggested_time?: string;
+  summary?: string;
+  potential_score?: number | null;
+  readiness?: number | null;
+  reason?: string;
+  matched_units?: CareQueueUnitRef[];
+  status: "pending" | "approved" | "skipped" | "sent" | string;
+  engine?: string | null;
+  model?: string | null;
+  due_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** GET /admin/ai-sales/care-queue (phân trang). */
+export interface CareQueuePage {
+  total: number;
+  page: number;
+  page_size: number;
+  items: CareQueueItem[];
+}
+
+/** GET /admin/ai-sales/care-queue/stats. */
+export interface CareQueueStats {
+  total: number;
+  pending: number;
+  approved: number;
+  skipped: number;
+  sent: number;
+  by_status: Record<string, number>;
+  config?: {
+    ai_care_enabled: boolean;
+    ai_care_auto_send: boolean;
+    ai_care_due_days: number;
+    ai_care_batch_limit: number;
+  };
+}
+
+/** Body POST /admin/ai-sales/run-cycle. */
+export interface RunCyclePayload {
+  channel?: CrewRunChannel;
+  due_days?: number;
+  batch_limit?: number;
+  dry_run?: boolean;
+}
+
+/** Kết quả POST /admin/ai-sales/run-cycle. */
+export interface RunCycleResult {
+  ok: boolean;
+  enabled: boolean;
+  auto_send: boolean;
+  due_days: number;
+  batch_limit: number;
+  dry_run: boolean;
+  scanned_candidates: number;
+  queued: number;
+  errors: { lead_id: string; error: string }[];
+  items: CareQueueItem[];
+  note?: string;
+  requires_confirmation: boolean;
+  auto_executed: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// DỰ ÁN (Project CMS) — /admin/projects/* (require_admin). Khớp app/schemas/project.py.
+// Lưu ý: các tên dùng prefix Project* để KHÔNG đụng TimelineItem (CRM) đã có ở trên.
+// ---------------------------------------------------------------------------
+
+export type ProjectSection =
+  | "overview"
+  | "location"
+  | "training"
+  | "subzones"
+  | "gallery360"
+  | "policy"
+  | "timeline"
+  | "news";
+
+export interface ProjectHeroImage {
+  src: string;
+  caption: string;
+}
+export interface ProjectKeyValue {
+  label: string;
+  value: string;
+}
+export interface ProjectConnection {
+  place: string;
+  time: string;
+}
+export interface ProjectTrainingItem {
+  title: string;
+  size: string;
+  date: string;
+  href: string;
+  ready: boolean;
+}
+export interface ProjectSubzone {
+  name: string;
+  style: string;
+  units: string;
+  desc: string;
+  img: string;
+}
+export interface ProjectTour360 {
+  title: string;
+  img: string;
+  ready: boolean;
+}
+export interface ProjectPolicyCard {
+  title: string;
+  date: string;
+  open: boolean;
+  summary: string;
+  highlights: string[];
+}
+export interface ProjectPriceRow {
+  product: string;
+  area: string;
+  from: string;
+}
+export interface ProjectTimelineItem {
+  period: string;
+  title: string;
+  desc: string;
+  img: string;
+}
+export interface ProjectNewsItem {
+  title: string;
+  date: string;
+  excerpt: string;
+  img: string;
+  url: string;
+}
+
+export interface ProjectOverviewContent {
+  hero_images: ProjectHeroImage[];
+  rows: ProjectKeyValue[];
+}
+export interface ProjectLocationContent {
+  description: string;
+  connections: ProjectConnection[];
+  map_lat: number | null;
+  map_lng: number | null;
+}
+export interface ProjectTrainingContent {
+  items: ProjectTrainingItem[];
+}
+export interface ProjectSubzonesContent {
+  items: ProjectSubzone[];
+}
+export interface ProjectGallery360Content {
+  items: ProjectTour360[];
+}
+export interface ProjectPolicyContent {
+  policies: ProjectPolicyCard[];
+  price_table: ProjectPriceRow[];
+  commission_note: string;
+}
+export interface ProjectTimelineContent {
+  items: ProjectTimelineItem[];
+}
+export interface ProjectNewsContent {
+  items: ProjectNewsItem[];
+}
+
+export interface ProjectContent {
+  overview: ProjectOverviewContent;
+  location: ProjectLocationContent;
+  training: ProjectTrainingContent;
+  subzones: ProjectSubzonesContent;
+  gallery360: ProjectGallery360Content;
+  policy: ProjectPolicyContent;
+  timeline: ProjectTimelineContent;
+  news: ProjectNewsContent;
+}
+
+/** Map section → kiểu nội dung của section đó (dùng cho editor generic). */
+export interface ProjectSectionContentMap {
+  overview: ProjectOverviewContent;
+  location: ProjectLocationContent;
+  training: ProjectTrainingContent;
+  subzones: ProjectSubzonesContent;
+  gallery360: ProjectGallery360Content;
+  policy: ProjectPolicyContent;
+  timeline: ProjectTimelineContent;
+  news: ProjectNewsContent;
+}
+
+export interface ProjectDoc {
+  slug: string;
+  name: string;
+  tagline: string;
+  status: string;
+  developer: string;
+  location: string;
+  content: ProjectContent;
+  version: number;
+  last_updated_at: string | null;
+}
+
+export interface ProjectSummary {
+  slug: string;
+  name: string;
+  status: string;
+  version: number;
+  last_updated_at: string | null;
+}
+
+export interface ProjectUpdateIn {
+  name?: string;
+  tagline?: string;
+  status?: string;
+  developer?: string;
+  location?: string;
+  content?: Partial<ProjectContent>;
+}
+
+/** Kết quả AI-edit 1 section — CHỈ đề xuất, không tự lưu. */
+export interface AIEditOut {
+  section: string;
+  used_llm: boolean;
+  suggestion: Record<string, unknown> | null;
+  suggestion_text: string | null;
+  note: string | null;
+}
+
+export interface ProjectHistoryEntry {
+  version: number;
+  updated_at: string | null;
+  updated_by?: string | null;
+  note?: string | null;
 }

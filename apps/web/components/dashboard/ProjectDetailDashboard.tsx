@@ -69,12 +69,32 @@ import {
 import {
   fetchInventory,
   fetchInventoryStats,
+  fetchProject,
   fetchProjectDocuments,
   downloadProjectDocument,
   viewProjectDocument,
   type InventoryStats,
+  type ProjectContent,
   type ProjectDocument,
+  type ProjectConnection,
+  type ProjectHeroImage,
+  type ProjectKeyValue,
+  type ProjectNewsItem,
+  type ProjectPolicyCard,
+  type ProjectPriceRow,
+  type ProjectSubzone,
+  type ProjectTimelineItem,
+  type ProjectTour360,
+  type ProjectTrainingItem,
 } from "@/lib/api";
+
+// Mô tả Vị trí + ghi chú hoa hồng mặc định (fallback khi store/elc trống).
+const DEFAULT_LOCATION_DESC =
+  "Eurowindow Light City toạ lạc tại phường Nguyệt Viên, TP Thanh Hoá — ngay cửa ngõ phía Bắc thành phố, liền kề Quốc lộ 1A và cầu Hoằng Long. Vị trí kết nối thuận tiện tới trung tâm hành chính, trường học, bệnh viện và hệ thống thương mại dịch vụ, mang đến giá trị an cư và đầu tư bền vững bên dòng sông Mã.";
+const DEFAULT_COMMISSION_NOTE =
+  "Mức hoa hồng cạnh tranh kèm thưởng nóng theo căn cho đại lý F1. Chi tiết theo phụ lục hợp đồng phân phối từng đợt — đang cập nhật.";
+const DEFAULT_TAGLINE =
+  "Theo dõi thông tin chi tiết và bảng giá, quỹ căn, mặt bằng, tiến độ và chính sách bán hàng dự án EUROWINDOW LIGHT CITY.";
 
 const DEFAULT_PROJECT_SLUG = "eurowindow-light-city";
 
@@ -110,10 +130,70 @@ export function ProjectDetailDashboard({
   const [activeTab, setActiveTab] = useState("tong-quan");
   const [shareMsg, setShareMsg] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  // Nội dung dự án từ CMS (project_store). null = chưa có/lỗi → fallback elc-data.
+  const [content, setContent] = useState<ProjectContent | null>(null);
+  const [meta, setMeta] = useState<{
+    name: string;
+    tagline: string;
+    status: string;
+  } | null>(null);
 
   useEffect(() => {
     setRole(readUserFromCookie()?.role ?? null);
   }, []);
+
+  // Đọc nội dung biên tập (admin sửa → đồng bộ). Lỗi → giữ null để fallback.
+  useEffect(() => {
+    let alive = true;
+    fetchProject(slug).then((p) => {
+      if (!alive || !p) return;
+      setContent(p.content);
+      setMeta({ name: p.name, tagline: p.tagline, status: p.status });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  // Resolve từng section: ưu tiên CMS, rỗng → fallback elc-data tĩnh.
+  const heroImages: ProjectHeroImage[] = content?.overview.hero_images?.length
+    ? content.overview.hero_images
+    : HERO_IMAGES;
+  const overviewRows: ProjectKeyValue[] = content?.overview.rows?.length
+    ? content.overview.rows
+    : OVERVIEW_ROWS;
+  const locationDesc = content?.location.description || DEFAULT_LOCATION_DESC;
+  const connections: ProjectConnection[] = content?.location.connections?.length
+    ? content.location.connections
+    : CONNECTIONS;
+  const mapLat = content?.location.map_lat ?? MAP_LAT;
+  const mapLng = content?.location.map_lng ?? MAP_LNG;
+  const trainings: ProjectTrainingItem[] = content?.training.items?.length
+    ? content.training.items
+    : TRAININGS;
+  const subzones: ProjectSubzone[] = content?.subzones.items?.length
+    ? content.subzones.items
+    : SUBZONES;
+  const tours360: ProjectTour360[] = content?.gallery360.items?.length
+    ? content.gallery360.items
+    : TOURS_360;
+  const policies: ProjectPolicyCard[] = content?.policy.policies?.length
+    ? content.policy.policies
+    : POLICIES;
+  const priceTable: ProjectPriceRow[] = content?.policy.price_table?.length
+    ? content.policy.price_table
+    : PRICE_TABLE;
+  const commissionNote =
+    content?.policy.commission_note || DEFAULT_COMMISSION_NOTE;
+  const timeline: ProjectTimelineItem[] = content?.timeline.items?.length
+    ? content.timeline.items
+    : TIMELINE;
+  const news: ProjectNewsItem[] = content?.news.items?.length
+    ? content.news.items
+    : NEWS;
+  const projectName = meta?.name || "EUROWINDOW LIGHT CITY";
+  const projectTagline = meta?.tagline || DEFAULT_TAGLINE;
+  const projectStatus = meta?.status || "Đang mở bán";
 
   // "Về dashboard" theo vai trò (admin → app Admin external).
   const dashboardUrl = getDashboardUrl(role);
@@ -176,14 +256,13 @@ export function ProjectDetailDashboard({
               className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white"
               style={{ backgroundColor: ACCENT }}
             >
-              Đang mở bán
+              {projectStatus}
             </span>
             <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-brand-900 sm:text-3xl">
-              EUROWINDOW LIGHT CITY
+              {projectName}
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-brand-700">
-              Theo dõi thông tin chi tiết và bảng giá, quỹ căn, mặt bằng, tiến độ
-              và chính sách bán hàng dự án EUROWINDOW LIGHT CITY.
+              {projectTagline}
             </p>
           </div>
           <div className="relative">
@@ -236,19 +315,34 @@ export function ProjectDetailDashboard({
 
       {/* Tab content */}
       <div className="min-h-[400px]">
-        {activeTab === "tong-quan" && <OverviewTab />}
-        {activeTab === "vi-tri" && <LocationTab />}
-        {activeTab === "dao-tao" && <TrainingTab />}
-        {activeTab === "phan-khu" && <SubzonesTab />}
+        {activeTab === "tong-quan" && (
+          <OverviewTab images={heroImages} rows={overviewRows} />
+        )}
+        {activeTab === "vi-tri" && (
+          <LocationTab
+            description={locationDesc}
+            connections={connections}
+            mapLat={mapLat}
+            mapLng={mapLng}
+          />
+        )}
+        {activeTab === "dao-tao" && <TrainingTab items={trainings} />}
+        {activeTab === "phan-khu" && <SubzonesTab items={subzones} />}
         {activeTab === "mat-bang" && (
           <UnitsTab focusAvailable={false} withMap />
         )}
         {activeTab === "quy-can" && <UnitsTab focusAvailable />}
-        {activeTab === "anh-360" && <Tours360Tab />}
-        {activeTab === "chinh-sach" && <PolicyTab />}
-        {activeTab === "tien-do" && <TimelineTab />}
+        {activeTab === "anh-360" && <Tours360Tab items={tours360} />}
+        {activeTab === "chinh-sach" && (
+          <PolicyTab
+            policies={policies}
+            priceTable={priceTable}
+            commissionNote={commissionNote}
+          />
+        )}
+        {activeTab === "tien-do" && <TimelineTab items={timeline} />}
         {activeTab === "tai-lieu" && <DocumentsTab slug={slug} />}
-        {activeTab === "tin-tuc" && <NewsTab />}
+        {activeTab === "tin-tuc" && <NewsTab items={news} />}
       </div>
     </div>
     {/* Nút hành động nổi theo vai trò (góc dưới-trái, tránh ChatWidget bên phải) */}
@@ -295,10 +389,18 @@ function statusBadge(status: string) {
 
 // ---------- 1. Tổng quan ----------
 
-function OverviewTab() {
+function OverviewTab({
+  images,
+  rows,
+}: {
+  images: ProjectHeroImage[];
+  rows: ProjectKeyValue[];
+}) {
   const [idx, setIdx] = useState(0);
-  const total = HERO_IMAGES.length;
+  const total = images.length;
   const go = (d: number) => setIdx((i) => (i + d + total) % total);
+  // Bảo vệ: nếu đổi nguồn dữ liệu khiến idx vượt mảng → kẹp về 0.
+  const safeIdx = idx < total ? idx : 0;
 
   return (
     <div className="space-y-6">
@@ -306,13 +408,13 @@ function OverviewTab() {
       <div className="relative aspect-video overflow-hidden rounded-xl border border-brand-100 bg-brand-900 shadow-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={HERO_IMAGES[idx].src}
-          alt={HERO_IMAGES[idx].caption}
+          src={images[safeIdx]?.src}
+          alt={images[safeIdx]?.caption}
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
           <p className="text-sm font-medium text-white">
-            {HERO_IMAGES[idx].caption}
+            {images[safeIdx]?.caption}
           </p>
         </div>
         <button
@@ -332,20 +434,20 @@ function OverviewTab() {
           <ChevronRight size={20} />
         </button>
         <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white">
-          {idx + 1}/{total}
+          {safeIdx + 1}/{total}
         </div>
       </div>
       {/* Thumbnails */}
       <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {HERO_IMAGES.map((img, i) => (
+        {images.map((img, i) => (
           <button
-            key={img.src}
+            key={`${img.src}-${i}`}
             type="button"
             onClick={() => setIdx(i)}
             className={`h-14 w-24 shrink-0 overflow-hidden rounded-md border-2 transition ${
-              i === idx ? "" : "border-transparent opacity-70 hover:opacity-100"
+              i === safeIdx ? "" : "border-transparent opacity-70 hover:opacity-100"
             }`}
-            style={i === idx ? { borderColor: ACCENT } : undefined}
+            style={i === safeIdx ? { borderColor: ACCENT } : undefined}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -364,9 +466,9 @@ function OverviewTab() {
         </div>
         <table className="w-full text-sm">
           <tbody>
-            {OVERVIEW_ROWS.map((row, i) => (
+            {rows.map((row, i) => (
               <tr
-                key={row.label}
+                key={`${row.label}-${i}`}
                 className={i % 2 ? "bg-white" : "bg-brand-50/40"}
               >
                 <td className="w-1/3 border-b border-brand-100 px-5 py-3 font-semibold text-brand-900 align-top">
@@ -386,17 +488,23 @@ function OverviewTab() {
 
 // ---------- 2. Vị trí ----------
 
-function LocationTab() {
+function LocationTab({
+  description,
+  connections,
+  mapLat,
+  mapLng,
+}: {
+  description: string;
+  connections: ProjectConnection[];
+  mapLat: number;
+  mapLng: number;
+}) {
   return (
     <div className="space-y-6">
       <div>
         <SectionTitle>Vị trí đắc địa</SectionTitle>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-brand-700">
-          Eurowindow Light City toạ lạc tại phường Nguyệt Viên, TP Thanh Hoá —
-          ngay cửa ngõ phía Bắc thành phố, liền kề Quốc lộ 1A và cầu Hoằng Long.
-          Vị trí kết nối thuận tiện tới trung tâm hành chính, trường học, bệnh
-          viện và hệ thống thương mại dịch vụ, mang đến giá trị an cư và đầu tư
-          bền vững bên dòng sông Mã.
+          {description}
         </p>
       </div>
 
@@ -407,7 +515,7 @@ function LocationTab() {
             Kết nối nhanh
           </div>
           <ul>
-            {CONNECTIONS.map((c) => (
+            {connections.map((c) => (
               <li
                 key={c.place}
                 className="flex items-center justify-between border-b border-brand-100 px-5 py-3 text-sm last:border-b-0"
@@ -431,7 +539,7 @@ function LocationTab() {
         <div className="overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm">
           <iframe
             title="Bản đồ Eurowindow Light City"
-            src={`https://www.google.com/maps?q=${MAP_LAT},${MAP_LNG}&z=15&output=embed`}
+            src={`https://www.google.com/maps?q=${mapLat},${mapLng}&z=15&output=embed`}
             className="h-full min-h-[300px] w-full"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
@@ -444,12 +552,12 @@ function LocationTab() {
 
 // ---------- 3. Đào tạo ----------
 
-function TrainingTab() {
+function TrainingTab({ items }: { items: ProjectTrainingItem[] }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Tài liệu đào tạo</SectionTitle>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TRAININGS.map((t) => (
+        {items.map((t) => (
           <div
             key={t.title}
             className="flex flex-col rounded-xl border border-brand-100 bg-white p-5 shadow-sm"
@@ -507,12 +615,12 @@ function TrainingTab() {
 
 // ---------- 4. Phân khu ----------
 
-function SubzonesTab() {
+function SubzonesTab({ items }: { items: ProjectSubzone[] }) {
   return (
     <div className="space-y-4">
-      <SectionTitle>7 phân khu</SectionTitle>
+      <SectionTitle>{items.length} phân khu</SectionTitle>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {SUBZONES.map((z) => (
+        {items.map((z) => (
           <div
             key={z.name}
             className="group overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
@@ -913,12 +1021,12 @@ function FilterSelect({
 
 // ---------- 7. Ảnh 360° ----------
 
-function Tours360Tab() {
+function Tours360Tab({ items }: { items: ProjectTour360[] }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Trải nghiệm ảnh 360°</SectionTitle>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {TOURS_360.map((t) => (
+        {items.map((t) => (
           <div
             key={t.title}
             className="group overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm"
@@ -956,12 +1064,20 @@ function Tours360Tab() {
 
 // ---------- 8. Chính sách bán hàng ----------
 
-function PolicyTab() {
+function PolicyTab({
+  policies,
+  priceTable,
+  commissionNote,
+}: {
+  policies: ProjectPolicyCard[];
+  priceTable: ProjectPriceRow[];
+  commissionNote: string;
+}) {
   return (
     <div className="space-y-6">
       <SectionTitle>Chính sách bán hàng</SectionTitle>
       <div className="space-y-4">
-        {POLICIES.map((p) => (
+        {policies.map((p) => (
           <div
             key={p.title}
             className="rounded-xl border border-brand-100 bg-white p-5 shadow-sm"
@@ -1019,9 +1135,9 @@ function PolicyTab() {
             </tr>
           </thead>
           <tbody>
-            {PRICE_TABLE.map((r, i) => (
+            {priceTable.map((r, i) => (
               <tr
-                key={r.product}
+                key={`${r.product}-${i}`}
                 className={`border-t border-brand-100 ${
                   i % 2 ? "bg-white" : "bg-brand-50/30"
                 }`}
@@ -1048,11 +1164,7 @@ function PolicyTab() {
         <h3 className="text-base font-bold text-brand-900">
           Chính sách hoa hồng cho sale / đại lý
         </h3>
-        <p className="mt-2 text-sm text-brand-700">
-          Mức hoa hồng cạnh tranh kèm thưởng nóng theo căn cho đại lý F1. Chi
-          tiết theo phụ lục hợp đồng phân phối từng đợt —{" "}
-          <span className="font-medium text-brand-900">đang cập nhật</span>.
-        </p>
+        <p className="mt-2 text-sm text-brand-700">{commissionNote}</p>
       </div>
     </div>
   );
@@ -1060,13 +1172,13 @@ function PolicyTab() {
 
 // ---------- 9. Tiến độ ----------
 
-function TimelineTab() {
+function TimelineTab({ items }: { items: ProjectTimelineItem[] }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Tiến độ dự án</SectionTitle>
       <ol className="relative ml-3 border-l-2 border-brand-100">
-        {TIMELINE.map((m) => (
-          <li key={m.period} className="mb-8 ml-6 last:mb-0">
+        {items.map((m, i) => (
+          <li key={`${m.period}-${i}`} className="mb-8 ml-6 last:mb-0">
             <span
               className="absolute -left-[11px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-[#fbf9f5]"
               style={{ backgroundColor: ACCENT }}
@@ -1301,14 +1413,14 @@ function DocumentsTab({ slug }: { slug: string }) {
 
 // ---------- 11. Tin tức ----------
 
-function NewsTab() {
+function NewsTab({ items }: { items: ProjectNewsItem[] }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Tin tức dự án</SectionTitle>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {NEWS.map((n) => (
+        {items.map((n, i) => (
           <article
-            key={n.title}
+            key={`${n.title}-${i}`}
             className="group flex flex-col overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
           >
             <div className="aspect-video overflow-hidden">

@@ -560,11 +560,15 @@ def build_profile(
     *,
     assigned_sale_name: Optional[str] = None,
     ai_salesman: Optional[dict] = None,
+    matched_units: Optional[list[dict]] = None,
 ) -> dict:
     """Dựng hồ sơ 360° từ dữ liệu đã load (hàm thuần — không IO).
 
     `ai_salesman` (tuỳ chọn): khối sale AI đang phụ trách khách (id/name/chuyên môn)
     — tính năng Đội Sale AI. None nếu chưa gán / chưa seed roster.
+
+    `matched_units` (tuỳ chọn): danh sách BĐS phù hợp nhu cầu khách (từ
+    inventory_match) — bịt placeholder "BĐS phù hợp". None/[] → khối rỗng.
     """
     my_bookings, my_quotes = find_deals_for_lead(lead, all_bookings, all_quotes)
     timeline = build_timeline(lead, contact_logs, my_bookings, my_quotes)
@@ -605,6 +609,7 @@ def build_profile(
         },
         "ai": ai_block,
         "ai_salesman": ai_salesman,
+        "matched_units": list(matched_units or []),
         "pipeline": {
             "stage": stage,
             "label": pipeline.stage_label(stage),
@@ -642,11 +647,26 @@ def load_profile(
     except Exception:  # noqa: BLE001 — thiếu nguồn quote không làm hỏng hồ sơ
         all_quotes = []
     ai_salesman = _resolve_ai_salesman(lead.get("ai_salesman_id"))
+    matched_units = _resolve_matched_units(lead)
     return build_profile(
         lead, contact_logs, all_bookings, all_quotes,
         assigned_sale_name=assigned_sale_name,
         ai_salesman=ai_salesman,
+        matched_units=matched_units,
     )
+
+
+def _resolve_matched_units(lead: dict) -> list[dict]:
+    """Khớp BĐS phù hợp nhu cầu khách (product_type/budget/region) cho hồ sơ 360.
+
+    An toàn: lỗi đọc inventory / thiếu nhu cầu → [] (không làm hỏng hồ sơ).
+    """
+    try:
+        from app.core import inventory_match  # lazy import tránh vòng
+
+        return inventory_match.match_for_lead(lead, limit=3)
+    except Exception:  # noqa: BLE001 — gợi ý BĐS không được làm hỏng hồ sơ 360
+        return []
 
 
 def _resolve_ai_salesman(ais_id: Optional[str]) -> Optional[dict]:

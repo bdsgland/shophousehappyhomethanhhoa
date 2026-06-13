@@ -104,6 +104,11 @@ import type {
   AiSalesAssignResult,
   AiCareResult,
   AiSalesman,
+  CareQueuePage,
+  CareQueueStats,
+  CareQueueItem,
+  RunCyclePayload,
+  RunCycleResult,
 } from "./types";
 
 export const API_URL =
@@ -1583,4 +1588,123 @@ export function runAiCareForLead(leadId: string, payload?: CrewRunPayload) {
     method: "POST",
     body: payload ?? {},
   });
+}
+
+// ---------------------------------------------------------------------------
+// AUTO-CARE — chu kỳ chăm sóc tự động + hàng đợi hành động (NHÁP chờ duyệt)
+// ---------------------------------------------------------------------------
+
+/** Chạy 1 chu kỳ chăm sóc tự động → quét khách cần chăm → tạo NHÁP vào hàng đợi. */
+export function runCareCycle(payload?: RunCyclePayload) {
+  return apiFetch<RunCycleResult>("/admin/ai-sales/run-cycle", {
+    method: "POST",
+    body: payload ?? {},
+  });
+}
+
+/** Danh sách mục hàng đợi chăm sóc (mặc định các NHÁP đang chờ duyệt). */
+export function listCareQueue(params?: {
+  status?: string;
+  ai_salesman_id?: string;
+  lead_id?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.ai_salesman_id) q.set("ai_salesman_id", params.ai_salesman_id);
+  if (params?.lead_id) q.set("lead_id", params.lead_id);
+  if (params?.page) q.set("page", String(params.page));
+  if (params?.page_size) q.set("page_size", String(params.page_size));
+  const qs = q.toString();
+  return apiFetch<CareQueuePage>(`/admin/ai-sales/care-queue${qs ? `?${qs}` : ""}`);
+}
+
+/** Thống kê hàng đợi (đếm theo trạng thái + cấu hình an toàn). */
+export function getCareQueueStats() {
+  return apiFetch<CareQueueStats>("/admin/ai-sales/care-queue/stats");
+}
+
+/** Duyệt 1 mục NHÁP — KHÔNG tự gửi tin (chỉ đánh dấu approved). */
+export function approveCareItem(itemId: string) {
+  return apiFetch<{ ok: boolean; item: CareQueueItem; auto_sent: boolean; note: string }>(
+    `/admin/ai-sales/care-queue/${itemId}/approve`,
+    { method: "POST", body: {} },
+  );
+}
+
+/** Bỏ qua 1 mục NHÁP (status=skipped). */
+export function skipCareItem(itemId: string) {
+  return apiFetch<{ ok: boolean; item: CareQueueItem }>(
+    `/admin/ai-sales/care-queue/${itemId}/skip`,
+    { method: "POST", body: {} },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DỰ ÁN (Project CMS) — /admin/projects/* (require_admin / API key admin_full)
+// Public chỉ ĐỌC /projects/{slug}. AI-edit chỉ ĐỀ XUẤT — admin tự bấm Lưu mới ghi.
+// ---------------------------------------------------------------------------
+
+// Import type đặt cuối file để không đụng khối import dùng chung ở đầu (hoisted).
+import type {
+  AIEditOut,
+  ProjectDoc,
+  ProjectHistoryEntry,
+  ProjectSection,
+  ProjectSummary,
+  ProjectUpdateIn,
+} from "./types";
+
+/** Danh sách dự án (summary). */
+export function listProjects() {
+  return apiFetch<ProjectSummary[]>("/admin/projects");
+}
+
+/** Toàn bộ ProjectDoc (meta + content 8 section) để sửa. */
+export function getProject(slug: string) {
+  return apiFetch<ProjectDoc>(`/admin/projects/${encodeURIComponent(slug)}`);
+}
+
+/** Lưu 1 tab nội dung — payload nhỏ, không clobber tab khác (khuyên dùng). */
+export function updateProjectSection(
+  slug: string,
+  section: ProjectSection,
+  data: unknown,
+) {
+  return apiFetch<ProjectDoc>(
+    `/admin/projects/${encodeURIComponent(slug)}/sections/${section}`,
+    { method: "PATCH", body: data },
+  );
+}
+
+/** Lưu meta + (tuỳ chọn) toàn bộ content — khi sửa tên/tagline/status… */
+export function saveProject(slug: string, payload: ProjectUpdateIn) {
+  return apiFetch<ProjectDoc>(`/admin/projects/${encodeURIComponent(slug)}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+/** AI đề xuất nội dung mới cho 1 tab — KHÔNG tự lưu. */
+export function aiEditProjectSection(
+  slug: string,
+  section: ProjectSection,
+  instruction: string,
+  currentContent: unknown,
+) {
+  return apiFetch<AIEditOut>(
+    `/admin/projects/${encodeURIComponent(slug)}/ai-edit`,
+    {
+      method: "POST",
+      body: { section, instruction, current_content: currentContent },
+    },
+  );
+}
+
+/** Lịch sử phiên bản 1 dự án. */
+export function getProjectHistory(slug: string) {
+  return apiFetch<ProjectHistoryEntry[]>(
+    `/admin/projects/${encodeURIComponent(slug)}/history`,
+  );
 }

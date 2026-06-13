@@ -4,10 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Bot,
+  Building2,
   Check,
   CheckCircle2,
+  Clock,
   Copy,
   Gauge,
+  Inbox,
   ListChecks,
   MessageSquare,
   Play,
@@ -15,6 +18,8 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
+  Target,
+  ThumbsUp,
   UserCheck,
   Users,
   UsersRound,
@@ -23,20 +28,27 @@ import {
 import { useEffect, useState } from "react";
 
 import {
+  approveCareItem,
   getAiSalesStats,
+  getCareQueueStats,
   getCrewStatus,
   listAiSalesmen,
+  listCareQueue,
   listCrewAgents,
+  runCareCycle,
   runCrewForLead,
   seedAiSales,
+  skipCareItem,
 } from "@/lib/api";
 import type {
   AiSalesman,
+  CareQueueItem,
   CrewAgentTemplate,
   CrewMode,
   CrewRunChannel,
   CrewRunResult,
   CrewStatus,
+  MatchedUnit,
 } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +102,41 @@ const PRIORITY_VARIANT: Record<string, "danger" | "warning" | "muted"> = {
   thường: "muted",
 };
 
+const ENGINE_LABEL: Record<string, string> = {
+  crewai: "CrewAI",
+  "claude-direct": "Claude (trực tiếp)",
+  heuristic: "Heuristic",
+};
+
+// Khối "BĐS phù hợp" — dùng lại cho panel crew + Customer 360.
+function MatchedUnitsList({ units }: { units: MatchedUnit[] }) {
+  if (!units || units.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {units.map((u, i) => (
+        <div key={u.id ?? i} className="rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{u.id}</span>
+            {u.loai && <Badge variant="muted">{u.loai}</Badge>}
+            {u.phan_khu && <span className="text-xs text-muted-foreground">{u.phan_khu}</span>}
+            {u.gia && <Badge variant="default">{u.gia}</Badge>}
+            {typeof u.match_percent === "number" && (
+              <Badge variant="success">Khớp {u.match_percent}%</Badge>
+            )}
+            {u.trang_thai && <Badge variant="muted">{u.trang_thai}</Badge>}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {typeof u.dien_tich === "number" && <span>DT {u.dien_tich} m²</span>}
+            {u.huong && <span>Hướng {u.huong}</span>}
+            {u.reasons && u.reasons.length > 0 && <span>· {u.reasons.join(" · ")}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ===========================================================================
 // Trang chính
 // ===========================================================================
@@ -119,6 +166,7 @@ export default function CrewPage() {
 
       <div className="space-y-6">
         <RosterCard />
+        <CareQueueCard />
         <StatusCard />
         <AgentsCard />
         <RunCard />
@@ -361,6 +409,241 @@ function RosterCard() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ===========================================================================
+// Hàng đợi hành động — NHÁP chăm sóc tự động chờ duyệt + chạy chu kỳ
+// ===========================================================================
+
+const ACTION_TYPE_LABEL: Record<string, string> = {
+  hot_follow_up: "Khách nóng",
+  reengage: "Tái kết nối",
+  first_touch: "Tiếp cận lần đầu",
+  nurture: "Chăm sóc",
+};
+
+function CareQueueCard() {
+  const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const statsQ = useQuery({ queryKey: ["care-queue-stats"], queryFn: getCareQueueStats });
+  const listQ = useQuery({
+    queryKey: ["care-queue", page],
+    queryFn: () => listCareQueue({ status: "pending", page, page_size: pageSize }),
+  });
+
+  function refresh() {
+    qc.invalidateQueries({ queryKey: ["care-queue"] });
+    qc.invalidateQueries({ queryKey: ["care-queue-stats"] });
+  }
+
+  const runMut = useMutation({
+    mutationFn: () => runCareCycle({ channel: "zalo" }),
+    onSuccess: () => {
+      setPage(1);
+      refresh();
+    },
+  });
+
+  const stats = statsQ.data;
+  const list = listQ.data;
+  const totalPages = list ? Math.max(1, Math.ceil(list.total / pageSize)) : 1;
+  const autoSend = stats?.config?.ai_care_auto_send ?? false;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Inbox className="h-4 w-4 text-primary" />
+              Hàng đợi hành động
+            </CardTitle>
+            <CardDescription>
+              Đội Sale AI tự động quét khách cần chăm và soạn tin NHÁP. Duyệt rồi tự gửi — hệ thống
+              KHÔNG tự gửi tin cho khách.
+            </CardDescription>
+          </div>
+          <Button onClick={() => runMut.mutate()} disabled={runMut.isPending}>
+            <Play className={runMut.isPending ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+            {runMut.isPending ? "Đang chạy…" : "Chạy chu kỳ chăm sóc ngay"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Thống kê nhanh + cấu hình an toàn */}
+        {stats && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Badge variant="warning">Chờ duyệt: {stats.pending}</Badge>
+            <Badge variant="success">Đã duyệt: {stats.approved}</Badge>
+            <Badge variant="muted">Bỏ qua: {stats.skipped}</Badge>
+            <Badge variant={autoSend ? "danger" : "muted"}>
+              {autoSend ? "Tự động gửi: BẬT" : "Tự động gửi: TẮT (an toàn)"}
+            </Badge>
+            {stats.config && (
+              <span className="text-muted-foreground">
+                Ngưỡng chăm: {stats.config.ai_care_due_days} ngày · mỗi lần tối đa{" "}
+                {stats.config.ai_care_batch_limit} khách
+              </span>
+            )}
+          </div>
+        )}
+
+        {runMut.isError && (
+          <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+            Lỗi chạy chu kỳ: {(runMut.error as Error).message}
+          </div>
+        )}
+        {runMut.data && (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            Chu kỳ xong: quét {runMut.data.scanned_candidates} khách cần chăm · tạo{" "}
+            {runMut.data.queued} nháp mới
+            {runMut.data.errors.length > 0 && ` · ${runMut.data.errors.length} lỗi`}.
+            {!runMut.data.enabled && " (Auto-Care đang TẮT — đặt AI_CARE_ENABLED=true để bật.)"}
+          </div>
+        )}
+
+        {/* Danh sách NHÁP chờ duyệt */}
+        {listQ.isLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : listQ.isError || !list ? (
+          <div className="rounded-md bg-danger/10 p-3 text-sm text-danger">
+            Không tải được hàng đợi: {(listQ.error as Error)?.message ?? "lỗi"}
+          </div>
+        ) : list.items.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Chưa có nháp nào chờ duyệt. Nhấn{" "}
+            <span className="font-medium">"Chạy chu kỳ chăm sóc ngay"</span> để đội AI quét khách cần
+            chăm và soạn tin.
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {list.items.map((item) => (
+                <CareQueueRow key={item.id} item={item} onChanged={refresh} />
+              ))}
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {list.total.toLocaleString("vi-VN")} nháp chờ duyệt · trang {list.page}/{totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Trước
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CareQueueRow({ item, onChanged }: { item: CareQueueItem; onChanged: () => void }) {
+  const [draft, setDraft] = useState(item.draft);
+  const [copied, setCopied] = useState(false);
+
+  const approveMut = useMutation({
+    mutationFn: () => approveCareItem(item.id),
+    onSuccess: onChanged,
+  });
+  const skipMut = useMutation({
+    mutationFn: () => skipCareItem(item.id),
+    onSuccess: onChanged,
+  });
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard không khả dụng */
+    }
+  }
+
+  const busy = approveMut.isPending || skipMut.isPending;
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Badge variant="default">{item.channel}</Badge>
+        <Badge variant="muted">{ACTION_TYPE_LABEL[item.action_type] ?? item.action_type}</Badge>
+        <span className="text-sm font-medium">{item.lead_name ?? item.lead_id}</span>
+        {item.ai_salesman_name && (
+          <span className="text-xs text-muted-foreground">· {item.ai_salesman_name}</span>
+        )}
+        {typeof item.potential_score === "number" && (
+          <Badge variant="warning">Tiềm năng {item.potential_score}/100</Badge>
+        )}
+        {item.suggested_time && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" /> {item.suggested_time}
+          </span>
+        )}
+      </div>
+
+      {item.summary && (
+        <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>
+      )}
+
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="min-h-[90px] text-sm"
+      />
+
+      {item.matched_units && item.matched_units.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {item.matched_units.map((u, i) => (
+            <Badge key={i} variant="muted" className="gap-1">
+              <Building2 className="h-3 w-3" />
+              {u.id} · {u.gia ?? "—"}
+              {typeof u.match_percent === "number" && ` · ${u.match_percent}%`}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={() => approveMut.mutate()} disabled={busy}>
+          <ThumbsUp className="h-4 w-4" />
+          Duyệt
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => skipMut.mutate()} disabled={busy}>
+          <XCircle className="h-4 w-4" />
+          Bỏ qua
+        </Button>
+        <Button variant="ghost" size="sm" onClick={copy}>
+          {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Đã chép" : "Chép tin"}
+        </Button>
+        {(approveMut.isError || skipMut.isError) && (
+          <span className="text-xs text-danger">
+            {((approveMut.error || skipMut.error) as Error)?.message}
+          </span>
+        )}
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Duyệt = đánh dấu đã xử lý. Hệ thống KHÔNG tự gửi — bạn tự gửi tin qua kênh chăm sóc.
+      </p>
+    </div>
   );
 }
 
@@ -666,10 +949,11 @@ function RunResult({ result }: { result: CrewRunResult }) {
       {/* Header kết quả */}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={meta.variant}>{meta.label}</Badge>
-        <Badge variant="muted">
-          Engine: {analysis.engine === "crewai" ? "CrewAI" : "Heuristic"}
-        </Badge>
+        <Badge variant="muted">Engine: {ENGINE_LABEL[analysis.engine] ?? analysis.engine}</Badge>
         {result.lead_name && <span className="text-sm font-medium">{result.lead_name}</span>}
+        {typeof analysis.potential_score === "number" && (
+          <Badge variant="warning">Tiềm năng {analysis.potential_score}/100</Badge>
+        )}
         {typeof analysis.readiness === "number" && (
           <Badge variant="default">Sẵn sàng {analysis.readiness}/5</Badge>
         )}
@@ -693,12 +977,52 @@ function RunResult({ result }: { result: CrewRunResult }) {
       <section>
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" />
-          Phân tích
+          Phân tích tình hình
         </h3>
         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
           {analysis.summary}
         </p>
+        {analysis.potential_reason && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Điểm tiềm năng: {analysis.potential_reason}
+          </p>
+        )}
       </section>
+
+      {/* Hành động kế tiếp tốt nhất (next-best-action) */}
+      {analysis.next_best_action && analysis.next_best_action.action && (
+        <section>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <Target className="h-4 w-4 text-primary" />
+            Hành động kế tiếp tốt nhất
+          </h3>
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+            <p className="text-sm font-medium">{analysis.next_best_action.action}</p>
+            {analysis.next_best_action.reason && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {analysis.next_best_action.reason}
+              </p>
+            )}
+            {analysis.next_best_action.timing && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" /> Thời điểm: {analysis.next_best_action.timing}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* BĐS phù hợp nhu cầu khách */}
+      {((result.matched_units && result.matched_units.length > 0) ||
+        (analysis.matched_units && analysis.matched_units.length > 0)) && (
+        <section>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <Building2 className="h-4 w-4 text-primary" />
+            BĐS phù hợp
+          </h3>
+          <MatchedUnitsList units={result.matched_units ?? analysis.matched_units ?? []} />
+        </section>
+      )}
 
       {/* Đề xuất hành động (heuristic) */}
       {analysis.recommended_actions && analysis.recommended_actions.length > 0 && (
@@ -747,7 +1071,7 @@ function RunResult({ result }: { result: CrewRunResult }) {
           </h3>
           <div className="space-y-3">
             {analysis.draft_messages.map((d, i) => (
-              <DraftCard key={i} channel={d.channel} draft={d.draft} />
+              <DraftCard key={i} channel={d.channel} draft={d.draft} suggestedTime={d.suggested_time} />
             ))}
           </div>
         </section>
@@ -761,7 +1085,15 @@ function RunResult({ result }: { result: CrewRunResult }) {
   );
 }
 
-function DraftCard({ channel, draft }: { channel: string; draft: string }) {
+function DraftCard({
+  channel,
+  draft,
+  suggestedTime,
+}: {
+  channel: string;
+  draft: string;
+  suggestedTime?: string;
+}) {
   const [text, setText] = useState(draft);
   const [copied, setCopied] = useState(false);
 
@@ -786,6 +1118,11 @@ function DraftCard({ channel, draft }: { channel: string; draft: string }) {
         <div className="flex items-center gap-1.5">
           <Badge variant="muted">{channel}</Badge>
           <Badge variant="warning">Nháp — chưa gửi</Badge>
+          {suggestedTime && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" /> {suggestedTime}
+            </span>
+          )}
         </div>
         <Button variant="ghost" size="sm" onClick={copy}>
           {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}

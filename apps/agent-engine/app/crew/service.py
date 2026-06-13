@@ -42,7 +42,10 @@ def _audit(event: str, payload: Dict[str, Any], *, status: str = "ok", detail: s
 # Fallback heuristic — không gọi LLM. Đảm bảo crew LUÔN trả kết quả hữu ích.
 # ---------------------------------------------------------------------------
 def _fallback_analysis(
-    lead_ctx: Dict[str, Any], knowledge: Dict[str, Any], channel: str
+    lead_ctx: Dict[str, Any],
+    knowledge: Dict[str, Any],
+    channel: str,
+    matched_units: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     score = lead_ctx.get("ai_score") or 0
     status = (lead_ctx.get("status") or "").lower()
@@ -102,13 +105,25 @@ def _fallback_analysis(
         f"{booking_phrase} booking; {contact_phrase}."
     )
 
+    # next-best-action heuristic = hành động ưu tiên cao nhất.
+    top = actions[0] if actions else {}
+    nba = {
+        "action": top.get("action", ""),
+        "reason": top.get("reason", ""),
+        "timing": "trong 24-48h" if readiness >= 4 else "trong tuần này",
+    } if top.get("action") else None
+
     return {
         "engine": "heuristic",
         "model": None,
         "summary": summary,
+        "potential_score": min(100, int(readiness) * 20),
+        "potential_reason": "Ước lượng từ ai_score + trạng thái + tương tác.",
         "readiness": readiness,
+        "next_best_action": nba,
         "recommended_actions": actions,
         "draft_messages": [draft],
+        "matched_units": list(matched_units or []),
         "agents": [t["name"] for t in agent_templates()],
     }
 
@@ -122,11 +137,19 @@ def _run_claude_or_heuristic(
     lead_ctx: Dict[str, Any],
     knowledge: Dict[str, Any],
     channel: str,
+    matched_units: Optional[List[Dict[str, Any]]] = None,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     try:
         from app.crew.claude_fallback import run_claude_analysis
 
-        analysis = run_claude_analysis(lead_ctx, knowledge.get("text", ""), channel=channel)
+        analysis = run_claude_analysis(
+            lead_ctx,
+            knowledge.get("text", ""),
+            channel=channel,
+            matched_units=matched_units,
+            model=model,
+        )
         # Bảo đảm luôn có ít nhất 1 draft (kèm nền heuristic nếu Claude trả rỗng).
         if not analysis.get("draft_messages"):
             analysis["draft_messages"] = [
@@ -139,24 +162,40 @@ def _run_claude_or_heuristic(
         log.warning("Claude-direct lỗi, fallback heuristic: %s", exc)
         base["notes"].append(f"Claude-direct lỗi → dùng heuristic: {exc}")
         base["mode"] = "fallback"
-        return _fallback_analysis(lead_ctx, knowledge, channel)
+        return _fallback_analysis(lead_ctx, knowledge, channel, matched_units)
 
 
 # ---------------------------------------------------------------------------
 # Điểm vào chính.
 # ---------------------------------------------------------------------------
+def match_units_for_lead(lead_ctx: Dict[str, Any], limit: int = 3) -> List[Dict[str, Any]]:
+    """Khớp căn phù hợp nhu cầu khách (READ-ONLY, an toàn). [] nếu lỗi/thiếu."""
+    try:
+        from app.core import inventory_match
+
+        return inventory_match.match_for_lead(lead_ctx, limit=limit)
+    except Exception as exc:  # noqa: BLE001 — gợi ý BĐS không được làm hỏng crew
+        log.warning("match_units_for_lead lỗi: %s", exc)
+        return []
+
+
 def run_for_lead(
     lead_id: str,
     *,
     channel: str = "zalo",
     requested_by: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Chạy Sales Crew cho 1 lead → trả phân tích + đề xuất + tin nhắn NHÁP.
+
+    `model` (tuỳ chọn): ghi đè model Claude (vd haiku khi quét hàng loạt qua
+    Auto-Care). None → crew_model_resolved().
 
     Schema trả về (ổn định cho endpoint + MCP):
       {
         ok, mode, lead_id, lead_name, generated_at,
-        analysis: {...},               # engine=crewai|heuristic
+        analysis: {...},               # engine=crewai|claude-direct|heuristic
+        matched_units: [...],          # BĐS phù hợp nhu cầu khách
         knowledge: {configured, records},
         requires_confirmation: True,   # mọi hành động ghi/gửi cần admin duyệt
         auto_executed: False,          # crew KHÔNG tự thực thi gì
@@ -197,6 +236,9 @@ def run_for_lead(
     ).strip()
     knowledge = crew_tools.dify_knowledge_query(kb_query, top_k=5)
 
+    # Khớp căn phù hợp nhu cầu khách (đưa vào bộ não AI + trả ra cho UI/360).
+    matched_units = match_units_for_lead(lead_ctx, limit=3)
+
     # Chạy LIVE nếu đủ điều kiện; lỗi → tụt dần xuống Claude-direct rồi heuristic
     # (không bao giờ làm hỏng request).
     analysis: Dict[str, Any]
@@ -212,18 +254,24 @@ def run_for_lead(
                     lead_ctx, channel=channel, knowledge_snippet=knowledge.get("text", "")
                 )],
             )
+            analysis.setdefault("matched_units", matched_units)
         except Exception as exc:  # noqa: BLE001 — CrewAI lỗi → thử Claude-direct
             log.warning("CrewAI live lỗi, thử Claude-direct: %s", exc)
             base["notes"].append(f"CrewAI lỗi runtime → chuyển Claude-direct: {exc}")
             base["mode"] = "claude"
-            analysis = _run_claude_or_heuristic(base, lead_ctx, knowledge, channel)
+            analysis = _run_claude_or_heuristic(
+                base, lead_ctx, knowledge, channel, matched_units, model
+            )
     elif mode == "claude":
-        analysis = _run_claude_or_heuristic(base, lead_ctx, knowledge, channel)
+        analysis = _run_claude_or_heuristic(
+            base, lead_ctx, knowledge, channel, matched_units, model
+        )
     else:
-        analysis = _fallback_analysis(lead_ctx, knowledge, channel)
+        analysis = _fallback_analysis(lead_ctx, knowledge, channel, matched_units)
 
     base["ok"] = True
     base["analysis"] = analysis
+    base["matched_units"] = analysis.get("matched_units", matched_units)
     base["knowledge"] = {
         "configured": knowledge.get("configured"),
         "records": knowledge.get("records"),

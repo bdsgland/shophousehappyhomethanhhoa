@@ -354,12 +354,14 @@ function CrewAiPanel({
   const ai = profile.ai;
   const salesman = profile.ai_salesman;
   const nba = ai?.next_action;
+  const matchedUnits = profile.matched_units ?? [];
 
   const careMut = useMutation({
     mutationFn: () => runAiCareForLead(leadId, { channel: "zalo" }),
   });
   const res: AiCareResult | undefined = careMut.data;
   const analysis = res?.analysis;
+  const resultUnits = res?.matched_units ?? analysis?.matched_units ?? [];
 
   // Trạng thái các agent suy ra từ dữ liệu thật sẵn có (chỉ mang tính chỉ báo —
   // chưa có endpoint crew-status riêng).
@@ -379,8 +381,8 @@ function CrewAiPanel({
     {
       icon: Target,
       name: "Matching",
-      ok: !!profile.basic?.note || (profile.deals?.quotes?.length ?? 0) > 0,
-      note: "Theo nhu cầu",
+      ok: matchedUnits.length > 0,
+      note: matchedUnits.length > 0 ? `${matchedUnits.length} căn khớp` : "Chưa khớp",
     },
     {
       icon: Calendar,
@@ -474,10 +476,68 @@ function CrewAiPanel({
               qua kênh chăm sóc.
             </span>
           </div>
+          {(typeof analysis.potential_score === "number" ||
+            typeof analysis.readiness === "number") && (
+            <div className="flex flex-wrap gap-2">
+              {typeof analysis.potential_score === "number" && (
+                <Badge variant="warning">Tiềm năng {analysis.potential_score}/100</Badge>
+              )}
+              {typeof analysis.readiness === "number" && (
+                <Badge variant="muted">Sẵn sàng {analysis.readiness}/5</Badge>
+              )}
+              <Badge variant="muted">
+                {analysis.engine === "claude-direct"
+                  ? "Claude"
+                  : analysis.engine === "crewai"
+                    ? "CrewAI"
+                    : "Heuristic"}
+              </Badge>
+            </div>
+          )}
           {analysis.summary && (
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">
               {analysis.summary}
             </p>
+          )}
+          {analysis.next_best_action?.action && (
+            <div className="rounded-md border border-violet-200 bg-white p-3 text-sm">
+              <div className="mb-1 flex items-center gap-1.5 font-medium text-violet-700">
+                <Target className="h-4 w-4" /> Hành động kế tiếp tốt nhất
+              </div>
+              <p className="text-slate-700">{analysis.next_best_action.action}</p>
+              {analysis.next_best_action.reason && (
+                <p className="mt-1 text-xs text-slate-500">{analysis.next_best_action.reason}</p>
+              )}
+              {analysis.next_best_action.timing && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Thời điểm: {analysis.next_best_action.timing}
+                </p>
+              )}
+            </div>
+          )}
+          {resultUnits.length > 0 && (
+            <div>
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Building2 className="h-4 w-4 text-emerald-500" /> BĐS phù hợp
+              </h4>
+              <div className="space-y-2">
+                {resultUnits.map((u, i) => (
+                  <div
+                    key={u.id ?? i}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-100 bg-white p-2.5 text-sm"
+                  >
+                    <span className="font-semibold text-slate-700">{u.id}</span>
+                    {u.loai && <Badge variant="muted">{u.loai}</Badge>}
+                    {u.gia && <span className="font-medium text-emerald-700">{u.gia}</span>}
+                    {typeof u.match_percent === "number" && (
+                      <span className="ml-auto text-xs font-semibold text-emerald-600">
+                        {u.match_percent}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           {analysis.recommended_actions && analysis.recommended_actions.length > 0 && (
             <div>
@@ -747,6 +807,7 @@ function RightRail({
   const channels = profile.channels ?? [];
   const stats = profile.stats;
   const isHot = lead.status === "hot" || !!lead.hot_marker_at;
+  const matchedUnits = profile.matched_units ?? [];
 
   // Nhu cầu khách hàng — các field mở rộng (đều tuỳ chọn).
   const needs: { label: string; value: string | null | undefined }[] = [
@@ -862,15 +923,46 @@ function RightRail({
         )}
       </Card>
 
-      {/* BĐS phù hợp — backend chưa có endpoint matching → placeholder rõ ràng */}
-      <Card className="border-dashed p-5">
-        <BlockTitle icon={Building2} color="text-slate-400">
+      {/* BĐS phù hợp — dữ liệu THẬT từ inventory matching (theo nhu cầu khách) */}
+      <Card className="p-5">
+        <BlockTitle icon={Building2} color="text-emerald-600">
           BĐS phù hợp
         </BlockTitle>
-        <p className="text-sm text-slate-400">
-          Chưa có gợi ý căn tự động — cần endpoint matching theo nhu cầu (loại BĐS / ngân
-          sách) ở backend. Khối sẽ hiển thị khi API sẵn sàng.
-        </p>
+        {!matchedUnits.length ? (
+          <p className="text-sm text-slate-400">
+            Chưa khớp được căn phù hợp — bổ sung nhu cầu (loại BĐS / ngân sách / khu vực) cho khách,
+            hoặc đồng bộ quỹ căn để có gợi ý.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {matchedUnits.map((u, i) => (
+              <div key={u.id ?? i} className="rounded-md border border-emerald-100 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-700">{u.id}</span>
+                  {u.loai && <Badge variant="muted">{u.loai}</Badge>}
+                  {u.phan_khu && <span className="text-xs text-slate-400">{u.phan_khu}</span>}
+                  {u.gia && (
+                    <span className="text-sm font-medium text-emerald-700">{u.gia}</span>
+                  )}
+                  {typeof u.match_percent === "number" && (
+                    <span className="ml-auto inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                      Khớp {u.match_percent}%
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                  {typeof u.dien_tich === "number" && <span>DT {u.dien_tich} m²</span>}
+                  {u.trang_thai && <span>{u.trang_thai}</span>}
+                  {u.huong && <span>Hướng {u.huong}</span>}
+                  {u.reasons && u.reasons.length > 0 && <span>· {u.reasons.join(" · ")}</span>}
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-slate-400">
+              Gợi ý tự động theo nhu cầu khách (loại BĐS · ngân sách · khu vực) từ quỹ căn hiện có.
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   );

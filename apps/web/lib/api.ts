@@ -495,6 +495,94 @@ export async function fetchInventoryStats(
   }
 }
 
+// ----- Nội dung dự án (Project CMS — admin sửa, đồng bộ ra sale/khách) -----
+
+export type ProjectHeroImage = { src: string; caption: string };
+export type ProjectKeyValue = { label: string; value: string };
+export type ProjectConnection = { place: string; time: string };
+export type ProjectTrainingItem = {
+  title: string;
+  size: string;
+  date: string;
+  href: string;
+  ready: boolean;
+};
+export type ProjectSubzone = {
+  name: string;
+  style: string;
+  units: string;
+  desc: string;
+  img: string;
+};
+export type ProjectTour360 = { title: string; img: string; ready: boolean };
+export type ProjectPolicyCard = {
+  title: string;
+  date: string;
+  open: boolean;
+  summary: string;
+  highlights: string[];
+};
+export type ProjectPriceRow = { product: string; area: string; from: string };
+export type ProjectTimelineItem = {
+  period: string;
+  title: string;
+  desc: string;
+  img: string;
+};
+export type ProjectNewsItem = {
+  title: string;
+  date: string;
+  excerpt: string;
+  img: string;
+  url: string;
+};
+
+export type ProjectContent = {
+  overview: { hero_images: ProjectHeroImage[]; rows: ProjectKeyValue[] };
+  location: {
+    description: string;
+    connections: ProjectConnection[];
+    map_lat: number | null;
+    map_lng: number | null;
+  };
+  training: { items: ProjectTrainingItem[] };
+  subzones: { items: ProjectSubzone[] };
+  gallery360: { items: ProjectTour360[] };
+  policy: {
+    policies: ProjectPolicyCard[];
+    price_table: ProjectPriceRow[];
+    commission_note: string;
+  };
+  timeline: { items: ProjectTimelineItem[] };
+  news: { items: ProjectNewsItem[] };
+};
+
+export type ProjectDoc = {
+  slug: string;
+  name: string;
+  tagline: string;
+  status: string;
+  developer: string;
+  location: string;
+  content: ProjectContent;
+  version: number;
+  last_updated_at: string | null;
+};
+
+/** Nội dung biên tập dự án (CMS). Lỗi/không kết nối → null để UI fallback elc-data. */
+export async function fetchProject(slug: string): Promise<ProjectDoc | null> {
+  try {
+    const res = await fetch(
+      `${AGENT_ENGINE_URL}/projects/${encodeURIComponent(slug)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as ProjectDoc;
+  } catch {
+    return null;
+  }
+}
+
 // ----- Portal khách hàng (/client) -----
 
 /** Raw unit từ backend (giữ field tiếng Việt) cho phần gợi ý/yêu thích. */

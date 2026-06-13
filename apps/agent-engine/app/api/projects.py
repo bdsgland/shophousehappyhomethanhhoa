@@ -15,10 +15,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.api.deps import get_current_user
-from app.core import learning_store
+from app.core import learning_store, project_store
 from app.schemas.learning import ProjectDocumentOut
+from app.schemas.project import ProjectDoc
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.get("/{slug}", response_model=ProjectDoc)
+def get_project_content(slug: str) -> ProjectDoc:
+    """Nội dung biên tập (các tab) của 1 dự án — CÔNG KHAI để web/sale/khách đọc.
+
+    Chỉ trả nội dung marketing (overview/vị trí/đào tạo/phân khu/360/tiến độ/tin
+    tức + mô tả chính sách) — KHÔNG có PII. Quỹ căn/tài liệu/số liệu giá có
+    endpoint riêng. Web fallback elc-data.ts khi gọi lỗi nên không cần đăng nhập.
+    """
+    try:
+        slug = project_store.normalize_slug(slug)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return project_store.get(slug)
 
 
 def _to_project_doc(doc: dict, slug: str) -> ProjectDocumentOut:

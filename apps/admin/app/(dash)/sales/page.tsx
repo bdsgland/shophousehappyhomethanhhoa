@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Coins, Network, RefreshCw, Users } from "lucide-react";
+import { Coins, Medal, Network, RefreshCw, Users } from "lucide-react";
 import { useState } from "react";
 
 import { listSales } from "@/lib/api";
@@ -9,18 +9,20 @@ import { formatNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { CommissionTable } from "@/components/sales/CommissionTable";
 import { ReferralTree } from "@/components/sales/ReferralTree";
+import { SalePerformanceContent } from "@/components/sales/SalePerformanceContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 
-type TabKey = "sales" | "commissions" | "tree";
+type TabKey = "sales" | "commissions" | "tree" | "performance";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "sales", label: "Danh sách Sale", icon: <Users className="h-4 w-4" /> },
   { key: "commissions", label: "Hoa hồng", icon: <Coins className="h-4 w-4" /> },
   { key: "tree", label: "Cây giới thiệu", icon: <Network className="h-4 w-4" /> },
+  { key: "performance", label: "Hiệu suất Sale", icon: <Medal className="h-4 w-4" /> },
 ];
 
 export default function SalesPage() {
@@ -35,6 +37,8 @@ export default function SalesPage() {
         qc.invalidateQueries({ queryKey: ["admin-sales"] }),
         qc.invalidateQueries({ queryKey: ["admin-commissions"] }),
         qc.invalidateQueries({ queryKey: ["referral-tree"] }),
+        qc.invalidateQueries({ queryKey: ["crm-sales-performance"] }),
+        qc.invalidateQueries({ queryKey: ["crm-leads-trend"] }),
       ]);
     } finally {
       setRefreshing(false);
@@ -69,6 +73,7 @@ export default function SalesPage() {
       {tab === "sales" && <SalesList />}
       {tab === "commissions" && <CommissionTable />}
       {tab === "tree" && <ReferralTree />}
+      {tab === "performance" && <SalePerformanceContent />}
     </div>
   );
 }

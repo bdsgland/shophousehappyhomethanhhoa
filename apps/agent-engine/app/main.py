@@ -195,6 +195,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("marketing_pipeline", "router", {}),
     ("learning", "router", {}),
     ("projects", "router", {}),
+    ("admin_projects", "router", {}),
     ("sales_policy", "router", {}),
     ("integrations", "router", {}),
     ("api_keys", "router", {}),

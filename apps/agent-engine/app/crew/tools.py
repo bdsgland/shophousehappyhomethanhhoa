@@ -75,6 +75,13 @@ def get_lead_context(lead_id: str, max_logs: int = 10) -> Optional[Dict[str, Any
         "status": lead.get("status"),
         "source": lead.get("source"),
         "note": lead.get("note"),
+        # NHU CẦU khách (Customer 360) — cho bộ não AI khớp sản phẩm + cá nhân hoá.
+        "product_type": lead.get("product_type"),
+        "region": lead.get("region"),
+        "budget": lead.get("budget"),
+        "purpose": lead.get("purpose"),
+        "project": lead.get("project"),
+        "customer_group": lead.get("customer_group"),
         "ai_score": lead.get("ai_score"),
         "ai_tier": lead.get("ai_tier"),
         "ai_reason": lead.get("ai_reason"),
@@ -85,6 +92,7 @@ def get_lead_context(lead_id: str, max_logs: int = 10) -> Optional[Dict[str, Any
         "booking_count": lead.get("booking_count", 0),
         "registered": bool(lead.get("registered")),
         "last_contact_at": lead.get("last_contact_at"),
+        "ai_salesman_id": lead.get("ai_salesman_id"),
         "contact_logs": slim_logs,
     }
 

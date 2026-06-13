@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.deps import require_admin
-from app.core import ai_salesman_store, lead_store
+from app.core import ai_care_engine, ai_care_queue_store, ai_salesman_store, lead_store
 
 router = APIRouter(prefix="/admin/ai-sales", tags=["admin-ai-sales"])
 
@@ -49,6 +49,21 @@ class AssignRequest(BaseModel):
 
 class RunCareRequest(BaseModel):
     channel: str = Field(default="zalo", description="Kênh đề xuất cho tin nhắn nháp (zalo/sms/email).")
+
+
+class RunCycleRequest(BaseModel):
+    channel: str = Field(default="zalo", description="Kênh đề xuất cho tin nhắn nháp.")
+    due_days: Optional[int] = Field(
+        default=None, ge=0, le=365,
+        description="Ngưỡng ngày chưa liên hệ để coi là 'cần chăm'. Trống → mặc định hệ thống.",
+    )
+    batch_limit: Optional[int] = Field(
+        default=None, ge=0, le=200,
+        description="Giới hạn số khách xử lý lần này (chống tốn token). Trống → mặc định.",
+    )
+    dry_run: bool = Field(
+        default=False, description="Chỉ xem trước danh sách ứng viên, KHÔNG gọi LLM / KHÔNG tạo nháp.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +99,83 @@ def list_salesmen(
 def stats(_admin: dict = Depends(require_admin)) -> dict:
     """Thống kê: tổng sale AI, đang hoạt động, tổng khách đã gán, tải trung bình."""
     return ai_salesman_store.compute_stats()
+
+
+# ---------------------------------------------------------------------------
+# AUTO-CARE: chạy chu kỳ chăm sóc tự động + hàng đợi hành động (NHÁP chờ duyệt)
+# (Khai báo TRƯỚC /{ais_id} để path 'run-cycle'/'care-queue' không bị nuốt.)
+# ---------------------------------------------------------------------------
+
+@router.post("/run-cycle")
+def run_cycle(
+    body: Optional[RunCycleRequest] = None,
+    admin: dict = Depends(require_admin),
+) -> dict:
+    """Quét khách ĐƯỢC GÁN cần chăm → chạy bộ não AI → tạo mục NHÁP vào hàng đợi.
+
+    Thiết kế để n8n/cron gọi định kỳ. AN TOÀN: CHỈ sinh NHÁP, KHÔNG gửi tin cho
+    khách. Có batch_limit chống tốn token; khách HOT dùng model mạnh hơn."""
+    b = body or RunCycleRequest()
+    return ai_care_engine.run_cycle(
+        due_days=b.due_days,
+        batch_limit=b.batch_limit,
+        channel=b.channel or "zalo",
+        requested_by=admin.get("id"),
+        dry_run=b.dry_run,
+    )
+
+
+@router.get("/care-queue")
+def list_care_queue(
+    status: Optional[str] = Query(default="pending", description="Lọc trạng thái: pending/approved/skipped/sent (mặc định pending)."),
+    ai_salesman_id: Optional[str] = Query(default=None),
+    lead_id: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    _admin: dict = Depends(require_admin),
+) -> dict:
+    """Danh sách mục hàng đợi chăm sóc (mặc định các NHÁP đang chờ duyệt)."""
+    # status="all" / "" → bỏ lọc trạng thái.
+    st = None if status in ("all", "", None) else status
+    return ai_care_queue_store.list_items(
+        status=st, ai_salesman_id=ai_salesman_id, lead_id=lead_id,
+        page=page, page_size=page_size,
+    )
+
+
+@router.get("/care-queue/stats")
+def care_queue_stats(_admin: dict = Depends(require_admin)) -> dict:
+    """Thống kê hàng đợi (đếm theo trạng thái) + cấu hình an toàn hiện hành."""
+    from app.core.settings import settings
+
+    stats = ai_care_queue_store.compute_stats()
+    stats["config"] = {
+        "ai_care_enabled": settings.ai_care_enabled,
+        "ai_care_auto_send": settings.ai_care_auto_send,
+        "ai_care_due_days": settings.ai_care_due_days,
+        "ai_care_batch_limit": settings.ai_care_batch_limit,
+    }
+    return stats
+
+
+@router.post("/care-queue/{item_id}/approve")
+def approve_care_item(item_id: str, admin: dict = Depends(require_admin)) -> dict:
+    """Duyệt 1 mục NHÁP. AN TOÀN: KHÔNG tự gửi tin (ai_care_auto_send mặc định TẮT);
+    chỉ đánh dấu approved để người thật gửi."""
+    item = ai_care_queue_store.approve(item_id, by=admin.get("id"))
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy mục hàng đợi: {item_id}")
+    return {"ok": True, "item": item, "auto_sent": False,
+            "note": "Đã duyệt — KHÔNG tự gửi. Nhân viên tự gửi tin sau khi duyệt."}
+
+
+@router.post("/care-queue/{item_id}/skip")
+def skip_care_item(item_id: str, admin: dict = Depends(require_admin)) -> dict:
+    """Bỏ qua 1 mục NHÁP (status=skipped)."""
+    item = ai_care_queue_store.skip(item_id, by=admin.get("id"))
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy mục hàng đợi: {item_id}")
+    return {"ok": True, "item": item}
 
 
 @router.get("/{ais_id}")
