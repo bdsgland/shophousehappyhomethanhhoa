@@ -8,7 +8,9 @@ import { BottomNav } from "@/components/pwa/BottomNav";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLanding = pathname === "/";
+  // "/" và các trang landing host-based (/landing/app, /landing/agency) render
+  // bare, không kèm app chrome (header/AuthBar/BottomNav) để giữ tông marketing.
+  const isLanding = pathname === "/" || pathname.startsWith("/landing");
 
   if (isLanding) {
     return <>{children}</>;
