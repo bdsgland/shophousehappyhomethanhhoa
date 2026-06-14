@@ -686,6 +686,120 @@ export async function fetchProject(slug: string): Promise<ProjectDoc | null> {
   }
 }
 
+// ----- Tin tức / Blog (public news API — đồng bộ toàn hệ thống) -----
+
+export type ArticleSEO = {
+  meta_title: string;
+  meta_description: string;
+  keywords: string[];
+  og_image: string;
+};
+
+export type NewsListItem = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  cover_image: string;
+  tags: string[];
+  category: string;
+  status: string;
+  published_at: string | null;
+  updated_at: string | null;
+  author: string | null;
+};
+
+export type NewsArticle = NewsListItem & {
+  content: string;
+  seo: ArticleSEO;
+  created_at: string | null;
+};
+
+export type NewsListResult = {
+  items: NewsListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+/** Danh sách bài ĐÃ xuất bản (public). Lỗi/không kết nối → null để UI fallback. */
+export async function fetchPublicNews(opts?: {
+  tag?: string;
+  category?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<NewsListResult | null> {
+  try {
+    const params = new URLSearchParams();
+    if (opts?.tag) params.set("tag", opts.tag);
+    if (opts?.category) params.set("category", opts.category);
+    if (opts?.page) params.set("page", String(opts.page));
+    if (opts?.pageSize) params.set("page_size", String(opts.pageSize));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(`${AGENT_ENGINE_URL}/news${qs}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as NewsListResult;
+  } catch {
+    return null;
+  }
+}
+
+/** Chi tiết 1 bài ĐÃ xuất bản (public). Không tồn tại / draft → null. */
+export async function fetchPublicArticle(
+  slug: string,
+): Promise<NewsArticle | null> {
+  try {
+    const res = await fetch(
+      `${AGENT_ENGINE_URL}/news/${encodeURIComponent(slug)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as NewsArticle;
+  } catch {
+    return null;
+  }
+}
+
+// ----- Cấu hình SEO site-wide (public, chỉ đọc) -----
+
+export type SeoPageOverride = {
+  title: string;
+  description: string;
+  keywords: string[];
+  og_image: string;
+};
+
+export type SeoSettings = {
+  site_name: string;
+  title_template: string;
+  default_title: string;
+  default_description: string;
+  default_keywords: string[];
+  default_og_image: string;
+  base_url: string;
+  twitter_handle: string;
+  robots: string;
+  pages: Record<string, SeoPageOverride>;
+  version: number;
+  updated_at: string | null;
+  updated_by: string | null;
+};
+
+/** Cấu hình SEO mặc định site-wide (public). Lỗi → null để dùng fallback tĩnh. */
+export async function fetchSeoSettings(): Promise<SeoSettings | null> {
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/seo/settings`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SeoSettings;
+  } catch {
+    return null;
+  }
+}
+
 // ----- Portal khách hàng (/client) -----
 
 /** Raw unit từ backend (giữ field tiếng Việt) cho phần gợi ý/yêu thích. */

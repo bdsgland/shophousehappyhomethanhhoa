@@ -71,6 +71,7 @@ import {
   fetchInventoryStats,
   fetchProject,
   fetchProjectDocuments,
+  fetchPublicNews,
   downloadProjectDocument,
   viewProjectDocument,
   type InventoryStats,
@@ -1414,11 +1415,52 @@ function DocumentsTab({ slug }: { slug: string }) {
 // ---------- 11. Tin tức ----------
 
 function NewsTab({ items }: { items: ProjectNewsItem[] }) {
+  // Ưu tiên tin tức đồng bộ từ news_store (public API); trống/lỗi → fallback
+  // nội dung dự án (project_store) → elc-data NEWS (qua prop items).
+  const [apiNews, setApiNews] = useState<ProjectNewsItem[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchPublicNews({ pageSize: 6 })
+      .then((data) => {
+        if (!active || !data || data.items.length === 0) return;
+        const mapped: ProjectNewsItem[] = data.items.map((n) => {
+          const d = n.published_at ? new Date(n.published_at) : null;
+          const date =
+            d && !Number.isNaN(d.getTime())
+              ? d.toLocaleDateString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : "";
+          return {
+            title: n.title,
+            date,
+            excerpt: n.excerpt,
+            img: n.cover_image,
+            url: `/news/${n.slug}`,
+          };
+        });
+        setApiNews(mapped);
+      })
+      .catch(() => {
+        /* giữ fallback */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const news = apiNews && apiNews.length > 0 ? apiNews : items;
+  // Link nội bộ (từ API) mở cùng tab; link ngoài (elc-data) mở tab mới.
+  const isInternal = (url: string) => url.startsWith("/");
+
   return (
     <div className="space-y-4">
       <SectionTitle>Tin tức dự án</SectionTitle>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((n, i) => (
+        {news.map((n, i) => (
           <article
             key={`${n.title}-${i}`}
             className="group flex flex-col overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
@@ -1441,8 +1483,8 @@ function NewsTab({ items }: { items: ProjectNewsItem[] }) {
               <p className="mt-2 flex-1 text-sm text-brand-700">{n.excerpt}</p>
               <a
                 href={n.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={isInternal(n.url) ? undefined : "_blank"}
+                rel={isInternal(n.url) ? undefined : "noopener noreferrer"}
                 className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold"
                 style={{ color: ACCENT }}
               >

@@ -9,10 +9,13 @@ import {
   PRICE_TABLE,
   SUBZONES,
 } from "@/components/dashboard/elc-data";
+import { fetchPublicNews } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title:
-    "Eurowindow Light City — Bừng sáng bên sông Mã | Bảng giá & tư vấn AI 24/7",
+  title: {
+    absolute:
+      "Eurowindow Light City — Bừng sáng bên sông Mã | Bảng giá & tư vấn AI 24/7",
+  },
   description:
     "Khu đô thị Eurowindow Light City 176ha tại phường Nguyệt Viên, TP Thanh Hoá. Nhận bảng giá, quỹ căn realtime, phiếu giá tự động và trợ lý AI tư vấn 24/7 cho khách hàng và chuyên viên kinh doanh.",
 };
@@ -72,8 +75,31 @@ function Logo() {
   );
 }
 
-export default function LandingAppPage() {
+// Map bài tin tức (public API) → shape thẻ tin của landing. Fallback elc-data.
+type LandingNews = { title: string; date: string; excerpt: string; img: string; url: string };
+
+function formatNewsDate(value: string | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+export default async function LandingAppPage() {
   const gallery = HERO_IMAGES.slice(0, 6);
+
+  // Tin tức đồng bộ từ news_store (public API); trống/lỗi → fallback elc-data NEWS.
+  const newsData = await fetchPublicNews({ pageSize: 3 });
+  const news: LandingNews[] =
+    newsData && newsData.items.length > 0
+      ? newsData.items.map((n) => ({
+          title: n.title,
+          date: formatNewsDate(n.published_at),
+          excerpt: n.excerpt,
+          img: n.cover_image,
+          url: `/news/${n.slug}`,
+        }))
+      : NEWS;
 
   return (
     <div className="min-h-screen bg-[#fbf9f5]">
@@ -437,7 +463,7 @@ export default function LandingAppPage() {
             Tin tức dự án
           </h2>
           <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {NEWS.slice(0, 3).map((n, i) => (
+            {news.slice(0, 3).map((n, i) => (
               <article
                 key={`${n.title}-${i}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"

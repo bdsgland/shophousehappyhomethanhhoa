@@ -14,6 +14,7 @@ import {
   Bot,
   UserSearch,
   Store,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   // Route cũ /inventory và /kb GIỮ NGUYÊN (không vỡ build / link cũ) — chỉ bỏ khỏi nav.
   { href: "/projects", label: "Dự án", icon: FolderKanban },
   { href: "/marketing", label: "AI Marketing", icon: Megaphone },
+  { href: "/seo", label: "SEO & Tin tức", icon: Newspaper },
   { href: "/crew", label: "Đội Sale AI", icon: Bot },
   { href: "/automation", label: "Automation", icon: Workflow },
   { href: "/settings", label: "Cấu hình", icon: Settings },

@@ -1770,3 +1770,111 @@ export function getProjectHistory(slug: string) {
     `/admin/projects/${encodeURIComponent(slug)}/history`,
   );
 }
+
+// ---------------------------------------------------------------------------
+// SEO & TIN TỨC — /admin/news/* (require_admin). Public chỉ đọc /news, /seo.
+// AI chỉ TẠO/ĐỀ XUẤT nội dung — admin tự bấm Lưu/Publish mới ghi.
+// ---------------------------------------------------------------------------
+
+// Import type đặt cuối file để không đụng khối import dùng chung ở đầu (hoisted).
+import type {
+  AIGenerateArticlePayload,
+  AIGenerateArticleResult,
+  AIOptimizeSEOPayload,
+  AIOptimizeSEOResult,
+  AISuggestKeywordsResult,
+  NewsArticle,
+  NewsCreatePayload,
+  NewsListResponse,
+  NewsUpdatePayload,
+  SeoSettings,
+  SeoSettingsUpdate,
+} from "./types";
+
+/** Danh sách bài (admin) — lọc status/tag/category + phân trang. */
+export function listNews(params?: {
+  status?: string;
+  tag?: string;
+  category?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.tag) q.set("tag", params.tag);
+  if (params?.category) q.set("category", params.category);
+  if (params?.page) q.set("page", String(params.page));
+  if (params?.page_size) q.set("page_size", String(params.page_size));
+  const qs = q.toString();
+  return apiFetch<NewsListResponse>(`/admin/news${qs ? `?${qs}` : ""}`);
+}
+
+/** Chi tiết 1 bài (đầy đủ content). */
+export function getNews(id: string) {
+  return apiFetch<NewsArticle>(`/admin/news/${encodeURIComponent(id)}`);
+}
+
+export function createNews(payload: NewsCreatePayload) {
+  return apiFetch<NewsArticle>("/admin/news", { method: "POST", body: payload });
+}
+
+export function updateNews(id: string, payload: NewsUpdatePayload) {
+  return apiFetch<NewsArticle>(`/admin/news/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteNews(id: string) {
+  return apiFetch<{ ok: boolean }>(`/admin/news/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function publishNews(id: string) {
+  return apiFetch<NewsArticle>(`/admin/news/${encodeURIComponent(id)}/publish`, {
+    method: "POST",
+  });
+}
+
+export function unpublishNews(id: string) {
+  return apiFetch<NewsArticle>(`/admin/news/${encodeURIComponent(id)}/unpublish`, {
+    method: "POST",
+  });
+}
+
+/** AI viết bài từ chủ đề/từ khoá — KHÔNG tự lưu. */
+export function aiGenerateArticle(payload: AIGenerateArticlePayload) {
+  return apiFetch<AIGenerateArticleResult>("/admin/news/ai-generate", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/** AI tối ưu meta SEO 1 bài — KHÔNG tự lưu. */
+export function aiOptimizeSeo(payload: AIOptimizeSEOPayload) {
+  return apiFetch<AIOptimizeSEOResult>("/admin/news/ai-optimize", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/** AI gợi ý từ khoá SEO cho 1 chủ đề. */
+export function aiSuggestKeywords(topic: string) {
+  return apiFetch<AISuggestKeywordsResult>("/admin/news/ai-suggest-keywords", {
+    method: "POST",
+    body: { topic },
+  });
+}
+
+/** Cấu hình SEO site-wide (admin). */
+export function getSeoSettings() {
+  return apiFetch<SeoSettings>("/admin/news/seo-settings");
+}
+
+export function updateSeoSettings(payload: SeoSettingsUpdate) {
+  return apiFetch<SeoSettings>("/admin/news/seo-settings", {
+    method: "PUT",
+    body: payload,
+  });
+}

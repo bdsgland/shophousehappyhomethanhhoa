@@ -202,6 +202,9 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("learning", "router", {}),
     ("projects", "router", {}),
     ("admin_projects", "router", {}),
+    ("admin_news", "admin_router", {}),  # SEO & Tin tức (admin CRUD + AI + seo-settings)
+    ("admin_news", "public_router", {}),  # PUBLIC: GET /news, /news/{slug} (chỉ published)
+    ("admin_news", "public_seo_router", {}),  # PUBLIC: GET /seo/settings (meta site-wide)
     ("sales_policy", "router", {}),
     ("integrations", "router", {}),
     ("api_keys", "router", {}),

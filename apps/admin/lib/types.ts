@@ -2361,3 +2361,145 @@ export interface AgencyStats {
   active: number;
   rejected: number;
 }
+
+// ---------------------------------------------------------------------------
+// SEO & TIN TỨC — /admin/news/* (require_admin). Khớp app/schemas/news.py.
+// ---------------------------------------------------------------------------
+
+export type NewsStatus = "draft" | "published";
+
+export interface ArticleSEO {
+  meta_title: string;
+  meta_description: string;
+  keywords: string[];
+  og_image: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  cover_image: string;
+  tags: string[];
+  category: string;
+  seo: ArticleSEO;
+  status: NewsStatus;
+  published_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  author: string | null;
+}
+
+export interface NewsListItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  cover_image: string;
+  tags: string[];
+  category: string;
+  status: NewsStatus;
+  published_at: string | null;
+  updated_at: string | null;
+  author: string | null;
+}
+
+export interface NewsListResponse {
+  items: NewsListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface NewsCreatePayload {
+  title: string;
+  slug?: string;
+  excerpt?: string;
+  content?: string;
+  cover_image?: string;
+  tags?: string[];
+  category?: string;
+  seo?: ArticleSEO;
+  status?: NewsStatus;
+  author?: string;
+}
+
+export type NewsUpdatePayload = Partial<NewsCreatePayload>;
+
+export interface AIGenerateArticlePayload {
+  topic: string;
+  tone?: string;
+  length?: "short" | "medium" | "long";
+  category?: string;
+  keywords?: string[];
+}
+
+export interface AIGenerateArticleResult {
+  used_llm: boolean;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  tags: string[];
+  category: string;
+  seo: ArticleSEO;
+  message?: string | null;
+}
+
+export interface AIOptimizeSEOPayload {
+  title?: string;
+  excerpt?: string;
+  content?: string;
+  keywords?: string[];
+}
+
+export interface AIOptimizeSEOResult {
+  used_llm: boolean;
+  seo: ArticleSEO;
+  suggestions: string[];
+  message?: string | null;
+}
+
+export interface AISuggestKeywordsResult {
+  used_llm: boolean;
+  keywords: string[];
+  message?: string | null;
+}
+
+export interface SeoPageOverride {
+  title: string;
+  description: string;
+  keywords: string[];
+  og_image: string;
+}
+
+export interface SeoSettings {
+  site_name: string;
+  title_template: string;
+  default_title: string;
+  default_description: string;
+  default_keywords: string[];
+  default_og_image: string;
+  base_url: string;
+  twitter_handle: string;
+  robots: string;
+  pages: Record<string, SeoPageOverride>;
+  version: number;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface SeoSettingsUpdate {
+  site_name?: string;
+  title_template?: string;
+  default_title?: string;
+  default_description?: string;
+  default_keywords?: string[];
+  default_og_image?: string;
+  base_url?: string;
+  twitter_handle?: string;
+  robots?: string;
+  pages?: Record<string, SeoPageOverride>;
+}

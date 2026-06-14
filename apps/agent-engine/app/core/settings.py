@@ -315,6 +315,21 @@ class Settings(BaseSettings):
     # max_tokens mỗi lần AI chỉnh 1 section (JSON có cấu trúc) — chặn chi phí.
     project_ai_max_tokens: int = 2000
 
+    # ----- SEO & TIN TỨC (news_store + seo_settings_store + ai_seo) -----
+    # Bài tin tức/blog — 1 file JSON collection {articles:[...]} (atomic + rotate),
+    # resolve giống marketing_store (DATA_DIR Railway volume / agent-engine / CWD).
+    news_file: str = "data/_runtime/news.json"
+    # Số bài giữ tối đa (rotate cũ nhất khi vượt) — chặn phình file.
+    news_keep: int = 2000
+    # Cấu hình SEO site-wide + override theo page key — 1 object JSON (version+backup).
+    seo_settings_file: str = "data/_runtime/seo_settings.json"
+    seo_settings_backup_keep: int = 10
+    # Model Claude cho AI SEO (viết bài + tối ưu meta). Trống → fallback llm_model
+    # (opus chất lượng copywriting tốt). Đổi qua env AI_SEO_MODEL nếu muốn rẻ hơn.
+    ai_seo_model: str = ""
+    # max_tokens mỗi lần sinh bài (bài dài) — chặn chi phí.
+    ai_seo_max_tokens: int = 3000
+
     # ----- TÀI CHÍNH (chi phí + doanh thu thủ công) -----
     # JSON store {costs:[], manual_revenue:[]} cho module "Tài chính" admin.
     # Doanh thu THẬT tổng hợp tự động từ hoa hồng (commission_store) + deal chốt;
