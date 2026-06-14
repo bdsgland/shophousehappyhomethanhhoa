@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -46,6 +47,24 @@ export default function AgencyAdminInventoryPage() {
         onRefresh={load}
         refreshing={loading}
       />
+
+      <Link
+        href="/agency-admin/quote"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 transition hover:border-orange-300 hover:bg-orange-100"
+      >
+        <div>
+          <div className="text-sm font-semibold text-orange-800">
+            Lập phiếu tính giá tự động
+          </div>
+          <div className="text-xs text-orange-700">
+            Chọn căn → tính giá theo chính sách CĐT (chiết khấu, VAT, KPBT, tiến
+            độ thanh toán)
+          </div>
+        </div>
+        <span className="shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white">
+          Mở phiếu →
+        </span>
+      </Link>
 
       {stats ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

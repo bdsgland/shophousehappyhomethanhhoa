@@ -13,6 +13,7 @@ import {
   fmtNum,
   useToast,
 } from "@/components/agency/AgencyKit";
+import { Customer360Block } from "@/components/agent/crm/Customer360Block";
 import {
   assignAgencyLead,
   fetchAgencyAdminLeads,
@@ -48,19 +49,6 @@ const STATUS_BADGE: Record<string, string> = {
   lost: "bg-brand-100 text-brand-600",
 };
 
-type Profile360 = {
-  basic?: Record<string, unknown>;
-  ai?: {
-    score?: number;
-    tier?: string | null;
-    reason?: string | null;
-    best_time?: string | null;
-    next_action?: { summary?: string; suggested_action?: string } | null;
-  };
-  stats?: Record<string, number | null>;
-  timeline?: Array<{ kind?: string; title?: string; note?: string; at?: string }>;
-};
-
 export default function AgencyAdminLeadsPage() {
   const [data, setData] = useState<AgencyLeadsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,9 +60,9 @@ export default function AgencyAdminLeadsPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile360 | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLeadId, setProfileLeadId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState("");
+  const [profileToken, setProfileToken] = useState<string | null>(null);
 
   const { show, node } = useToast();
 
@@ -127,22 +115,13 @@ export default function AgencyAdminLeadsPage() {
     }
   }
 
-  async function openProfile(lead: AgencyLeadRow) {
+  function openProfile(lead: AgencyLeadRow) {
     const token = readToken();
     if (!token) return;
-    setProfileOpen(true);
-    setProfile(null);
+    setProfileToken(token);
+    setProfileLeadId(lead.id);
     setProfileName(lead.name ?? "Khách hàng");
-    setProfileLoading(true);
-    try {
-      const p = (await fetchAgencyLeadProfile(token, lead.id)) as Profile360;
-      setProfile(p);
-    } catch (e) {
-      show(false, e instanceof Error ? e.message : "Không mở được hồ sơ.");
-      setProfileOpen(false);
-    } finally {
-      setProfileLoading(false);
-    }
+    setProfileOpen(true);
   }
 
   const team: AgencyTeamOption[] = data?.team ?? [];
@@ -298,10 +277,8 @@ export default function AgencyAdminLeadsPage() {
         title={`Hồ sơ 360° · ${profileName}`}
         onClose={() => setProfileOpen(false)}
       >
-        {profileLoading ? (
-          <AgencyLoading label="Đang dựng hồ sơ 360°…" />
-        ) : profile ? (
-          <Profile360View profile={profile} />
+        {profileOpen && profileToken && profileLeadId ? (
+          <AgencyLead360 token={profileToken} leadId={profileLeadId} />
         ) : (
           <EmptyState text="Chưa có dữ liệu hồ sơ." />
         )}
@@ -311,90 +288,19 @@ export default function AgencyAdminLeadsPage() {
   );
 }
 
-function Field({ label, value }: { label: string; value: unknown }) {
-  const text =
-    value === null || value === undefined || value === ""
-      ? "—"
-      : String(value);
+/**
+ * Hồ sơ 360° ĐẦY ĐỦ của 1 khách CỦA SÀN — tái dùng Customer360Block (giàu thông
+ * tin: hồ sơ, AI score/next-action, dòng thời gian đa kênh, kênh tương tác, giao
+ * dịch). readOnly: ẩn thao tác của sale (đăng care/gọi/chấm điểm). Dữ liệu lấy từ
+ * endpoint SCOPED của sàn (chống IDOR — không lộ khách của sàn khác).
+ */
+function AgencyLead360({ token, leadId }: { token: string; leadId: string }) {
   return (
-    <div className="flex justify-between gap-3 py-1 text-sm">
-      <span className="text-brand-500">{label}</span>
-      <span className="text-right font-medium text-brand-900">{text}</span>
-    </div>
-  );
-}
-
-function Profile360View({ profile }: { profile: Profile360 }) {
-  const basic = profile.basic ?? {};
-  const ai = profile.ai ?? {};
-  const stats = profile.stats ?? {};
-  const nba = ai.next_action;
-  const timeline = profile.timeline ?? [];
-  return (
-    <div className="space-y-4">
-      <Card title="Thông tin khách">
-        <Field label="Tên" value={basic.name} />
-        <Field label="SĐT" value={basic.phone} />
-        <Field label="Email" value={basic.email} />
-        <Field label="Nguồn" value={basic.source} />
-        <Field label="Khu vực" value={basic.region} />
-        <Field label="Sản phẩm" value={basic.product_type} />
-        <Field label="Ngân sách" value={basic.budget} />
-        <Field label="Sale phụ trách" value={basic.assigned_sale_name} />
-      </Card>
-
-      <Card title="Phân tích AI">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-brand-900">
-            {fmtNum(ai.score ?? 0)}
-          </span>
-          <TierBadge tier={ai.tier} />
-        </div>
-        {ai.reason ? (
-          <p className="mt-2 text-sm text-brand-700">Lý do: {ai.reason}</p>
-        ) : null}
-        {ai.best_time ? (
-          <p className="mt-1 text-sm text-brand-700">
-            Giờ liên hệ tốt: {ai.best_time}
-          </p>
-        ) : null}
-        {nba?.suggested_action ? (
-          <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
-            → {nba.suggested_action}
-          </p>
-        ) : null}
-      </Card>
-
-      <Card title="Chỉ số tương tác">
-        <Field label="Tổng liên hệ" value={stats.contact_count} />
-        <Field
-          label="Liên hệ hiệu quả"
-          value={stats.effective_contact_count}
-        />
-        <Field label="Lượt đặt lịch" value={stats.booking_count} />
-        <Field label="Số ngày từ lần cuối" value={stats.days_since_contact} />
-      </Card>
-
-      {timeline.length > 0 ? (
-        <Card title="Dòng thời gian">
-          <ul className="space-y-2">
-            {timeline.slice(0, 12).map((t, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-brand-50 bg-brand-50/40 px-3 py-2 text-xs text-brand-700"
-              >
-                <div className="font-medium text-brand-900">
-                  {t.title ?? t.kind ?? "Hoạt động"}
-                </div>
-                {t.note ? <div className="mt-0.5">{t.note}</div> : null}
-                {t.at ? (
-                  <div className="mt-0.5 text-brand-400">{t.at}</div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
-    </div>
+    <Customer360Block
+      token={token}
+      leadId={leadId}
+      readOnly
+      loadProfile={() => fetchAgencyLeadProfile(token, leadId)}
+    />
   );
 }

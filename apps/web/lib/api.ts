@@ -1,3 +1,5 @@
+import type { Profile360 } from "@/lib/crm";
+
 export const AGENT_ENGINE_URL =
   process.env.NEXT_PUBLIC_AGENT_ENGINE_URL || "http://localhost:8000";
 
@@ -1438,8 +1440,8 @@ export function rescoreAgencyLeads(
 export function fetchAgencyLeadProfile(
   token: string,
   leadId: string,
-): Promise<Record<string, unknown>> {
-  return managerRequest(
+): Promise<Profile360> {
+  return managerRequest<Profile360>(
     `/agency-admin/leads/${leadId}/profile-360`,
     token,
   );

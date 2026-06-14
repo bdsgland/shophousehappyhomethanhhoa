@@ -218,9 +218,22 @@ function CareComposer({
 export function Customer360Block({
   token,
   leadId,
+  loadProfile,
+  readOnly = false,
 }: {
   token: string;
   leadId: string;
+  /**
+   * Nguồn dữ liệu hồ sơ 360°. Mặc định gọi /crm/leads/{id}/profile-360 (portal
+   * sale). Khu QUẢN TRỊ SÀN truyền hàm trỏ sang endpoint SCOPED của sàn
+   * (/agency-admin/leads/{id}/profile-360) để KHÔNG lộ dữ liệu sàn khác.
+   */
+  loadProfile?: (rescore: boolean) => Promise<Profile360>;
+  /**
+   * Chỉ-đọc: ẩn các thao tác của sale (đăng care, gọi điện, chấm điểm lại) —
+   * dùng cho chủ sàn xem hồ sơ khách của sàn.
+   */
+  readOnly?: boolean;
 }) {
   const [p, setP] = useState<Profile360 | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -228,14 +241,17 @@ export function Customer360Block({
 
   const load = useCallback(
     (rescore = false) => {
-      return getProfile360(token, leadId, rescore)
+      const fetcher = loadProfile
+        ? loadProfile(rescore)
+        : getProfile360(token, leadId, rescore);
+      return fetcher
         .then((d) => {
           setP(d);
           setError(null);
         })
         .catch((e: Error) => setError(e.message));
     },
-    [token, leadId],
+    [token, leadId, loadProfile],
   );
 
   useEffect(() => {
@@ -310,14 +326,16 @@ export function Customer360Block({
             Giai đoạn: {pipeline.label}
           </span>
         </div>
-        <div className="mt-3">
-          <CallButton
-            token={token}
-            leadId={leadId}
-            phone={basic.phone}
-            onEnded={() => load()}
-          />
-        </div>
+        {readOnly ? null : (
+          <div className="mt-3">
+            <CallButton
+              token={token}
+              leadId={leadId}
+              phone={basic.phone}
+              onEnded={() => load()}
+            />
+          </div>
+        )}
         {/* Liên hệ nhanh đa kênh — luôn hiện (kể cả chưa có lịch sử) */}
         <div className="mt-2 flex flex-wrap gap-1.5">
           {basic.phone && (
@@ -381,22 +399,26 @@ export function Customer360Block({
             )}
           </div>
         )}
-        <button
-          onClick={rescore}
-          disabled={rescoring}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-700 transition hover:border-amber-300 hover:text-amber-600 disabled:opacity-60"
-        >
-          <RefreshCw size={15} className={rescoring ? "animate-spin" : ""} />
-          {rescoring ? "Đang chấm…" : "Chấm điểm lại bằng AI"}
-        </button>
+        {readOnly ? null : (
+          <button
+            onClick={rescore}
+            disabled={rescoring}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-700 transition hover:border-amber-300 hover:text-amber-600 disabled:opacity-60"
+          >
+            <RefreshCw size={15} className={rescoring ? "animate-spin" : ""} />
+            {rescoring ? "Đang chấm…" : "Chấm điểm lại bằng AI"}
+          </button>
+        )}
       </div>
 
       {/* Dòng thời gian + tường hoạt động chăm sóc */}
       <div>
         <h4 className="text-sm font-bold text-brand-900">Dòng thời gian ({timeline.length})</h4>
-        <div className="mt-2">
-          <CareComposer token={token} leadId={leadId} onPosted={prependTimeline} />
-        </div>
+        {readOnly ? null : (
+          <div className="mt-2">
+            <CareComposer token={token} leadId={leadId} onPosted={prependTimeline} />
+          </div>
+        )}
         {timeline.length === 0 ? (
           <p className="mt-2 text-sm text-brand-400">Chưa có hoạt động nào.</p>
         ) : (

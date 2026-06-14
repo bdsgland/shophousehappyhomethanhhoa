@@ -627,7 +627,7 @@ const DEFAULT_POLICY: SalesPolicyConfig = {
   version: 0,
 };
 
-function PolicyQuoteTab({
+export function PolicyQuoteTab({
   token,
   user,
   initialUnit,

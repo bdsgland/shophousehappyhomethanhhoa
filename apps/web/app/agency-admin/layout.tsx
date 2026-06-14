@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/agency-admin/commission", label: "Hoa hồng" },
   { href: "/agency-admin/assistant", label: "Trợ lý AI" },
   { href: "/agency-admin/inventory", label: "Bảng hàng" },
+  { href: "/agency-admin/quote", label: "Phiếu tính giá" },
   { href: "/agency-admin/training", label: "Đào tạo" },
   { href: "/agency-onboarding", label: "Hồ sơ sàn" },
   { href: "/agency-admin/account", label: "Tài khoản" },

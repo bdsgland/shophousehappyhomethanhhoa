@@ -79,6 +79,22 @@ def require_sale_or_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+def require_quote_user(user: dict = Depends(get_current_user)) -> dict:
+    """Cho phép admin + sale + CHỦ SÀN (agency) lập/tải PHIẾU TÍNH GIÁ.
+
+    Phiếu tính giá chỉ TÍNH/HIỂN THỊ dựa trên quỹ căn dùng chung + chính sách CĐT
+    (không chứa dữ liệu riêng của sàn nào, không side-effect chéo sàn), nên role
+    'agency' được phép — tách riêng khỏi Kho học tập (vẫn chỉ admin/sale). Client
+    và vai trò khác bị chặn.
+    """
+    if user.get("role") not in ("admin", "sale", "agency"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ Sale, Quản trị viên và Chủ sàn được lập phiếu tính giá",
+        )
+    return user
+
+
 def _to_document_model(doc: dict) -> LearningDocument:
     indexed_at = doc.get("indexed_at")
     if isinstance(indexed_at, str):
@@ -496,7 +512,7 @@ def get_sales_policy() -> SalesPolicyConfig:
 @router.post("/policy-quote", response_model=PolicyQuoteResponse)
 def create_policy_quote(
     req: PolicyQuoteRequest,
-    user: dict = Depends(require_sale_or_admin),
+    user: dict = Depends(require_quote_user),
 ) -> PolicyQuoteResponse:
     from app.api import inventory as inventory_module
 
@@ -589,7 +605,7 @@ def create_policy_quote(
 @router.get("/policy-quotes/{quote_id}/download")
 def download_policy_quote(
     quote_id: str,
-    _user: dict = Depends(require_sale_or_admin),
+    _user: dict = Depends(require_quote_user),
 ) -> FileResponse:
     path = learning_store.quote_abspath(quote_id)
     if not path.exists():
