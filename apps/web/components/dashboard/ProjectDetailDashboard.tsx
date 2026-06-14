@@ -343,7 +343,7 @@ export function ProjectDetailDashboard({
         )}
         {activeTab === "tien-do" && <TimelineTab items={timeline} />}
         {activeTab === "tai-lieu" && <DocumentsTab slug={slug} />}
-        {activeTab === "tin-tuc" && <NewsTab items={news} />}
+        {activeTab === "tin-tuc" && <NewsTab items={news} slug={slug} />}
       </div>
     </div>
     {/* Nút hành động nổi theo vai trò (góc dưới-trái, tránh ChatWidget bên phải) */}
@@ -1414,14 +1414,14 @@ function DocumentsTab({ slug }: { slug: string }) {
 
 // ---------- 11. Tin tức ----------
 
-function NewsTab({ items }: { items: ProjectNewsItem[] }) {
+function NewsTab({ items, slug }: { items: ProjectNewsItem[]; slug: string }) {
   // Ưu tiên tin tức đồng bộ từ news_store (public API); trống/lỗi → fallback
   // nội dung dự án (project_store) → elc-data NEWS (qua prop items).
   const [apiNews, setApiNews] = useState<ProjectNewsItem[] | null>(null);
 
   useEffect(() => {
     let active = true;
-    fetchPublicNews({ pageSize: 6 })
+    fetchPublicNews({ projectSlug: slug, limit: 6 })
       .then((data) => {
         if (!active || !data || data.items.length === 0) return;
         const mapped: ProjectNewsItem[] = data.items.map((n) => {
@@ -1450,11 +1450,22 @@ function NewsTab({ items }: { items: ProjectNewsItem[] }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [slug]);
 
   const news = apiNews && apiNews.length > 0 ? apiNews : items;
-  // Link nội bộ (từ API) mở cùng tab; link ngoài (elc-data) mở tab mới.
+  // Toàn bộ link tin tức là nội bộ; chỉ mở tab mới nếu vì lý do nào đó là link ngoài.
   const isInternal = (url: string) => url.startsWith("/");
+
+  if (news.length === 0) {
+    return (
+      <div className="space-y-4">
+        <SectionTitle>Tin tức dự án</SectionTitle>
+        <p className="rounded-xl border border-dashed border-brand-200 bg-white p-6 text-sm text-brand-600">
+          Chưa có tin tức.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

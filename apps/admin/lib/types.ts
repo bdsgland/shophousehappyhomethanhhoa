@@ -2384,6 +2384,7 @@ export interface NewsArticle {
   cover_image: string;
   tags: string[];
   category: string;
+  project_slug?: string | null;
   seo: ArticleSEO;
   status: NewsStatus;
   published_at: string | null;
@@ -2400,6 +2401,7 @@ export interface NewsListItem {
   cover_image: string;
   tags: string[];
   category: string;
+  project_slug?: string | null;
   status: NewsStatus;
   published_at: string | null;
   updated_at: string | null;
@@ -2421,6 +2423,7 @@ export interface NewsCreatePayload {
   cover_image?: string;
   tags?: string[];
   category?: string;
+  project_slug?: string | null;
   seo?: ArticleSEO;
   status?: NewsStatus;
   author?: string;

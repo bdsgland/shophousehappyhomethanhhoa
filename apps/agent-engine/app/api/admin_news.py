@@ -155,12 +155,13 @@ def list_news(
     status: str | None = None,
     tag: str | None = None,
     category: str | None = None,
+    project_slug: str | None = None,
     page: int = 1,
     page_size: int = 20,
     _admin: dict = Depends(require_admin),
 ) -> NewsListResponse:
     data = news_store.list_articles(
-        status=status, tag=tag, category=category,
+        status=status, tag=tag, category=category, project_slug=project_slug,
         page=page, page_size=page_size, summary=True,
     )
     return NewsListResponse(**data)
@@ -235,12 +236,19 @@ def unpublish_news(article_id: str, _admin: dict = Depends(require_admin)) -> Ne
 def public_list_news(
     tag: str | None = None,
     category: str | None = None,
+    project_slug: str | None = None,
+    limit: int | None = None,
     page: int = 1,
     page_size: int = 12,
 ) -> NewsListResponse:
-    """Danh sách bài ĐÃ xuất bản (CÔNG KHAI) — phân trang + lọc tag/category."""
+    """Danh sách bài ĐÃ xuất bản (CÔNG KHAI).
+
+    Lọc tuỳ chọn: ?tag, ?category, ?project_slug (tin gắn 1 dự án).
+    ?limit=N: lấy nhanh N bài mới nhất (cho widget tin tức trên các trang user).
+    """
     data = news_store.list_articles(
         status="published", tag=tag, category=category,
+        project_slug=project_slug, limit=limit,
         page=page, page_size=page_size, summary=True,
     )
     return NewsListResponse(**data)

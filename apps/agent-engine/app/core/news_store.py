@@ -146,6 +146,7 @@ def _to_summary(a: dict) -> dict:
         "cover_image": a.get("cover_image", ""),
         "tags": a.get("tags") or [],
         "category": a.get("category", ""),
+        "project_slug": a.get("project_slug") or None,
         "status": a.get("status", "draft"),
         "published_at": a.get("published_at"),
         "updated_at": a.get("updated_at"),
@@ -176,6 +177,7 @@ def create(payload: dict, author: Optional[str] = None) -> dict:
             "cover_image": cover,
             "tags": _clean_tags(payload.get("tags")),
             "category": (payload.get("category") or "").strip(),
+            "project_slug": (payload.get("project_slug") or "").strip() or None,
             "seo": _seo_dict(payload.get("seo"), title, excerpt, cover),
             "status": status,
             "published_at": now if status == "published" else None,
@@ -201,6 +203,8 @@ def list_articles(
     status: Optional[str] = None,
     tag: Optional[str] = None,
     category: Optional[str] = None,
+    project_slug: Optional[str] = None,
+    limit: Optional[int] = None,
     page: int = 1,
     page_size: int = 20,
     summary: bool = True,
@@ -218,12 +222,19 @@ def list_articles(
         rows = [a for a in rows if tag in (a.get("tags") or [])]
     if category:
         rows = [a for a in rows if (a.get("category") or "") == category]
+    if project_slug:
+        ps = str(project_slug).strip().lower()
+        rows = [a for a in rows if (a.get("project_slug") or "").lower() == ps]
 
     def _sort_key(a: dict) -> str:
         return a.get("published_at") or a.get("created_at") or ""
 
     rows.sort(key=_sort_key, reverse=True)
     total = len(rows)
+    if limit is not None:
+        # Shortcut "?limit=N" cho widget tin tức: trang 1, tối đa N bài.
+        page = 1
+        page_size = max(1, min(100, int(limit)))
     page = max(1, int(page))
     page_size = max(1, min(100, int(page_size)))
     start = (page - 1) * page_size
@@ -276,6 +287,8 @@ def update(article_id: str, fields: dict) -> Optional[dict]:
                 target[key] = str(fields[key]).strip() if key != "content" else fields[key]
         if fields.get("tags") is not None:
             target["tags"] = _clean_tags(fields["tags"])
+        if fields.get("project_slug") is not None:
+            target["project_slug"] = str(fields["project_slug"]).strip() or None
         if fields.get("seo") is not None:
             target["seo"] = _seo_dict(
                 fields["seo"], target.get("title", ""),

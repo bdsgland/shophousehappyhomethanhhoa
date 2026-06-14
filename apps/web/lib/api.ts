@@ -703,6 +703,7 @@ export type NewsListItem = {
   cover_image: string;
   tags: string[];
   category: string;
+  project_slug: string | null;
   status: string;
   published_at: string | null;
   updated_at: string | null;
@@ -726,6 +727,8 @@ export type NewsListResult = {
 export async function fetchPublicNews(opts?: {
   tag?: string;
   category?: string;
+  projectSlug?: string;
+  limit?: number;
   page?: number;
   pageSize?: number;
 }): Promise<NewsListResult | null> {
@@ -733,6 +736,8 @@ export async function fetchPublicNews(opts?: {
     const params = new URLSearchParams();
     if (opts?.tag) params.set("tag", opts.tag);
     if (opts?.category) params.set("category", opts.category);
+    if (opts?.projectSlug) params.set("project_slug", opts.projectSlug);
+    if (opts?.limit) params.set("limit", String(opts.limit));
     if (opts?.page) params.set("page", String(opts.page));
     if (opts?.pageSize) params.set("page_size", String(opts.pageSize));
     const qs = params.toString() ? `?${params.toString()}` : "";

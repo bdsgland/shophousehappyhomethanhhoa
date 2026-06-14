@@ -360,8 +360,8 @@ export const DOCUMENTS: {
   { name: "Chính sách bán hàng đợt 1", type: "PDF", size: "—", date: "05/11/2025", href: "#", ready: false },
 ];
 
-// ----- Tin tức (tin thật, link về website chính thức) -----
-const NEWS_URL = "https://eurowindowlightcity.vn";
+// ----- Tin tức (fallback tĩnh) — link về kho tin nội bộ, không trỏ web ngoài -----
+const NEWS_URL = "/news";
 
 export const NEWS: {
   title: string;

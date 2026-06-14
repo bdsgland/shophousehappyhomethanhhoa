@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import {
   CONNECTIONS,
   HERO_IMAGES,
-  NEWS,
   OVERVIEW_ROWS,
   PRICE_TABLE,
   SUBZONES,
@@ -88,7 +87,7 @@ function formatNewsDate(value: string | null): string {
 export default async function LandingAppPage() {
   const gallery = HERO_IMAGES.slice(0, 6);
 
-  // Tin tức đồng bộ từ news_store (public API); trống/lỗi → fallback elc-data NEWS.
+  // Tin tức đồng bộ từ news_store (public API). Trống/lỗi → không hiển thị fallback link ngoài.
   const newsData = await fetchPublicNews({ pageSize: 3 });
   const news: LandingNews[] =
     newsData && newsData.items.length > 0
@@ -99,7 +98,7 @@ export default async function LandingAppPage() {
           img: n.cover_image,
           url: `/news/${n.slug}`,
         }))
-      : NEWS;
+      : [];
 
   return (
     <div className="min-h-screen bg-[#fbf9f5]">
@@ -462,42 +461,56 @@ export default async function LandingAppPage() {
           <h2 className="text-xl font-bold text-brand-900 sm:text-2xl">
             Tin tức dự án
           </h2>
-          <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {news.slice(0, 3).map((n, i) => (
-              <article
-                key={`${n.title}-${i}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
-              >
-                <div className="aspect-video overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={n.img}
-                    alt={n.title}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <span className="text-xs font-medium text-brand-600">
-                    {n.date}
-                  </span>
-                  <h3 className="mt-1 font-bold leading-snug text-brand-900">
-                    {n.title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm text-brand-700">
-                    {n.excerpt}
-                  </p>
-                  <a
-                    href={n.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold text-brand-600"
+          {news.length === 0 ? (
+            <p className="mt-7 rounded-2xl border border-dashed border-brand-200 bg-white p-6 text-sm text-brand-600">
+              Chưa có tin tức.
+            </p>
+          ) : (
+            <>
+              <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {news.slice(0, 3).map((n, i) => (
+                  <article
+                    key={`${n.title}-${i}`}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
                   >
-                    Đọc tiếp →
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
+                    <div className="aspect-video overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={n.img}
+                        alt={n.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <span className="text-xs font-medium text-brand-600">
+                        {n.date}
+                      </span>
+                      <h3 className="mt-1 font-bold leading-snug text-brand-900">
+                        {n.title}
+                      </h3>
+                      <p className="mt-2 flex-1 text-sm text-brand-700">
+                        {n.excerpt}
+                      </p>
+                      <Link
+                        href={n.url}
+                        className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold text-brand-600"
+                      >
+                        Đọc tiếp →
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="mt-7">
+                <Link
+                  href="/news"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
+                >
+                  Xem thêm →
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

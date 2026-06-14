@@ -39,6 +39,7 @@ class NewsArticle(BaseModel):
     cover_image: str = ""
     tags: list[str] = Field(default_factory=list)
     category: str = ""
+    project_slug: Optional[str] = None  # gắn dự án (slug) — None = tin chung
     seo: ArticleSEO = Field(default_factory=ArticleSEO)
     status: str = "draft"  # draft | published
     published_at: Optional[str] = None
@@ -57,6 +58,7 @@ class NewsCreate(BaseModel):
     cover_image: str = ""
     tags: list[str] = Field(default_factory=list)
     category: str = ""
+    project_slug: Optional[str] = None
     seo: Optional[ArticleSEO] = None
     status: str = "draft"
     author: Optional[str] = None
@@ -72,6 +74,7 @@ class NewsUpdate(BaseModel):
     cover_image: Optional[str] = None
     tags: Optional[list[str]] = None
     category: Optional[str] = None
+    project_slug: Optional[str] = None
     seo: Optional[ArticleSEO] = None
     status: Optional[str] = None
     author: Optional[str] = None
@@ -87,6 +90,7 @@ class NewsListItem(BaseModel):
     cover_image: str = ""
     tags: list[str] = Field(default_factory=list)
     category: str = ""
+    project_slug: Optional[str] = None
     status: str = "draft"
     published_at: Optional[str] = None
     updated_at: Optional[str] = None

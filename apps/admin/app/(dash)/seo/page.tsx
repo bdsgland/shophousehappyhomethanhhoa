@@ -310,6 +310,7 @@ type ArticleForm = {
   cover_image: string;
   tags: string;
   category: string;
+  project_slug: string;
   status: NewsStatus;
   meta_title: string;
   meta_description: string;
@@ -325,6 +326,7 @@ const EMPTY_ARTICLE: ArticleForm = {
   cover_image: "",
   tags: "",
   category: "",
+  project_slug: "",
   status: "draft",
   meta_title: "",
   meta_description: "",
@@ -341,6 +343,7 @@ function articleToForm(a: NewsArticle): ArticleForm {
     cover_image: a.cover_image,
     tags: (a.tags ?? []).join(", "),
     category: a.category,
+    project_slug: a.project_slug ?? "",
     status: a.status,
     meta_title: a.seo?.meta_title ?? "",
     meta_description: a.seo?.meta_description ?? "",
@@ -407,6 +410,7 @@ function ArticleEditor({
         cover_image: form.cover_image.trim(),
         tags: parseTags(form.tags),
         category: form.category.trim(),
+        project_slug: form.project_slug.trim(),
         status: form.status,
         seo,
       };
@@ -487,6 +491,16 @@ function ArticleEditor({
                 {showPreview ? "Sửa nội dung" : "Xem trước"}
               </Button>
             </div>
+            <Field
+              label="Gắn dự án (slug)"
+              hint="Để trống = tin chung (hiển thị mọi trang). Nhập slug dự án để bài chỉ vào tab Tin tức của dự án đó."
+            >
+              <Input
+                value={form.project_slug}
+                onChange={(e) => setForm({ ...form, project_slug: e.target.value })}
+                placeholder="vd: eurowindow-light-city"
+              />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Ảnh bìa (URL)">
                 <Input
