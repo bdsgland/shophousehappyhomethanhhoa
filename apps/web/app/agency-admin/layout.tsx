@@ -21,10 +21,13 @@ type NavItem = { href: string; label: string };
 
 const NAV: NavItem[] = [
   { href: "/agency-admin", label: "Tổng quan" },
-  { href: "/agency-admin/team", label: "Đội sale" },
   { href: "/agency-admin/leads", label: "CRM khách của sàn" },
+  { href: "/agency-admin/team", label: "Đội sale" },
+  { href: "/agency-admin/ai-sales", label: "Đội Sale AI" },
+  { href: "/agency-admin/pipeline", label: "Pipeline" },
   { href: "/agency-admin/report", label: "Báo cáo" },
   { href: "/agency-admin/commission", label: "Hoa hồng" },
+  { href: "/agency-admin/assistant", label: "Trợ lý AI" },
   { href: "/agency-admin/inventory", label: "Bảng hàng" },
   { href: "/agency-admin/training", label: "Đào tạo" },
   { href: "/agency-onboarding", label: "Hồ sơ sàn" },

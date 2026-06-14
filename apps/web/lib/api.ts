@@ -1250,9 +1250,27 @@ export type AgencyAdminKpi = {
   commission: number | null;
 };
 
+export type AgencyTrendPoint = {
+  month: string;
+  label: string;
+  new_leads: number;
+  customers: number;
+};
+
+export type AgencyFunnelStep = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+export type AgencySource = { source: string; count: number };
+
 export type AgencyAdminOverview = {
   agency: AgencyAdminInfo;
   kpi: AgencyAdminKpi;
+  trends?: AgencyTrendPoint[];
+  funnel?: AgencyFunnelStep[];
+  sources?: AgencySource[];
   notes?: Record<string, string>;
 };
 
@@ -1267,13 +1285,27 @@ export type AgencyTeamMember = {
   created_at: string | null;
   leads_count: number;
   customers_count: number;
+  hot_count?: number;
+  conversion_rate?: number;
+};
+
+export type AgencySuggestion = {
+  severity: "high" | "medium" | "low" | string;
+  title: string;
+  detail: string;
 };
 
 export type AgencyTeamResponse = {
   agency_id: string;
   total: number;
   items: AgencyTeamMember[];
+  suggestions?: AgencySuggestion[];
 };
+
+export type AgencyNextAction = {
+  summary?: string;
+  suggested_action?: string;
+} | null;
 
 export type AgencyLeadRow = {
   id: string;
@@ -1283,15 +1315,24 @@ export type AgencyLeadRow = {
   status: string;
   source: string | null;
   assigned_sale_id: string | null;
+  assigned_sale_name?: string | null;
   ai_score: number;
+  ai_tier?: string | null;
+  ai_reason?: string | null;
+  ai_best_time?: string | null;
+  ai_next_action?: AgencyNextAction;
+  days_since_contact?: number | null;
   created_at: string | null;
   updated_at: string | null;
 };
+
+export type AgencyTeamOption = { id: string; full_name: string | null };
 
 export type AgencyLeadsResponse = {
   agency_id: string;
   total: number;
   items: AgencyLeadRow[];
+  team?: AgencyTeamOption[];
 };
 
 export type AgencyReportBySale = {
@@ -1317,6 +1358,9 @@ export type AgencyReport = {
     commission: number | null;
   };
   by_sale: AgencyReportBySale[];
+  trends?: AgencyTrendPoint[];
+  funnel?: AgencyFunnelStep[];
+  sources?: AgencySource[];
   notes?: Record<string, string>;
 };
 
@@ -1353,17 +1397,259 @@ export function fetchAgencyAdminTeam(
 
 export function fetchAgencyAdminLeads(
   token: string,
-  opts?: { status?: string; source?: string; search?: string },
+  opts?: { status?: string; source?: string; search?: string; tier?: string },
 ): Promise<AgencyLeadsResponse> {
   const params = new URLSearchParams();
   if (opts?.status) params.set("status", opts.status);
   if (opts?.source) params.set("source", opts.source);
   if (opts?.search) params.set("search", opts.search);
+  if (opts?.tier) params.set("tier", opts.tier);
   const qs = params.toString() ? `?${params.toString()}` : "";
   return managerRequest<AgencyLeadsResponse>(
     `/agency-admin/leads${qs}`,
     token,
   );
+}
+
+// ----- Phân công khách / chấm điểm lại AI / hồ sơ 360 (scoped) -----
+
+export function assignAgencyLead(
+  token: string,
+  leadId: string,
+  saleId: string,
+): Promise<{ ok: boolean; lead: AgencyLeadRow }> {
+  return managerRequest(`/agency-admin/leads/${leadId}/assign`, token, {
+    method: "POST",
+    body: { sale_id: saleId },
+  });
+}
+
+export function rescoreAgencyLeads(
+  token: string,
+  limit = 40,
+): Promise<{ ok: boolean; scored: number; requested: number }> {
+  return managerRequest(
+    `/agency-admin/leads/rescore?limit=${limit}`,
+    token,
+    { method: "POST" },
+  );
+}
+
+export function fetchAgencyLeadProfile(
+  token: string,
+  leadId: string,
+): Promise<Record<string, unknown>> {
+  return managerRequest(
+    `/agency-admin/leads/${leadId}/profile-360`,
+    token,
+  );
+}
+
+// ----- Pipeline (kanban) scoped -----
+
+export type AgencyPipelineCard = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  status: string;
+  ai_score: number;
+  ai_tier?: string | null;
+  assigned_sale_name?: string | null;
+  stage: string;
+  updated_at: string | null;
+};
+
+export type AgencyPipelineStage = {
+  key: string;
+  label: string;
+  rank: number;
+  count: number;
+  leads: AgencyPipelineCard[];
+};
+
+export type AgencyPipelineResponse = {
+  agency_id: string;
+  stages: AgencyPipelineStage[];
+  total: number;
+};
+
+export function fetchAgencyPipeline(
+  token: string,
+): Promise<AgencyPipelineResponse> {
+  return managerRequest<AgencyPipelineResponse>(
+    "/agency-admin/pipeline",
+    token,
+  );
+}
+
+// ----- Đội Sale AI — hàng đợi chăm sóc scoped -----
+
+export type AgencyCareItem = {
+  id: string;
+  lead_id: string;
+  lead_name?: string | null;
+  ai_salesman_name?: string | null;
+  action_type?: string | null;
+  channel?: string | null;
+  draft?: string | null;
+  suggested_time?: string | null;
+  summary?: string | null;
+  reason?: string | null;
+  status: string;
+  created_at?: string | null;
+};
+
+export type AgencyCareQueueResponse = {
+  agency_id: string;
+  total: number;
+  page: number;
+  page_size: number;
+  items: AgencyCareItem[];
+  stats: {
+    pending: number;
+    approved: number;
+    skipped: number;
+    sent: number;
+    total: number;
+  };
+};
+
+export function fetchAgencyCareQueue(
+  token: string,
+  status = "pending",
+): Promise<AgencyCareQueueResponse> {
+  return managerRequest<AgencyCareQueueResponse>(
+    `/agency-admin/care-queue?status=${encodeURIComponent(status)}`,
+    token,
+  );
+}
+
+export type AgencyCareRunResult = {
+  ok: boolean;
+  queued?: number;
+  scanned_candidates?: number;
+  dry_run?: boolean;
+  enabled?: boolean;
+  note?: string;
+  items?: unknown[];
+  errors?: unknown[];
+};
+
+export function runAgencyCareCycle(
+  token: string,
+  body?: { dry_run?: boolean; batch_limit?: number },
+): Promise<AgencyCareRunResult> {
+  return managerRequest<AgencyCareRunResult>(
+    "/agency-admin/care-queue/run",
+    token,
+    { method: "POST", body: body ?? {} },
+  );
+}
+
+export function approveAgencyCareItem(
+  token: string,
+  itemId: string,
+): Promise<{ ok: boolean }> {
+  return managerRequest(
+    `/agency-admin/care-queue/${itemId}/approve`,
+    token,
+    { method: "POST" },
+  );
+}
+
+export function skipAgencyCareItem(
+  token: string,
+  itemId: string,
+): Promise<{ ok: boolean }> {
+  return managerRequest(
+    `/agency-admin/care-queue/${itemId}/skip`,
+    token,
+    { method: "POST" },
+  );
+}
+
+// ----- AI: đề xuất cải tiến điều hành sàn (scoped) -----
+
+export type AgencyImprovement = {
+  title: string;
+  area?: string;
+  severity?: "high" | "medium" | "low" | string;
+  detail?: string;
+  suggested_action?: string;
+};
+
+export type AgencyImprovementsResponse = {
+  generated_by: "ai" | "fallback" | string;
+  generated_at: string;
+  summary?: string;
+  improvements: AgencyImprovement[];
+};
+
+export function fetchAgencyImprovements(
+  token: string,
+  focus?: string,
+): Promise<AgencyImprovementsResponse> {
+  const qs = focus ? `?focus=${encodeURIComponent(focus)}` : "";
+  return managerRequest<AgencyImprovementsResponse>(
+    `/agency-admin/improvements${qs}`,
+    token,
+    { method: "POST" },
+  );
+}
+
+// ----- AI: trợ lý điều hành sàn (chat) -----
+
+export type AgencyAssistantLead = {
+  name: string | null;
+  status: string;
+  ai_score: number;
+  ai_tier?: string | null;
+  ai_next_action?: string | null;
+};
+
+export type AgencyAssistantResponse = {
+  answer: string;
+  source: "ai" | "fallback" | string;
+  top_priority_leads: AgencyAssistantLead[];
+};
+
+export function askAgencyAssistant(
+  token: string,
+  question: string,
+): Promise<AgencyAssistantResponse> {
+  return managerRequest<AgencyAssistantResponse>(
+    "/agency-admin/ai-assistant",
+    token,
+    { method: "POST", body: { question } },
+  );
+}
+
+// ----- Phiếu mời sale (nền) -----
+
+export type AgencySaleRequest = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  note: string | null;
+  status: string;
+  created_at: string | null;
+};
+
+export function fetchAgencySaleRequests(
+  token: string,
+): Promise<{ agency_id: string; items: AgencySaleRequest[] }> {
+  return managerRequest("/agency-admin/sale-requests", token);
+}
+
+export function createAgencySaleRequest(
+  token: string,
+  body: { full_name: string; phone?: string; email?: string; note?: string },
+): Promise<{ ok: boolean; item: AgencySaleRequest }> {
+  return managerRequest("/agency-admin/sale-requests", token, {
+    method: "POST",
+    body,
+  });
 }
 
 export function fetchAgencyAdminReport(token: string): Promise<AgencyReport> {

@@ -6,14 +6,20 @@ import {
   AgencyError,
   AgencyHeader,
   AgencyLoading,
+  AiPanel,
   Card,
+  FunnelChart,
   KpiCard,
+  SourceBars,
+  TrendBarChart,
   fmtNum,
   fmtPct,
 } from "@/components/agency/AgencyKit";
 import {
   fetchAgencyAdminOverview,
+  fetchAgencyImprovements,
   type AgencyAdminOverview,
+  type AgencyImprovementsResponse,
 } from "@/lib/api";
 import { readToken } from "@/lib/auth";
 
@@ -21,6 +27,9 @@ export default function AgencyAdminOverviewPage() {
   const [data, setData] = useState<AgencyAdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+
+  const [ai, setAi] = useState<AgencyImprovementsResponse | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = useCallback(() => {
     const token = readToken();
@@ -33,23 +42,39 @@ export default function AgencyAdminOverviewPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadAi = useCallback(() => {
+    const token = readToken();
+    if (!token) return;
+    setAiLoading(true);
+    fetchAgencyImprovements(token)
+      .then((d) => setAi(d))
+      .catch(() => setAi(null))
+      .finally(() => setAiLoading(false));
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadAi();
+  }, [load, loadAi]);
+
+  const hasData = !error && data;
 
   return (
     <div className="space-y-5">
       <AgencyHeader
         title="Tổng quan sàn"
         subtitle={data?.agency.ten_san ?? undefined}
-        onRefresh={load}
+        onRefresh={() => {
+          load();
+          loadAi();
+        }}
         refreshing={loading}
       />
 
       {error ? <AgencyError error={error} onRetry={load} /> : null}
       {!error && loading && !data ? <AgencyLoading /> : null}
 
-      {!error && data ? (
+      {hasData ? (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <KpiCard
@@ -92,11 +117,26 @@ export default function AgencyAdminOverviewPage() {
             />
           </div>
 
-          <Card title="Ghi chú">
-            <p className="text-sm text-brand-700">
-              {data.notes?.revenue_commission ??
-                "Doanh số/hoa hồng theo dòng tiền thực tế là bước nền."}
-            </p>
+          <AiPanel
+            summary={ai?.summary}
+            suggestions={ai?.improvements ?? []}
+            loading={aiLoading}
+            generatedBy={ai?.generated_by}
+            onRefresh={loadAi}
+            emptyText="Chưa có đề xuất — khi sàn có thêm khách/sale, trợ lý AI sẽ gợi ý hành động hôm nay."
+          />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card title="Khách mới & đã chốt theo tháng">
+              <TrendBarChart data={data.trends ?? []} />
+            </Card>
+            <Card title="Phễu chuyển đổi">
+              <FunnelChart steps={data.funnel ?? []} />
+            </Card>
+          </div>
+
+          <Card title="Nguồn khách">
+            <SourceBars rows={data.sources ?? []} />
           </Card>
         </>
       ) : null}

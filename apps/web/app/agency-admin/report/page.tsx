@@ -6,19 +6,31 @@ import {
   AgencyError,
   AgencyHeader,
   AgencyLoading,
+  AiPanel,
   Card,
   EmptyState,
+  FunnelChart,
   KpiCard,
+  SourceBars,
+  TrendBarChart,
   fmtNum,
   fmtPct,
 } from "@/components/agency/AgencyKit";
-import { fetchAgencyAdminReport, type AgencyReport } from "@/lib/api";
+import {
+  fetchAgencyAdminReport,
+  fetchAgencyImprovements,
+  type AgencyImprovementsResponse,
+  type AgencyReport,
+} from "@/lib/api";
 import { readToken } from "@/lib/auth";
 
 export default function AgencyAdminReportPage() {
   const [data, setData] = useState<AgencyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+
+  const [ai, setAi] = useState<AgencyImprovementsResponse | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = useCallback(() => {
     const token = readToken();
@@ -31,15 +43,29 @@ export default function AgencyAdminReportPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadAi = useCallback(() => {
+    const token = readToken();
+    if (!token) return;
+    setAiLoading(true);
+    fetchAgencyImprovements(token, "báo cáo & tăng chuyển đổi")
+      .then((d) => setAi(d))
+      .catch(() => setAi(null))
+      .finally(() => setAiLoading(false));
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadAi();
+  }, [load, loadAi]);
 
   return (
     <div className="space-y-5">
       <AgencyHeader
         title="Báo cáo doanh số sàn"
-        onRefresh={load}
+        onRefresh={() => {
+          load();
+          loadAi();
+        }}
         refreshing={loading}
       />
 
@@ -65,12 +91,30 @@ export default function AgencyAdminReportPage() {
               value={fmtNum(data.summary.customers)}
               tone="emerald"
             />
-            <KpiCard
-              label="Nóng"
-              value={fmtNum(data.summary.hot)}
-              tone="red"
-            />
+            <KpiCard label="Nóng" value={fmtNum(data.summary.hot)} tone="red" />
           </div>
+
+          <AiPanel
+            title="AI phân tích & đề xuất cải tiến"
+            summary={ai?.summary}
+            suggestions={ai?.improvements ?? []}
+            loading={aiLoading}
+            generatedBy={ai?.generated_by}
+            onRefresh={loadAi}
+          />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card title="Khách mới & đã chốt theo tháng">
+              <TrendBarChart data={data.trends ?? []} />
+            </Card>
+            <Card title="Phễu chuyển đổi">
+              <FunnelChart steps={data.funnel ?? []} />
+            </Card>
+          </div>
+
+          <Card title="Nguồn khách">
+            <SourceBars rows={data.sources ?? []} />
+          </Card>
 
           <Card title="Hiệu suất theo sale">
             {data.by_sale.length === 0 ? (

@@ -71,8 +71,14 @@ def _action_type(lead: dict, due_days: int) -> str:
     return "nurture"
 
 
-def _gather_candidates(due_days: int) -> List[dict]:
-    """Quét toàn bộ lead ĐƯỢC GÁN sale AI cần chăm (chưa có mục đang chờ)."""
+def _gather_candidates(
+    due_days: int, only_lead_ids: Optional[set] = None
+) -> List[dict]:
+    """Quét toàn bộ lead ĐƯỢC GÁN sale AI cần chăm (chưa có mục đang chờ).
+
+    `only_lead_ids` (tuỳ chọn): nếu truyền vào → CHỈ xét các lead có id trong tập
+    này (dùng cho chu kỳ chăm sóc PHẠM VI SÀN F2 — lọc cứng theo agency). None =
+    quét toàn nền tảng (hành vi cũ, tương thích ngược)."""
     candidates: List[dict] = []
     scanned = 0
     page = 1
@@ -82,6 +88,8 @@ def _gather_candidates(due_days: int) -> List[dict]:
         items = res.get("items", [])
         for lead in items:
             scanned += 1
+            if only_lead_ids is not None and lead.get("id") not in only_lead_ids:
+                continue
             if not lead.get("ai_salesman_id"):
                 continue
             if not _needs_care(lead, due_days):
@@ -103,10 +111,13 @@ def run_cycle(
     channel: str = "zalo",
     requested_by: Optional[str] = None,
     dry_run: bool = False,
+    only_lead_ids: Optional[set] = None,
 ) -> Dict[str, Any]:
     """Chạy 1 chu kỳ chăm sóc tự động. Trả tổng kết + danh sách mục đã tạo.
 
     `dry_run=True`: chỉ liệt kê ứng viên, KHÔNG gọi LLM / KHÔNG tạo mục (xem trước).
+    `only_lead_ids` (tuỳ chọn): giới hạn chu kỳ trong tập lead này — dùng cho khu
+    QUẢN TRỊ SÀN F2 (lọc cứng theo agency_id từ token). None = toàn nền tảng.
     """
     due_days = settings.ai_care_due_days if due_days is None else int(due_days)
     batch_limit = settings.ai_care_batch_limit if batch_limit is None else int(batch_limit)
@@ -132,7 +143,7 @@ def run_cycle(
         result["note"] = "ai_care_enabled=false → không tạo nháp. Bật env AI_CARE_ENABLED=true."
         return result
 
-    candidates = _gather_candidates(due_days)
+    candidates = _gather_candidates(due_days, only_lead_ids=only_lead_ids)
     result["scanned_candidates"] = len(candidates)
     selected = candidates[:batch_limit]
 
