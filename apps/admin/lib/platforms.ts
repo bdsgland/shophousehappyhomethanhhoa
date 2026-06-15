@@ -32,7 +32,7 @@ export const PLATFORMS: PlatformMeta[] = [
     key: "dify",
     name: "Dify",
     description: "Bộ não tri thức (LLM platform + RAG): chatbot, knowledge base.",
-    url: "https://dify.eurowindowlightcity.net",
+    url: "https://ai.eurowindowlightcity.net",
     embeddable: false,
   },
   {

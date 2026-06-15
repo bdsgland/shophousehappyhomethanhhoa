@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     platform_n8n_url: str = "https://n8n.eurowindowlightcity.net"
     # Dify (LLM platform có RAG) — thay thế Open Notebook làm "bộ não tri thức".
     # URL console/self-host để hiển thị trên trang nền tảng admin + health-check.
-    platform_dify_url: str = "https://dify.eurowindowlightcity.net"
+    platform_dify_url: str = "https://ai.eurowindowlightcity.net"
     platform_bot_url: str = "https://bot.eurowindowlightcity.net"
     platform_chat_url: str = "https://chat.eurowindowlightcity.net"
 
@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     # Dify self-host. Chatbot tư vấn + OpenClaw gọi qua các biến dưới đây. ĐỂ TRỐNG
     # → mọi tính năng Dify TẮT an toàn (chatbot fallback Claude trực tiếp, tool MCP
     # trả "Dify chưa cấu hình"), KHÔNG crash. TUYỆT ĐỐI không commit key thật.
-    #   - DIFY_API_URL: base URL Dify (vd https://dify.eurowindowlightcity.net).
+    #   - DIFY_API_URL: base URL Dify (vd https://ai.eurowindowlightcity.net).
     #     Client tự ghép /v1/... nên KHÔNG cần kèm /v1 ở đây.
     #   - DIFY_API_KEY: App API key của ứng dụng Chatbot/Agent (bắt đầu app-...).
     #   - DIFY_DATASET_API_KEY: API key Knowledge Base (datasets, bắt đầu dataset-...)
