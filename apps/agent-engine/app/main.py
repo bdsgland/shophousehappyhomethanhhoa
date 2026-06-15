@@ -232,6 +232,7 @@ _ROUTER_SPECS: list[tuple[str, str, dict]] = [
     ("workspace_oauth", "router", {}),
     ("openclaw_bridge", "router", {}),
     ("webhook", "router", {"prefix": "/webhook", "tags": ["webhook"]}),
+    ("facebook_webhook", "router", {}),
 ]
 
 _router_failures: list[str] = []
