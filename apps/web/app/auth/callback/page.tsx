@@ -45,8 +45,8 @@ export default function AuthCallbackPage() {
         setTimeout(() => router.replace("/login?error=oauth_failed"), 2500);
         return;
       }
-      // JWT backend mặc định 8 giờ; dùng 30 ngày cho cookie để giữ phiên lâu.
-      const maxAge = 60 * 60 * 24 * 30;
+      // JWT backend 365 ngày; cookie 365 ngày để không đá user ra.
+      const maxAge = 60 * 60 * 24 * 365;
       setAuthCookie(token, maxAge);
       setUserCookie(user, maxAge);
       const dest = next || redirectByRole(user.role);

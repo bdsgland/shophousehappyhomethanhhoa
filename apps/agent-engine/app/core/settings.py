@@ -230,7 +230,7 @@ class Settings(BaseSettings):
     # Auth (MVP — JWT đơn giản, file-based user store)
     jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
     jwt_algorithm: str = "HS256"
-    jwt_expires_minutes: int = 60 * 8  # 8 giờ
+    jwt_expires_minutes: int = 60 * 24 * 365  # 365 ngày (mặc định, anh muốn không hết hạn) — override qua env JWT_EXPIRES_MINUTES
     users_file: str = "data/_runtime/users.json"
     # Booking store tạm (JSON) — flow đặt lịch xem nhà. Sau Sprint 1.1 migrate
     # PostgreSQL. Resolve giống users_file (DATA_DIR / agent-engine / CWD).
@@ -366,6 +366,11 @@ class Settings(BaseSettings):
     # hoặc từ credential n8n. Để trống → tạo Meet trả lỗi, hệ thống fallback
     # "sale sẽ gọi điện". KHÔNG commit token vào code — đặt env trên Railway.
     google_workspace_refresh_token: str = ""
+    # OAuth Client riêng cho Workspace (Drive, Calendar, Meet). Nếu để trống → fallback
+    # về google_oauth_client_id / _secret (cùng client với Sign-in). Phải khớp client
+    # nào phát hành refresh_token, nếu không sẽ "invalid_client" khi đổi access token.
+    google_workspace_client_id: str = ""
+    google_workspace_client_secret: str = ""
     # Lịch tạo sự kiện Meet. Mặc định "primary" = lịch của CHÍNH tài khoản đã
     # Connect (luôn có quyền ghi → tránh 403/404). Override bằng email cụ thể nếu
     # muốn tạo trên lịch khác (tài khoản Connect phải có quyền ghi lịch đó).

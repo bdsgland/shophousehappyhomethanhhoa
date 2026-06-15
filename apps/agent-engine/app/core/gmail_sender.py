@@ -91,16 +91,25 @@ def has_send_scope() -> bool:
     return GMAIL_SEND_SCOPE in scopes
 
 
+def _resolve_workspace_client_creds() -> tuple[str, str]:
+    """Trả (client_id, client_secret) cho Workspace OAuth exchange.
+
+    Ưu tiên google_workspace_client_id/_secret (OAuth Client RIÊNG, khớp client phát hành
+    refresh_token). Fallback về google_oauth_client_id/_secret (cùng client Sign-in).
+    """
+    return (
+        settings.google_workspace_client_id or settings.google_oauth_client_id,
+        settings.google_workspace_client_secret or settings.google_oauth_client_secret,
+    )
+
+
 def is_connected() -> bool:
     """Đã kết nối Workspace (có client id/secret + refresh token).
 
     CHƯA chắc có scope gmail.send — dùng has_send_scope()/is_available() để chắc chắn.
     """
-    return bool(
-        settings.google_oauth_client_id
-        and settings.google_oauth_client_secret
-        and _resolve_refresh_token()
-    )
+    cid, csec = _resolve_workspace_client_creds()
+    return bool(cid and csec and _resolve_refresh_token())
 
 
 def is_available() -> bool:
@@ -118,11 +127,8 @@ def _get_access_token() -> str:
     scope; GmailSenderError cho lỗi khác. KHÔNG log token.
     """
     refresh_token = _resolve_refresh_token()
-    if not (
-        settings.google_oauth_client_id
-        and settings.google_oauth_client_secret
-        and refresh_token
-    ):
+    cid, csec = _resolve_workspace_client_creds()
+    if not (cid and csec and refresh_token):
         raise GmailNotConnected(
             "Chưa kết nối Google Workspace — không gửi được email qua Gmail API. "
             "Hãy bấm 'Kết nối Google Workspace'."
@@ -131,8 +137,8 @@ def _get_access_token() -> str:
         res = http.post(
             _TOKEN_ENDPOINT,
             data={
-                "client_id": settings.google_oauth_client_id,
-                "client_secret": settings.google_oauth_client_secret,
+                "client_id": cid,
+                "client_secret": csec,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
             },

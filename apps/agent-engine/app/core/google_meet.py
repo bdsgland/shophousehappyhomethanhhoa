@@ -46,13 +46,23 @@ def _resolve_refresh_token() -> str:
     )
 
 
+def _resolve_workspace_client_creds() -> tuple[str, str]:
+    """Trả (client_id, client_secret) dùng cho exchange Workspace refresh token.
+
+    Ưu tiên cặp google_workspace_client_id/_secret (khi anh dùng OAuth Client RIÊNG
+    cho Drive/Calendar/Meet — khớp client phát hành refresh_token). Fallback về
+    google_oauth_client_id/_secret (cùng client với Sign-in) khi để trống.
+    """
+    return (
+        settings.google_workspace_client_id or settings.google_oauth_client_id,
+        settings.google_workspace_client_secret or settings.google_oauth_client_secret,
+    )
+
+
 def is_configured() -> bool:
     """True khi đủ client id/secret + refresh token (store hoặc env) để gọi Calendar API."""
-    return bool(
-        settings.google_oauth_client_id
-        and settings.google_oauth_client_secret
-        and _resolve_refresh_token()
-    )
+    cid, csec = _resolve_workspace_client_creds()
+    return bool(cid and csec and _resolve_refresh_token())
 
 
 async def get_workspace_access_token() -> str:
@@ -65,12 +75,13 @@ async def get_workspace_access_token() -> str:
             "Chưa cấu hình Google Workspace (thiếu GOOGLE_WORKSPACE_REFRESH_TOKEN "
             "hoặc client id/secret) — không tạo được Google Meet."
         )
+    cid, csec = _resolve_workspace_client_creds()
     async with httpx.AsyncClient(timeout=15.0) as http:
         res = await http.post(
             _TOKEN_ENDPOINT,
             data={
-                "client_id": settings.google_oauth_client_id,
-                "client_secret": settings.google_oauth_client_secret,
+                "client_id": cid,
+                "client_secret": csec,
                 "refresh_token": _resolve_refresh_token(),
                 "grant_type": "refresh_token",
             },

@@ -35,8 +35,8 @@ export default function AdminAuthCallbackPage() {
       return;
     }
 
-    // JWT backend 8 giờ; cookie giữ 8 giờ luôn cho khớp phiên.
-    setToken(token, 60 * 60 * 8);
+    // JWT backend 365 ngày; cookie giữ 365 ngày để không đá user ra.
+    setToken(token, 60 * 60 * 24 * 365);
     (async () => {
       try {
         const user = await getMe();
