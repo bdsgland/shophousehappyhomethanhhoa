@@ -366,6 +366,11 @@ class Settings(BaseSettings):
     # hoặc từ credential n8n. Để trống → tạo Meet trả lỗi, hệ thống fallback
     # "sale sẽ gọi điện". KHÔNG commit token vào code — đặt env trên Railway.
     google_workspace_refresh_token: str = ""
+    # Facebook Login (OAuth client của Facebook App). Trống → endpoint
+    # /auth/facebook/token trả 503 + button "Đăng nhập Facebook" ẩn ở FE.
+    # Lấy App ID + App Secret từ developers.facebook.com → Settings → Basic.
+    facebook_app_id: str = ""
+    facebook_app_secret: str = ""
     # OAuth Client riêng cho Workspace (Drive, Calendar, Meet). Nếu để trống → fallback
     # về google_oauth_client_id / _secret (cùng client với Sign-in). Phải khớp client
     # nào phát hành refresh_token, nếu không sẽ "invalid_client" khi đổi access token.

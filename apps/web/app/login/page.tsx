@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 
+import FacebookSignInButton from "@/components/FacebookSignInButton";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { authLogin } from "@/lib/api";
 import { isExternalUrl, redirectByRole, setAuthCookie, setUserCookie } from "@/lib/auth";
@@ -113,7 +114,10 @@ function LoginForm() {
           <span className="h-px flex-1 bg-brand-100" />
         </div>
 
-        <GoogleSignInButton role="client" />
+        <div className="space-y-2">
+          <GoogleSignInButton role="client" />
+          <FacebookSignInButton role="client" />
+        </div>
 
         <div className="mt-6 text-center text-sm text-brand-700">
           Chưa có tài khoản?{" "}

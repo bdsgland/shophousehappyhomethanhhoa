@@ -15,8 +15,10 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 
+from pydantic import BaseModel
+
 from app.api.deps import get_current_user
-from app.core import google_oauth, user_store
+from app.core import facebook_oauth, google_oauth, user_store
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -230,3 +232,78 @@ def google_callback(
 def google_verify(user: dict = Depends(get_current_user)) -> UserOut:
     """Frontend gọi (kèm Bearer token) để xác thực + lấy thông tin user đầy đủ."""
     return UserOut(**user_store.public_view(user))
+
+
+# ---------------------------------------------------------------------------
+# Facebook Login — frontend dùng FB SDK lấy access_token rồi POST lên đây.
+# ---------------------------------------------------------------------------
+
+
+class FacebookTokenIn(BaseModel):
+    access_token: str
+    role: Optional[str] = "client"
+    ref: Optional[str] = None
+
+
+@router.post("/facebook/token", response_model=TokenOut)
+async def facebook_login(payload: FacebookTokenIn) -> TokenOut:
+    """Xác thực access_token Facebook → tạo/link user → trả JWT."""
+    if not facebook_oauth.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Đăng nhập Facebook chưa được cấu hình trên máy chủ.",
+        )
+    try:
+        info = await facebook_oauth.fetch_userinfo(payload.access_token)
+    except facebook_oauth.FacebookAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=502, detail="Không kết nối được Facebook để xác thực."
+        ) from exc
+
+    facebook_id = info["facebook_id"]
+    email = info.get("email")
+    full_name = info.get("name") or (email or "").split("@")[0] or f"User {facebook_id[:6]}"
+    picture = info.get("picture")
+
+    # Mặc định client; chặn tự cấp role admin qua đăng nhập Facebook.
+    role = payload.role if payload.role in ("client", "sale") else "client"
+
+    existing = user_store.find_by_facebook_id(facebook_id)
+    if not existing and email:
+        existing = user_store.find_by_email(email)
+
+    if existing:
+        user = (
+            user_store.link_facebook_account(
+                existing["id"], facebook_id=facebook_id, picture=picture
+            )
+            or existing
+        )
+    else:
+        upline_email = None
+        if role == "sale" and payload.ref:
+            upline = user_store.find_by_referral_code(payload.ref)
+            if upline:
+                upline_email = upline["email"]
+        try:
+            user = user_store.create_user_from_facebook(
+                email=email,
+                full_name=full_name,
+                facebook_id=facebook_id,
+                picture=picture,
+                role=role,
+                upline_email=upline_email,
+            )
+        except Exception as exc:  # noqa: BLE001
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500, detail="Không tạo được tài khoản từ Facebook."
+            ) from exc
+
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khoá.")
+
+    return _issue_token(user)

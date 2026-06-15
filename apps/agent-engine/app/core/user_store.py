@@ -242,6 +242,68 @@ def link_google_account(
     return None
 
 
+def find_by_facebook_id(facebook_id: str) -> Optional[dict]:
+    fid = (facebook_id or "").strip()
+    if not fid:
+        return None
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if (u.get("facebook_id") or "") == fid:
+                return u
+    return None
+
+
+def create_user_from_facebook(
+    *,
+    email: Optional[str],
+    full_name: str,
+    facebook_id: str,
+    picture: Optional[str] = None,
+    role: str = "client",
+    upline_email: Optional[str] = None,
+    projects_interested: Optional[list[str]] = None,
+) -> dict:
+    """Tạo user từ Facebook Login. Email có thể None nếu user không grant scope.
+
+    Khi email None → sinh email placeholder dạng `fb_<id>@facebook.elc` để khoá
+    duy nhất; user vẫn login bằng Facebook bình thường.
+    """
+    from app.core.security import hash_password
+
+    email_resolved = (email or "").strip().lower() or f"fb_{facebook_id}@facebook.elc"
+    random_password = secrets.token_urlsafe(32)
+    return create_user(
+        email=email_resolved,
+        full_name=full_name,
+        password_hash=hash_password(random_password),
+        role=role,
+        upline_email=upline_email,
+        projects_interested=projects_interested,
+        source="facebook",
+        facebook_id=facebook_id,
+        picture=picture,
+    )
+
+
+def link_facebook_account(
+    user_id: str, *, facebook_id: str, picture: Optional[str] = None
+) -> Optional[dict]:
+    """Gắn facebook_id + cập nhật avatar cho user đã tồn tại (login lại)."""
+    with _LOCK:
+        data = _load()
+        for u in data["users"]:
+            if u["id"] == user_id:
+                if facebook_id and not u.get("facebook_id"):
+                    u["facebook_id"] = facebook_id
+                if picture:
+                    u["picture"] = picture
+                _save(data)
+                _mirror(u)
+                return u
+    return None
+
+
 def find_by_id(user_id: str) -> Optional[dict]:
     with _LOCK:
         data = _load()
@@ -272,6 +334,7 @@ def create_user(
     source: Optional[str] = None,
     facebook_url: Optional[str] = None,
     google_id: Optional[str] = None,
+    facebook_id: Optional[str] = None,
     picture: Optional[str] = None,
     agency_id: Optional[str] = None,
 ) -> dict:
@@ -308,6 +371,7 @@ def create_user(
             "source": (source or "").strip() or None,
             "facebook_url": (facebook_url or "").strip() or None,
             "google_id": (google_id or "").strip() or None,
+            "facebook_id": (facebook_id or "").strip() or None,
             "picture": (picture or "").strip() or None,
             # Đa-tenant F2: gắn sale vào sàn (agency_application_store.id). None =
             # sale nền tảng/F1. Chỉ set khi tạo sale cho một sàn cụ thể.
