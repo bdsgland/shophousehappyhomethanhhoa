@@ -18,9 +18,11 @@ export default function PrivacyPolicyPage() {
       <p className="mb-8 text-sm text-zinc-500">Cập nhật lần cuối: {updated}</p>
 
       <p>
-        Công ty TNHH Đầu tư Bất động sản <strong>Eurowindow Light City</strong>{" "}
-        (sau đây gọi là “chúng tôi”) tôn trọng quyền riêng tư của Quý khách và
-        cam kết bảo vệ thông tin cá nhân khi Quý khách sử dụng website{" "}
+        <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>{" "}
+        (đơn vị phân phối F1 chính thức cho chủ đầu tư dự án Eurowindow Light
+        City, sau đây gọi là “chúng tôi”) tôn trọng quyền riêng tư của Quý
+        khách và cam kết bảo vệ thông tin cá nhân khi Quý khách sử dụng
+        website{" "}
         <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
           eurowindowlightcity.net
         </a>{" "}
@@ -80,11 +82,12 @@ export default function PrivacyPolicyPage() {
       </p>
       <ul className="mt-2 list-disc space-y-1 pl-6">
         <li>
-          Với chủ đầu tư Eurowindow Holding để xử lý đặt cọc, ký hợp đồng.
+          Với chủ đầu tư dự án Eurowindow Light City (Eurowindow Holding) để
+          xử lý đặt cọc, ký hợp đồng mua bán.
         </li>
         <li>
-          Với các đại lý phân phối/F2 được chỉ định (chỉ cho khách hàng họ phụ
-          trách).
+          Với các đại lý phân phối thứ cấp/F2 do BDSG chỉ định (chỉ cho khách
+          hàng họ phụ trách).
         </li>
         <li>
           Với nhà cung cấp dịch vụ kỹ thuật (Google Workspace, Railway,
@@ -138,7 +141,9 @@ export default function PrivacyPolicyPage() {
 
       <h2 className="mt-8 text-xl font-semibold">10. Liên hệ</h2>
       <p className="mt-2">
-        <strong>Công ty TNHH Đầu tư Bất động sản Eurowindow Light City</strong>
+        <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>
+        <br />
+        Đơn vị phân phối F1 chính thức dự án Eurowindow Light City
         <br />
         Địa chỉ: Phường Đông Hải và Đông Hương, TP. Thanh Hoá, tỉnh Thanh Hoá
         <br />
