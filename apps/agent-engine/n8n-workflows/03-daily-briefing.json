@@ -1,5 +1,5 @@
 {
-  "name": "ELC — 03 Daily Briefing",
+  "name": "Happy Home — 03 Daily Briefing",
   "active": false,
   "settings": {
     "executionOrder": "v1",
@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📅 Daily Briefing 7h sáng\nChạy theo lịch cron `0 7 * * *` (giờ Asia/Ho_Chi_Minh).\n\n**Cấu hình env n8n:**\n- `ELC_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `ANTHROPIC_API_KEY` (gọi Claude sinh briefing)\n- `ADMIN_TELEGRAM_CHAT_ID`\n- Credential **Telegram** (ELC Sale Bot)\n\nTest nhanh: bấm **Execute Workflow** (không cần chờ 7h).",
+        "content": "## 📅 Daily Briefing 7h sáng\nChạy theo lịch cron `0 7 * * *` (giờ Asia/Ho_Chi_Minh).\n\n**Cấu hình env n8n:**\n- `HH_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `ANTHROPIC_API_KEY` (gọi Claude sinh briefing)\n- `ADMIN_TELEGRAM_CHAT_ID`\n- Credential **Telegram** (Happy Home Sale Bot)\n\nTest nhanh: bấm **Execute Workflow** (không cần chờ 7h).",
         "height": 320,
         "width": 380
       },
@@ -37,7 +37,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.ELC_API_URL }}/admin/sales/active",
+        "url": "={{ $env.HH_API_URL }}/admin/sales/active",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -73,7 +73,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.ELC_API_URL }}/admin/leads/needs-followup",
+        "url": "={{ $env.HH_API_URL }}/admin/leads/needs-followup",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -170,7 +170,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: 'Bạn là trợ lý nội bộ ELC, viết briefing sáng cho sale ngắn gọn, ưu tiên hành động. Tối đa 200 chữ tiếng Việt. Liệt kê 3-5 việc cần làm hôm nay theo thứ tự ưu tiên, nhắc 2-3 lịch hẹn kèm giờ, và 1 tip tăng tỷ lệ chốt. Không chào hỏi dài dòng.', messages: [ { role: 'user', content: 'Dữ liệu lead cần follow-up hôm nay (JSON): ' + JSON.stringify($json) } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: 'Bạn là trợ lý nội bộ Happy Home, viết briefing sáng cho sale ngắn gọn, ưu tiên hành động. Tối đa 200 chữ tiếng Việt. Liệt kê 3-5 việc cần làm hôm nay theo thứ tự ưu tiên, nhắc 2-3 lịch hẹn kèm giờ, và 1 tip tăng tỷ lệ chốt. Không chào hỏi dài dòng.', messages: [ { role: 'user', content: 'Dữ liệu lead cần follow-up hôm nay (JSON): ' + JSON.stringify($json) } ] }) }}",
         "options": {}
       },
       "id": "http-claude",
@@ -198,7 +198,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

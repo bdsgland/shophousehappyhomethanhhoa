@@ -1,10 +1,10 @@
-"""Webhook Chatwoot Agent Bot — AI tự trả lời khách qua RAG knowledge base ELC.
+"""Webhook Chatwoot Agent Bot — AI tự trả lời khách qua RAG knowledge base Happy Home.
 
 Luồng xử lý (POST /webhook/chatwoot):
   1. Lọc sự kiện: chỉ xử lý message_created + incoming + không phải private.
   2. Lookup/tạo Lead local, link với Chatwoot contact_id.
   3. Append tin khách vào lịch sử hội thoại (in-memory theo conversation_id).
-  4. Retrieval BM25 trên KB dự án ELC → top-k context.
+  4. Retrieval BM25 trên KB dự án Happy Home → top-k context.
   5. Gọi Claude (stream) sinh câu trả lời tiếng Việt ngắn gọn.
   6. Gửi reply về Chatwoot (outgoing message).
   7. Handoff: nếu phát hiện ý định mua mạnh → assign team BĐS + gắn nhãn hot-lead.
@@ -54,7 +54,7 @@ _MAX_HISTORY = 20  # giữ tối đa N tin gần nhất để giới hạn token
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = (
-    "Bạn là AI tư vấn căn hộ Eurowindow Light City Thanh Hoá. "
+    "Bạn là AI tư vấn căn hộ Happy Home Thanh Hóa Thanh Hoá. "
     "Trả lời ngắn gọn, thân thiện tiếng Việt. "
     "Khi khách hỏi giá/căn cụ thể, đề xuất 2-3 căn phù hợp. "
     "Khi khách thể hiện ý định mua mạnh, mời họ để lại SĐT để CSKH gọi lại "
@@ -120,7 +120,7 @@ def _get_or_create_lead(sender: Optional[ChatwootSender]) -> Optional[Lead]:
         phone=sender.phone_number,
         email=sender.email,
         source_channel="chatwoot",
-        project="Eurowindow Light City",
+        project="Happy Home Thanh Hóa",
         project_slug=settings.elc_project_slug,
     )
     leads_store._LEADS[lead.id] = lead
@@ -164,7 +164,7 @@ def _retrieve_context(query: str) -> str:
 def _mock_reply(query: str, context: str) -> str:
     """Trả lời giả lập khi chưa có ANTHROPIC_API_KEY (USE_MOCK_LLM)."""
     base = (
-        "Em chào anh/chị, em là trợ lý ảo của Eurowindow Light City Thanh Hoá. "
+        "Em chào anh/chị, em là trợ lý ảo của Happy Home Thanh Hóa Thanh Hoá. "
         f'Em đã ghi nhận câu hỏi: "{query[:120]}". '
     )
     if context:
@@ -184,7 +184,7 @@ async def _generate_reply(history: list[ChatMessage], context: str) -> str:
     client = AsyncAnthropic(api_key=settings.anthropic_api_key)
     system = SYSTEM_PROMPT
     if context:
-        system += f"\n\nNGỮ CẢNH DỰ ÁN ELC:\n{context}"
+        system += f"\n\nNGỮ CẢNH DỰ ÁN Happy Home:\n{context}"
 
     parts: list[str] = []
     async with client.messages.stream(

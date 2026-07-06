@@ -7,7 +7,7 @@ Tạo (mint) 1 *refresh token* của tài khoản Google Workspace với ĐỦ s
   - Tạo Google Meet qua Calendar API  → scope `calendar.events`
   - Đồng bộ tài liệu RAG từ Google Drive → scope `drive.readonly`
 
-Token in ra màn hình. Bạn copy và dán vào Railway → service RAI-ELC →
+Token in ra màn hình. Bạn copy và dán vào Railway → service shophousehappyhomethanhhoa →
 Variables → `GOOGLE_WORKSPACE_REFRESH_TOKEN`. KHÔNG commit token vào code.
 
 Script chỉ dùng thư viện chuẩn của Python (không cần pip install gì thêm).
@@ -40,7 +40,7 @@ Tuỳ chọn:
     --no-browser       Không tự mở trình duyệt; tự copy URL hiện ra để mở.
 
 Sau khi chạy: trình duyệt mở → đăng nhập đúng tài khoản Workspace muốn cấp
-quyền (vd info@eurowindowlightcity.net) → bấm "Cho phép". Quay lại terminal sẽ
+quyền (vd info@bdsg.land) → bấm "Cho phép". Quay lại terminal sẽ
 thấy refresh token được in ra.
 
 ⚠️ Lưu ý: Google chỉ trả refresh_token khi có `access_type=offline` +
@@ -256,7 +256,7 @@ def main() -> None:
             "app rồi chạy lại script."
         )
 
-    print("\n✅ THÀNH CÔNG! Copy dòng dưới vào Railway (RAI-ELC → Variables):\n")
+    print("\n✅ THÀNH CÔNG! Copy dòng dưới vào Railway (shophousehappyhomethanhhoa → Variables):\n")
     print(f"GOOGLE_WORKSPACE_REFRESH_TOKEN={refresh_token}\n")
     print("Scope đã được cấp:", granted_scope)
 

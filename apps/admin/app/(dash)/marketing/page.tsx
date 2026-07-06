@@ -634,7 +634,7 @@ function CampaignsTab() {
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="VD: ELC Q3 - Facebook Lead"
+              placeholder="VD: Happy Home Q3 - Facebook Lead"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -844,7 +844,7 @@ function ContentTab() {
               <Textarea
                 value={form.product}
                 onChange={(e) => setForm({ ...form, product: e.target.value })}
-                placeholder="VD: Căn hộ Eurowindow Light City, view hồ, bàn giao 2026…"
+                placeholder="VD: Căn hộ Happy Home Thanh Hóa, view hồ, bàn giao 2026…"
               />
             </Field>
             <Field label="Đối tượng khách hàng">
@@ -1560,14 +1560,14 @@ function CreatePipelineDialog({
           <Input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="VD: ELC tháng 6 — Toplist căn hộ view hồ"
+            placeholder="VD: Happy Home tháng 6 — Toplist căn hộ view hồ"
           />
         </Field>
         <Field label="Chủ đề / từ khoá">
           <Textarea
             value={form.topic}
             onChange={(e) => setForm({ ...form, topic: e.target.value })}
-            placeholder="VD: 5 lý do nên chọn căn hộ Eurowindow Light City để đầu tư"
+            placeholder="VD: 5 lý do nên chọn căn hộ Happy Home Thanh Hóa để đầu tư"
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -1575,7 +1575,7 @@ function CreatePipelineDialog({
             <Input
               value={form.project}
               onChange={(e) => setForm({ ...form, project: e.target.value })}
-              placeholder="VD: Eurowindow Light City"
+              placeholder="VD: Happy Home Thanh Hóa"
             />
           </Field>
           <Field label="Đối tượng">

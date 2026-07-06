@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { Calculator, Grid } from "@/components/dashboard/icons";
-import { FUND_FILTERS, STATUS_FILTERS } from "@/components/dashboard/elc-data";
+import { FUND_FILTERS, STATUS_FILTERS } from "@/components/dashboard/project-data";
 import { fetchInventory, type InventoryUnit } from "@/lib/api";
 
 const FUND_LABEL: Record<string, string> = Object.fromEntries(
@@ -67,7 +67,7 @@ export default function SaleInventoryPage() {
           <Grid size={24} className="text-orange-500" /> Bảng hàng
         </h1>
         <p className="text-sm text-brand-700">
-          Quỹ căn Eurowindow Light City — lọc theo phân khu, loại, trạng thái, quỹ
+          Quỹ căn Happy Home Thanh Hóa — lọc theo phân khu, loại, trạng thái, quỹ
           và lập phiếu tính giá nhanh.
         </p>
       </header>

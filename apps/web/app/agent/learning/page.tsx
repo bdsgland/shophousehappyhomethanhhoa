@@ -1,7 +1,7 @@
 import { LearningCenter } from "@/components/agent/LearningCenter";
 
 export const metadata = {
-  title: "Kho học tập | Eurowindow Light City",
+  title: "Kho học tập | Happy Home Thanh Hóa",
 };
 
 export default function LearningPage({

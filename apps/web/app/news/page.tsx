@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: override?.title || "Tin tức",
     description:
       override?.description ||
-      "Tin tức, cập nhật tiến độ và phân tích thị trường mới nhất từ Eurowindow Light City.",
+      "Tin tức, cập nhật tiến độ và phân tích thị trường mới nhất từ Happy Home Thanh Hóa.",
     path: "/news",
   });
 }

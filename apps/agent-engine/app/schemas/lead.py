@@ -17,10 +17,10 @@ class Lead(BaseModel):
     source_channel: str = "web"
     # Dự án quan tâm — phân tách lead theo dự án để dashboard nhóm/lọc.
     project: Optional[str] = Field(
-        default=None, description='Tên dự án dạng hiển thị, vd "Eurowindow Light City"'
+        default=None, description='Tên dự án dạng hiển thị, vd "Happy Home Thanh Hóa"'
     )
     project_slug: Optional[str] = Field(
-        default=None, description='Slug dự án (machine-readable), vd "eurowindow-light-city"'
+        default=None, description='Slug dự án (machine-readable), vd "happy-home-thanh-hoa"'
     )
     facebook_url: Optional[str] = None
     notes: Optional[str] = None

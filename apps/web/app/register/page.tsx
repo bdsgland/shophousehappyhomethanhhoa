@@ -11,7 +11,7 @@ import { isExternalUrl, redirectByRole, setAuthCookie, setUserCookie } from "@/l
 
 type Tab = "sale" | "client";
 
-const PROJECTS = ["Eurowindow Light City", "Khác"];
+const PROJECTS = ["Happy Home Thanh Hóa", "Khác"];
 
 export default function RegisterPage() {
   return (

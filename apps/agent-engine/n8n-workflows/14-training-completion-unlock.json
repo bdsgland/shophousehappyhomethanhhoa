@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/sales/{{ $json.body.sale_id }}/upgrade-tier",
+        "url": "={{ $env.HH_API_URL }}/admin/sales/{{ $json.body.sale_id }}/upgrade-tier",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -86,7 +86,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

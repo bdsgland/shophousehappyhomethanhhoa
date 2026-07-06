@@ -8,7 +8,7 @@ export default function PlatformsPage() {
     <div>
       <PageHeader
         title="Nền tảng"
-        description="Sức khoẻ & truy cập nhanh các nền tảng của hệ thống ELC."
+        description="Sức khoẻ & truy cập nhanh các nền tảng của hệ thống Happy Home."
       />
       <PlatformsPanel />
     </div>

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Chính sách quyền riêng tư | Eurowindow Light City",
+  title: "Chính sách quyền riêng tư | Happy Home Thanh Hóa",
   description:
-    "Chính sách quyền riêng tư của nền tảng Eurowindow Light City — cách thu thập, sử dụng và bảo vệ thông tin cá nhân của khách hàng và sale.",
+    "Chính sách quyền riêng tư của nền tảng Happy Home Thanh Hóa — cách thu thập, sử dụng và bảo vệ thông tin cá nhân của khách hàng và sale.",
   alternates: {
-    canonical: "https://www.eurowindowlightcity.net/privacy",
+    canonical: "https://happyhomethanhhoa.bdsg.land/privacy",
   },
   robots: { index: true, follow: true },
 };
@@ -19,12 +19,11 @@ export default function PrivacyPolicyPage() {
 
       <p>
         <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>{" "}
-        (đơn vị phân phối F1 chính thức cho chủ đầu tư dự án Eurowindow Light
-        City, sau đây gọi là “chúng tôi”) tôn trọng quyền riêng tư của Quý
+        (đại lý phát triển kinh doanh chính thức dự án Shophouse Happy Home Thanh Hóa, sau đây gọi là “chúng tôi”) tôn trọng quyền riêng tư của Quý
         khách và cam kết bảo vệ thông tin cá nhân khi Quý khách sử dụng
         website{" "}
-        <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
-          eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land">
+          happyhomethanhhoa.bdsg.land
         </a>{" "}
         và các ứng dụng liên quan (“Nền tảng”).
       </p>
@@ -82,7 +81,7 @@ export default function PrivacyPolicyPage() {
       </p>
       <ul className="mt-2 list-disc space-y-1 pl-6">
         <li>
-          Với chủ đầu tư dự án Eurowindow Light City (Eurowindow Holding) để
+          Với chủ đầu tư dự án Happy Home Thanh Hóa (Tập đoàn Vingroup) để
           xử lý đặt cọc, ký hợp đồng mua bán.
         </li>
         <li>
@@ -111,8 +110,8 @@ export default function PrivacyPolicyPage() {
         <li>Rút lại sự đồng ý hoặc từ chối nhận thông tin tiếp thị.</li>
         <li>
           Khiếu nại về việc xử lý dữ liệu qua email{" "}
-          <a className="text-blue-600 underline" href="mailto:info@eurowindowlightcity.net">
-            info@eurowindowlightcity.net
+          <a className="text-blue-600 underline" href="mailto:info@bdsg.land">
+            info@bdsg.land
           </a>
           .
         </li>
@@ -143,13 +142,13 @@ export default function PrivacyPolicyPage() {
       <p className="mt-2">
         <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>
         <br />
-        Đơn vị phân phối F1 chính thức dự án Eurowindow Light City
+        Đại lý phát triển kinh doanh dự án Shophouse Happy Home Thanh Hóa
         <br />
-        Địa chỉ: Phường Đông Hải và Đông Hương, TP. Thanh Hoá, tỉnh Thanh Hoá
+        Địa chỉ: Phường Hạc Thành, tỉnh Thanh Hóa
         <br />
         Email:{" "}
-        <a className="text-blue-600 underline" href="mailto:info@eurowindowlightcity.net">
-          info@eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="mailto:info@bdsg.land">
+          info@bdsg.land
         </a>
         <br />
         Hotline:{" "}
@@ -158,8 +157,8 @@ export default function PrivacyPolicyPage() {
         </a>
         <br />
         Website:{" "}
-        <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
-          https://www.eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land">
+          https://happyhomethanhhoa.bdsg.land
         </a>
       </p>
     </main>

@@ -46,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
-      title: "ELC",
+      title: "Happy Home",
     },
     icons: {
       icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],

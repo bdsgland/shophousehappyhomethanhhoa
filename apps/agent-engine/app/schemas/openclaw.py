@@ -145,7 +145,7 @@ class OpenClawAnnounce(BaseModel):
     audience: Literal["all_sales", "all_admins", "specific_users"]
     channels: list[Literal["telegram", "email"]] = Field(default_factory=lambda: ["telegram"])
     message: str
-    subject: str = "Thông báo từ ELC"
+    subject: str = "Thông báo từ Happy Home"
     user_ids: list[str] = Field(default_factory=list)  # cho audience="specific_users"
 
 

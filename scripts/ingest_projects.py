@@ -17,7 +17,7 @@
 Cách chạy:
     cd apps/agent-engine && source .venv/bin/activate
     python ../../scripts/ingest_projects.py \
-        --project eurowindow-light-city \
+        --project happy-home-thanh-hoa \
         --groups qa,brochure,phap-ly,bang-gia
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PROJECTS_DIR = REPO_ROOT / "data" / "projects"
 KB_DIR = REPO_ROOT / "data" / "knowledge_base"
 
-# Tên thư mục con bên trong "<project>/Eurowindow Light City/" -> nhóm.
+# Tên thư mục con bên trong "<project>/Happy Home Thanh Hóa/" -> nhóm.
 # Khớp bằng substring không phân biệt hoa/thường, đã chuẩn hoá dấu.
 GROUP_RULES: list[tuple[str, str]] = [
     # (substring trong path đã lowercase + bỏ dấu, group_id)

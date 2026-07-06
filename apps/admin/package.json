@@ -2,7 +2,7 @@
   "name": "@agent-proptech/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Admin dashboard trung tâm cho hệ thống ELC (Eurowindow Light City)",
+  "description": "Admin dashboard trung tâm cho hệ thống Happy Home (Happy Home Thanh Hóa)",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",

@@ -34,7 +34,7 @@ const APP_ID =
 
 const API_BASE =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
-  "https://api.eurowindowlightcity.net";
+  "https://api-happyhomethanhhoa.bdsg.land";
 
 const FB_VERSION = "v19.0";
 

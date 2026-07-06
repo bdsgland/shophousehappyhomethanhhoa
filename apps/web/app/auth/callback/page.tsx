@@ -14,7 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   google_exchange_failed: "Không kết nối được Google. Vui lòng thử lại.",
   no_email: "Không lấy được email từ tài khoản Google.",
   email_unverified: "Email Google chưa được xác minh.",
-  not_workspace: "Tài khoản này không thuộc tổ chức Eurowindow Light City.",
+  not_workspace: "Tài khoản này không thuộc tổ chức Happy Home Thanh Hóa.",
   not_admin: "Tài khoản này không có quyền quản trị viên.",
   account_disabled: "Tài khoản đã bị khoá. Liên hệ quản trị viên.",
   user_create_failed: "Không tạo được tài khoản. Vui lòng thử lại.",

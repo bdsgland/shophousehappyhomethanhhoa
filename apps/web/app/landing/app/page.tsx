@@ -7,19 +7,19 @@ import {
   OVERVIEW_ROWS,
   PRICE_TABLE,
   SUBZONES,
-} from "@/components/dashboard/elc-data";
+} from "@/components/dashboard/project-data";
 import { fetchPublicNews } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: {
     absolute:
-      "Eurowindow Light City — Bừng sáng bên sông Mã | Bảng giá & tư vấn AI 24/7",
+      "Shophouse Happy Home Thanh Hóa — Cận thị · Cận giang · Cận lộ | Bảng giá & tư vấn AI 24/7",
   },
   description:
-    "Khu đô thị Eurowindow Light City 176ha tại phường Nguyệt Viên, TP Thanh Hoá. Nhận bảng giá, quỹ căn realtime, phiếu giá tự động và trợ lý AI tư vấn 24/7 cho khách hàng và chuyên viên kinh doanh.",
+    "Shophouse khối đế Happy Home tại trung tâm hành chính mới TP. Thanh Hóa — đại lý BDSG LAND. Nhận bảng giá, quỹ căn realtime, phiếu giá tự động và trợ lý AI tư vấn 24/7 cho khách hàng và chuyên viên kinh doanh.",
 };
 
-const PROJECT_HREF = "/dashboard/project/eurowindow-light-city";
+const PROJECT_HREF = "/dashboard/project/happy-home-thanh-hoa";
 
 // Thanh tab chi tiết dự án (anchor tới các section trong trang — không cần đăng nhập).
 const TABS: { id: string; label: string }[] = [
@@ -60,21 +60,21 @@ function Logo() {
   return (
     <Link href="/" className="flex items-center gap-3">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-        ELC
+        Happy Home
       </div>
       <div className="leading-tight">
         <div className="text-sm font-semibold tracking-wide text-brand-900">
-          Eurowindow Light City
+          Happy Home Thanh Hóa
         </div>
         <div className="text-[11px] uppercase tracking-widest text-brand-700">
-          Bừng sáng bên sông Mã
+          Cận thị · Cận giang · Cận lộ
         </div>
       </div>
     </Link>
   );
 }
 
-// Map bài tin tức (public API) → shape thẻ tin của landing. Fallback elc-data.
+// Map bài tin tức (public API) → shape thẻ tin của landing. Fallback project-data.
 type LandingNews = { title: string; date: string; excerpt: string; img: string; url: string };
 
 function formatNewsDate(value: string | null): string {
@@ -152,13 +152,13 @@ export default async function LandingAppPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 sm:px-5 sm:py-16 lg:grid-cols-2 lg:py-20">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3 py-1 text-xs font-semibold text-brand-700">
-              Khu đô thị 176ha · Nguyệt Viên, TP Thanh Hoá
+              18 tòa · 2.824 căn hộ · Hạc Thành, Thanh Hóa
             </span>
             <h1 className="mt-5 text-3xl font-bold leading-tight text-brand-900 sm:text-4xl lg:text-5xl">
-              Eurowindow Light City — Bừng sáng bên sông Mã
+              Shophouse Happy Home Thanh Hóa — Cận thị · Cận giang · Cận lộ
             </h1>
             <p className="mt-4 text-base leading-relaxed text-brand-700 sm:text-lg">
-              Đại đô thị ánh sáng do Eurowindow Holding phát triển: 7 phân khu đa
+              Đại đô thị ánh sáng do Tập đoàn Vingroup phát triển: 7 phân khu đa
               phong cách, đại lộ Ánh Sáng độc bản, tiện ích all-in-one. Tra cứu
               quỹ căn, nhận bảng giá và được trợ lý AI tư vấn 24/7 — ngay trên
               điện thoại.
@@ -200,7 +200,7 @@ export default async function LandingAppPage() {
             <div className="absolute -bottom-4 left-4 right-4 rounded-2xl border border-brand-100 bg-white/95 px-4 py-3 shadow-md backdrop-blur sm:left-8 sm:right-8">
               <div className="grid grid-cols-3 divide-x divide-brand-100 text-center">
                 <div className="px-1">
-                  <div className="text-lg font-bold text-brand-900">176ha</div>
+                  <div className="text-lg font-bold text-brand-900">18 tòa</div>
                   <div className="text-[11px] text-brand-600">Quy mô</div>
                 </div>
                 <div className="px-1">
@@ -228,7 +228,7 @@ export default async function LandingAppPage() {
             Tổng quan dự án
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-brand-700">
-            Eurowindow Light City là đại đô thị kiểu mẫu bên dòng sông Mã, kiến
+            Happy Home Thanh Hóa là đại đô thị kiểu mẫu bên dòng sông Mã, kiến
             tạo phong cách sống ánh sáng với hệ tiện ích đồng bộ và quy hoạch
             cảnh quan đặc sắc.
           </p>
@@ -293,7 +293,7 @@ export default async function LandingAppPage() {
               Vị trí kết nối
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-brand-700">
-              Toạ lạc tại phường Nguyệt Viên — cửa ngõ phía Bắc TP Thanh Hoá,
+              Toạ lạc tại phường Hạc Thành — cửa ngõ phía Bắc TP Thanh Hoá,
               liền kề Quốc lộ 1A và cầu Hoằng Long. Kết nối thuận tiện tới trung
               tâm hành chính, trường học, bệnh viện và hệ thống thương mại dịch
               vụ.
@@ -316,7 +316,7 @@ export default async function LandingAppPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={HERO_IMAGES[1]?.src}
-              alt="Trục cảnh quan Eurowindow Light City"
+              alt="Trục cảnh quan Happy Home Thanh Hóa"
               className="h-full min-h-[280px] w-full object-cover"
             />
           </div>
@@ -524,7 +524,7 @@ export default async function LandingAppPage() {
                   Dành cho môi giới
                 </span>
                 <h2 className="mt-2 text-2xl font-bold text-brand-900">
-                  Bạn là môi giới? Bán ELC bằng nền tảng AI
+                  Bạn là môi giới? Bán Happy Home bằng nền tảng AI
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-brand-700">
                   CRM 360, bảng hàng realtime, phiếu giá tự động, đội Sale AI hỗ
@@ -583,8 +583,7 @@ export default async function LandingAppPage() {
       {/* ===== Footer ===== */}
       <footer className="border-t border-brand-100 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-brand-700 sm:px-5">
-          © Eurowindow Holding — Khu đô thị Eurowindow Light City, phường Nguyệt
-          Viên, TP Thanh Hoá. Nền tảng hỗ trợ bán hàng; thông tin chi tiết (giá,
+          © BDSG LAND — Đại lý phát triển kinh doanh dự án Shophouse Happy Home Thanh Hóa (CĐT: Tập đoàn Vingroup), phường Hạc Thành, tỉnh Thanh Hóa. Nền tảng hỗ trợ bán hàng; thông tin chi tiết (giá,
           chính sách) vui lòng liên hệ chuyên viên kinh doanh.
         </div>
       </footer>

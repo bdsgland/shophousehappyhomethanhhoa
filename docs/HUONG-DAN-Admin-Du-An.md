@@ -1,6 +1,6 @@
 # Hướng dẫn dựng mục "Dự án" trong app Admin (apps/admin — ngoài workspace)
 
-> App `apps/admin` deploy tại `https://admin.eurowindowlightcity.net` KHÔNG nằm trong
+> App `apps/admin` deploy tại `https://admin-happyhomethanhhoa.bdsg.land` KHÔNG nằm trong
 > workspace này (chỉ có `apps/agent-engine` + `apps/web`). Tài liệu này cung cấp
 > CODE SẴN để dán vào repo admin, khớp với backend đã hoàn thiện. Backend đã sẵn
 > sàng — chỉ cần ráp UI.
@@ -71,7 +71,7 @@ export type AIEditOut = {
 ## 3. API client (điều chỉnh theo wrapper sẵn có của admin)
 
 ```ts
-const API = process.env.NEXT_PUBLIC_AGENT_ENGINE_URL || "https://api.eurowindowlightcity.net";
+const API = process.env.NEXT_PUBLIC_AGENT_ENGINE_URL || "https://api-happyhomethanhhoa.bdsg.land";
 
 function adminHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };

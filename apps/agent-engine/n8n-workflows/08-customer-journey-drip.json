@@ -55,11 +55,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.email }}",
         "subject": "=👋 {{ $('Webhook').item.json.body.full_name }}, đã 1 tuần — bạn cần hỗ trợ tìm căn không?",
         "emailFormat": "text",
-        "text": "=Chào {{ $('Webhook').item.json.body.full_name }},\n\nĐã 1 tuần kể từ khi bạn đăng ký. Đội sale ELC luôn sẵn sàng tư vấn căn phù hợp ngân sách. Trả lời email này để bắt đầu.",
+        "text": "=Chào {{ $('Webhook').item.json.body.full_name }},\n\nĐã 1 tuần kể từ khi bạn đăng ký. Đội sale Happy Home luôn sẵn sàng tư vấn căn phù hợp ngân sách. Trả lời email này để bắt đầu.",
         "options": {}
       },
       "id": "em8a",
@@ -89,11 +89,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.email }}",
-        "subject": "=🏗 Update dự án Eurowindow Light City — block A đã cất nóc",
+        "subject": "=🏗 Update dự án Happy Home Thanh Hóa — block A đã cất nóc",
         "emailFormat": "text",
-        "text": "=Tin vui từ ELC: block A vừa cất nóc, sẵn sàng bàn giao Q3/2026. Còn 12 căn 2PN giá tốt. Xem ngay: https://eurowindowlightcity.net",
+        "text": "=Tin vui từ Happy Home: block A vừa cất nóc, sẵn sàng bàn giao Q3/2026. Còn 12 căn 2PN giá tốt. Xem ngay: https://happyhomethanhhoa.bdsg.land",
         "options": {}
       },
       "id": "em8b",
@@ -123,11 +123,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.email }}",
         "subject": "=🎁 Ưu đãi 30 ngày: tặng gói nội thất 200 triệu",
         "emailFormat": "text",
-        "text": "=Chỉ trong tháng này: đặt cọc căn ELC để nhận gói nội thất 200 triệu + chiết khấu 2%. Liên hệ sale ngay.",
+        "text": "=Chỉ trong tháng này: đặt cọc căn Happy Home để nhận gói nội thất 200 triệu + chiết khấu 2%. Liên hệ sale ngay.",
         "options": {}
       },
       "id": "em8c",

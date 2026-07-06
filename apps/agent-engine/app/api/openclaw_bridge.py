@@ -1,6 +1,6 @@
 """OpenClaw God-Mode Bridge — endpoint /openclaw/* cho trợ lý AI CEO.
 
-Bot Telegram CEO (@elc_ceo_bot, chạy ở service OpenClaw bot.eurowindowlightcity.net)
+Bot Telegram CEO (@hh_ceo_bot, chạy ở service OpenClaw bot-happyhomethanhhoa.bdsg.land)
 gọi vào đây để điều khiển toàn platform: users · leads · inventory · commission ·
 KPI · DB read-only · telegram · email · health.
 
@@ -65,7 +65,7 @@ log = logging.getLogger("openclaw.bridge")
 router = APIRouter(prefix="/openclaw", tags=["openclaw"])
 
 # Audit file bổ trợ (best-effort) — nhật ký chính do audit_store/middleware lo.
-_AUDIT_DIR = Path(os.environ.get("ELC_DATA_DIR", "/app/data"))
+_AUDIT_DIR = Path(os.environ.get("HH_DATA_DIR", "/app/data"))
 
 
 # ---------------------------------------------------------------------------

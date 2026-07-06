@@ -20,9 +20,9 @@ _LOCK = threading.Lock()
 
 _DEFAULTS: dict[str, Any] = {
     "general": {
-        "site_name": "Eurowindow Light City",
+        "site_name": "Happy Home Thanh Hóa",
         "logo_url": "",
-        "contact_email": "info@eurowindowlightcity.net",
+        "contact_email": "info@bdsg.land",
         "contact_phone": "1900 0000",
         "working_hours": "08:00 - 18:00 (T2 - T7)",
     },

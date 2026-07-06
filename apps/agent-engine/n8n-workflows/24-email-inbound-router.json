@@ -90,7 +90,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/inbox/route",
+        "url": "={{ $env.HH_API_URL }}/admin/inbox/route",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

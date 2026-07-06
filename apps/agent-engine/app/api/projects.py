@@ -28,7 +28,7 @@ def get_project_content(slug: str) -> ProjectDoc:
 
     Chỉ trả nội dung marketing (overview/vị trí/đào tạo/phân khu/360/tiến độ/tin
     tức + mô tả chính sách) — KHÔNG có PII. Quỹ căn/tài liệu/số liệu giá có
-    endpoint riêng. Web fallback elc-data.ts khi gọi lỗi nên không cần đăng nhập.
+    endpoint riêng. Web fallback project-data.ts khi gọi lỗi nên không cần đăng nhập.
     """
     try:
         slug = project_store.normalize_slug(slug)

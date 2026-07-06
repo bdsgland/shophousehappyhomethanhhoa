@@ -169,13 +169,13 @@ async def _platforms_health() -> List[Dict[str, Any]]:
             for p in _platforms_config():
                 entry = {"key": p["key"], "name": p["name"], "url": p["url"]}
                 if p["url"] == "self":
-                    entry.update({"url": "https://api.eurowindowlightcity.net",
+                    entry.update({"url": "https://api-happyhomethanhhoa.bdsg.land",
                                   "status": "up", "code": 200})
                     results.append(entry)
                     continue
                 try:
                     r = await client.get(
-                        p["url"], headers={"User-Agent": "ELC-Manager-HealthCheck/1.0"}
+                        p["url"], headers={"User-Agent": "HH-Manager-HealthCheck/1.0"}
                     )
                     entry["code"] = r.status_code
                     entry["status"] = "up" if r.status_code < 500 else "down"

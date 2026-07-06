@@ -28,7 +28,7 @@ def _isolate(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(settings, "frontend_url", "https://web.test")
     monkeypatch.setattr(settings, "admin_url", "https://admin.test")
-    monkeypatch.setattr(settings, "google_workspace_domain", "eurowindowlightcity.net")
+    monkeypatch.setattr(settings, "google_workspace_domain", "happyhomethanhhoa.bdsg.land")
     yield
 
 
@@ -133,14 +133,14 @@ def test_callback_admin_rejects_non_workspace(monkeypatch):
 
 
 def test_callback_admin_accepts_workspace(monkeypatch):
-    _mock_userinfo(monkeypatch, email="boss@eurowindowlightcity.net", sub="g-admin")
+    _mock_userinfo(monkeypatch, email="boss@bdsg.land", sub="g-admin")
     state = google_oauth.make_state(role="admin")
     res = client.get(f"/auth/google/callback?code=abc&state={state}")
     assert res.status_code == 302
     loc = res.headers["location"]
     assert loc.startswith("https://admin.test/auth/callback#")
     assert "token=" in loc
-    u = user_store.find_by_email("boss@eurowindowlightcity.net")
+    u = user_store.find_by_email("boss@bdsg.land")
     assert u["role"] == "admin"
 
 
@@ -149,12 +149,12 @@ def test_callback_admin_blocks_privilege_escalation(monkeypatch):
     from app.core.security import hash_password
 
     user_store.create_user(
-        email="staff@eurowindowlightcity.net",
+        email="staff@bdsg.land",
         full_name="Nhân viên",
         password_hash=hash_password("Passw0rd123"),
         role="client",
     )
-    _mock_userinfo(monkeypatch, email="staff@eurowindowlightcity.net")
+    _mock_userinfo(monkeypatch, email="staff@bdsg.land")
     state = google_oauth.make_state(role="admin")
     res = client.get(f"/auth/google/callback?code=abc&state={state}")
     assert "error=not_admin" in res.headers["location"]

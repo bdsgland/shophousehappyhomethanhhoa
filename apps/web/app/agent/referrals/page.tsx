@@ -6,7 +6,7 @@ import { Copy, Share2, Users } from "@/components/dashboard/icons";
 import { fetchReferrals, type ReferralsData } from "@/lib/api";
 import { readToken } from "@/lib/auth";
 
-const REGISTER_BASE = "https://eurowindowlightcity.net/register";
+const REGISTER_BASE = "https://happyhomethanhhoa.bdsg.land/register";
 
 function vnd(n: number): string {
   if (!n) return "0 ₫";
@@ -56,7 +56,7 @@ export default function ReferralsPage() {
 
   const shareFb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`;
   const shareMail = `mailto:?subject=${encodeURIComponent(
-    "Đăng ký làm chuyên viên Eurowindow Light City",
+    "Đăng ký làm chuyên viên Happy Home Thanh Hóa",
   )}&body=${encodeURIComponent(`Đăng ký qua link giới thiệu của tôi: ${link}`)}`;
 
   return (

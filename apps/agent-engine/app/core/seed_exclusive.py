@@ -22,18 +22,14 @@ _MAP_W, _MAP_H = 2001, 1126
 _MARGIN = 110
 
 # (id, đường, phân khu, loại, dt_đất, dt_sàn_XD, N, VAT(K), KPBT(L))
-_EXCLUSIVE_UNITS = [
-    ("DQ-31", "Dương Quang (17m)", "Mặt Trời", "Liền kề", 96.0, 263.7,
-     7_042_783_206, 427_327_606, 26_472_112),
-    ("DQ-53", "Dương Quang (17m)", "Mặt Trời", "Liền kề", 96.0, 264.8,
-     7_054_099_212, 428_077_606, 26_509_612),
-    ("HD-42", "Hoà Dương (17m)", "Mặt Trời", "Liền kề", 96.0, 264.8,
-     6_758_906_799, 428_077_606, 26_509_612),
-    ("HD-54", "Hoà Dương (17m)", "Mặt Trời", "Liền kề", 96.0, 264.8,
-     6_980_301_109, 428_077_606, 26_509_612),
-    ("HQ1-145", "Hồng Quang (25m)", "Mặt Trời", "Liền kề", 96.0, 263.7,
-     7_264_177_517, 427_327_606, 26_472_112),
-]
+#
+# Happy Home Thanh Hóa: bảng hàng shophouse (NO1-T1-SH01…) hiện CHƯA công bố
+# giá chi tiết — tài liệu bán hàng chỉ ghi "Tư vấn giá & chính sách: hotline".
+# → Danh sách seed để TRỐNG (seed no-op). Khi có bảng giá chính thức, thêm căn
+# theo format cũ, ví dụ:
+#   ("NO1-T1-SH01", "Trục nội khu chính", "Block 1", "Shophouse khối đế",
+#    76.38, 76.38, <giá N>, <VAT K>, <KPBT L>),
+_EXCLUSIVE_UNITS: list[tuple] = []
 
 
 def _gia_label(n: int) -> str:

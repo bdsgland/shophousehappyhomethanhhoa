@@ -89,7 +89,7 @@ function BookingForm() {
         <div>
           <h1 className="text-2xl font-bold text-brand-900">Đặt lịch xem nhà</h1>
           <p className="text-sm text-brand-600">
-            Chuyên viên ELC sẽ liên hệ xác nhận trong ít phút.
+            Chuyên viên Happy Home sẽ liên hệ xác nhận trong ít phút.
           </p>
         </div>
       </header>

@@ -54,17 +54,21 @@ function startsWithPrefix(pathname: string, prefix: string): boolean {
  * Phân loại landing theo TÊN MIỀN (host-based) khi truy cập trang gốc "/".
  * - host bắt đầu "app."    → landing APP (giới thiệu + đăng ký/đăng nhập khách & sale)
  * - host bắt đầu "agency." → landing AGENCY (giới thiệu sàn + đăng nhập chủ sàn)
- * - host khác (www / root) → giữ nguyên trang chủ www hiện tại (/elc-home.html)
+ * - host khác (www / root) → trang chủ Next.js (app/page.tsx) render trực tiếp
  *
  * Chỉ dùng next REWRITE nội bộ (URL trên trình duyệt vẫn là "/"), không redirect
  * nên KHÔNG gây vòng lặp. Các route khác (/login, /agent, /agency, /client, …)
  * KHÔNG bị ảnh hưởng — chúng đi tiếp xuống logic bảo vệ bên dưới như cũ.
  */
-function homeRewriteTarget(host: string): string {
+function homeRewriteTarget(host: string): string | null {
   const h = host.toLowerCase();
-  if (h.startsWith("app.")) return "/landing/app";
-  if (h.startsWith("agency.")) return "/landing/agency";
-  return "/elc-home.html";
+  // Hỗ trợ cả 2 kiểu subdomain: "app.<domain>" và kiểu phẳng
+  // "app-happyhomethanhhoa.bdsg.land" (1 cấp — giữ SSL universal Cloudflare).
+  if (h.startsWith("app.") || h.startsWith("app-")) return "/landing/app";
+  if (h.startsWith("agency.") || h.startsWith("agency-")) {
+    return "/landing/agency";
+  }
+  return null; // host chính → để app/page.tsx render landing dự án
 }
 
 export function middleware(req: NextRequest) {
@@ -73,7 +77,9 @@ export function middleware(req: NextRequest) {
   if (pathname === "/") {
     // Header host (có thể kèm port). req.headers.get("host") đáng tin trên Vercel/Node.
     const host = req.headers.get("host") ?? req.nextUrl.host ?? "";
-    return NextResponse.rewrite(new URL(homeRewriteTarget(host), req.url));
+    const target = homeRewriteTarget(host);
+    if (target) return NextResponse.rewrite(new URL(target, req.url));
+    return NextResponse.next();
   }
 
   const isProtected = PROTECTED_PREFIXES.some((p) =>

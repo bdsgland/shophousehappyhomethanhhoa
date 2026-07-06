@@ -7,8 +7,8 @@ sale/khách. KHÔNG bao gồm:
   - Số liệu phiếu tính giá → sales_policy_store (app/api/sales_policy.py)
 
 Các section lưu ở đây (khớp ĐÚNG shape dữ liệu mà
-apps/web/components/dashboard/elc-data.ts đang render, để web đọc thẳng + fallback
-elc-data khi store trống):
+apps/web/components/dashboard/project-data.ts đang render, để web đọc thẳng + fallback
+project-data khi store trống):
   overview, location, training, subzones, gallery360, policy(text), timeline, news
 
 Lưu 1 object `ProjectDoc` / slug (JSON store: core/project_store.py, version +

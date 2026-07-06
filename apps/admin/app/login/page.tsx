@@ -48,11 +48,11 @@ function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">
-            ELC
+            Happy Home
           </span>
-          <h1 className="text-xl font-semibold">Cổng quản trị ELC</h1>
+          <h1 className="text-xl font-semibold">Cổng quản trị Happy Home</h1>
           <p className="text-sm text-muted-foreground">
-            Eurowindow Light City — Proptech Platform
+            Happy Home Thanh Hóa — Proptech Platform
           </p>
         </div>
 
@@ -78,7 +78,7 @@ function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@eurowindowlightcity.net"
+                placeholder="admin@bdsg.land"
                 className="pl-9"
               />
             </div>

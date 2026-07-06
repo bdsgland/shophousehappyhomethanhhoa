@@ -270,7 +270,7 @@ export function LoanCalculator() {
               className="mt-0.5 h-4 w-4 accent-amber-500"
             />
             <span className="text-sm text-amber-900">
-              <span className="font-semibold">Ưu đãi ELC:</span> Hỗ trợ lãi suất 0%
+              <span className="font-semibold">Ưu đãi Happy Home:</span> Hỗ trợ lãi suất 0%
               trong 42 tháng đầu
             </span>
           </label>
@@ -411,7 +411,7 @@ export function LoanCalculator() {
           </div>
           <p className="mt-3 text-[11px] text-brand-400">
             * Kết quả mang tính tham khảo. Lãi suất thực tế và chính sách ưu đãi vui
-            lòng xác nhận với ngân hàng và chuyên viên ELC.
+            lòng xác nhận với ngân hàng và chuyên viên Happy Home.
           </p>
         </div>
       </div>

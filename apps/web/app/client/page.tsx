@@ -103,7 +103,7 @@ export default function ClientDashboard() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-indigo-50">
           Chào mừng đến không gian khách hàng của{" "}
-          <b>Eurowindow Light City</b> — khu đô thị 176ha bên sông Mã, TP Thanh Hoá.
+          <b>Happy Home Thanh Hóa</b> — shophouse khối đế giữa trung tâm hành chính mới TP. Thanh Hóa.
           Khám phá quỹ căn, tính giá, lãi vay và đặt câu hỏi cho trợ lý AI bất cứ lúc nào.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -114,7 +114,7 @@ export default function ClientDashboard() {
             Bắt đầu trò chuyện AI
           </Link>
           <Link
-            href="/dashboard/project/eurowindow-light-city"
+            href="/dashboard/project/happy-home-thanh-hoa"
             className="rounded-lg border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
           >
             Xem mặt bằng quỹ căn
@@ -143,7 +143,7 @@ export default function ClientDashboard() {
 
       {/* Tìm hiểu dự án — page chi tiết 11 tab */}
       <Link
-        href="/dashboard/project/eurowindow-light-city"
+        href="/dashboard/project/happy-home-thanh-hoa"
         className="flex items-center gap-4 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
       >
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white">
@@ -151,7 +151,7 @@ export default function ClientDashboard() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-base font-bold text-brand-900">
-            Tìm hiểu dự án Eurowindow Light City
+            Tìm hiểu dự án Happy Home Thanh Hóa
           </span>
           <span className="block text-sm text-brand-600">
             Tổng quan, vị trí, phân khu, mặt bằng, ảnh 360° và chính sách bán hàng

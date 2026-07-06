@@ -9,12 +9,12 @@ import {
 } from "react";
 import { postChat, type ChatTurn } from "@/lib/api";
 
-const PROJECT_SLUG = "eurowindow-light-city";
+const PROJECT_SLUG = "happy-home-thanh-hoa";
 
 const GREETING: ChatTurn = {
   role: "assistant",
   content:
-    "Em chào Anh/Chị 👋\n\nEm là trợ lý tư vấn của dự án **Eurowindow Light City**. Anh/Chị quan tâm về vị trí, giá bán, chính sách thanh toán hay pháp lý dự án ạ? Em sẵn lòng hỗ trợ.",
+    "Em chào Anh/Chị 👋\n\nEm là trợ lý tư vấn của dự án **Happy Home Thanh Hóa**. Anh/Chị quan tâm về vị trí, giá bán, chính sách thanh toán hay pháp lý dự án ạ? Em sẵn lòng hỗ trợ.",
 };
 
 type DisplayMessage = ChatTurn & { id: string };
@@ -216,17 +216,17 @@ export function ChatWidget() {
       {open && (
         <div
           role="dialog"
-          aria-label="Trợ lý tư vấn Eurowindow Light City"
+          aria-label="Trợ lý tư vấn Happy Home Thanh Hóa"
           className="fixed inset-x-3 bottom-24 z-50 flex max-h-[min(80vh,640px)] flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-2xl shadow-brand-900/15 sm:inset-x-auto sm:right-6 sm:bottom-24 sm:w-[380px]"
         >
           {/* Header */}
           <div className="flex items-start gap-3 border-b border-brand-100 bg-brand-900 px-4 py-3 text-white">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-base font-semibold">
-              ELC
+              Happy Home
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold">
-                Tư vấn Eurowindow Light City
+                Tư vấn Happy Home Thanh Hóa
               </div>
               <div className="flex items-center gap-1.5 text-xs text-brand-100">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />

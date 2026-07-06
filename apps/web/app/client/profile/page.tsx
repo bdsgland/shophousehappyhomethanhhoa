@@ -11,7 +11,7 @@ import {
 import { readToken, readUserFromCookie, setUserCookie } from "@/lib/auth";
 
 const REGIONS = ["Thanh Hoá", "Hà Nội", "TP HCM", "Khác"];
-const PROJECTS = ["Eurowindow Light City", "Khác"];
+const PROJECTS = ["Happy Home Thanh Hóa", "Khác"];
 
 export default function ClientProfilePage() {
   const [token, setToken] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function ClientProfilePage() {
   const [phone, setPhone] = useState("");
   const [dob, setDob] = useState("");
   const [region, setRegion] = useState("Thanh Hoá");
-  const [project, setProject] = useState("Eurowindow Light City");
+  const [project, setProject] = useState("Happy Home Thanh Hóa");
   const [avatar, setAvatar] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
@@ -53,7 +53,7 @@ export default function ClientProfilePage() {
         setDob(u.dob ?? "");
         setRegion(u.region ?? "Thanh Hoá");
         const p = (u.projects_interested ?? [])[0];
-        if (p) setProject(PROJECTS.includes(p) ? p : "Eurowindow Light City");
+        if (p) setProject(PROJECTS.includes(p) ? p : "Happy Home Thanh Hóa");
       })
       .catch(() => {
         const cu = readUserFromCookie();

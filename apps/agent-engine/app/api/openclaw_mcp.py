@@ -2,7 +2,7 @@
 
 LÝ DO TỒN TẠI
   Bot OpenClaw (trợ lý AI CEO) CHỈ tiêu thụ MCP server — không gọi REST thường,
-  không OpenAPI. ELC đã có sẵn REST God-Mode ở app/api/openclaw_bridge.py. Module
+  không OpenAPI. Happy Home đã có sẵn REST God-Mode ở app/api/openclaw_bridge.py. Module
   này KHÔNG viết lại logic: nó EXPOSE mỗi thao tác /openclaw thành 1 MCP "tool" và
   gọi LẠI hàm xử lý nội bộ sẵn có (tái dùng, KHÔNG vòng qua HTTP).
 
@@ -25,7 +25,7 @@ AUTH (thống nhất require_god của bridge)
   - So khớp settings.openclaw_god_token (fallback env OPENCLAW_GOD_TOKEN).
   - Thiếu/sai/chưa cấu hình → HTTP 401 (fail-closed). So sánh hằng-thời-gian.
 
-URL CUỐI CÙNG (production):  https://api.eurowindowlightcity.net/mcp
+URL CUỐI CÙNG (production):  https://api-happyhomethanhhoa.bdsg.land/mcp
 """
 from __future__ import annotations
 
@@ -137,7 +137,7 @@ def _h_announce(a: Dict[str, Any]) -> Dict[str, Any]:
         audience=a["audience"],
         channels=a.get("channels") or ["telegram"],
         message=a["message"],
-        subject=a.get("subject", "Thông báo từ ELC"),
+        subject=a.get("subject", "Thông báo từ Happy Home"),
         user_ids=a.get("user_ids") or [],
     )
     return bridge.announce(body=body, actor=_ACTOR)
@@ -429,7 +429,7 @@ _DECISION_ACTOR = {
     "principal": "openclaw_ceo",
     "role": "god",
     "full_name": "OpenClaw — Trợ lý AI CEO",
-    "email": "openclaw@eurowindowlightcity.net",
+    "email": "openclaw@bdsg.land",
 }
 
 
@@ -461,7 +461,7 @@ TOOLS: List[Dict[str, Any]] = [
     # ----------------------------- READ -----------------------------
     {
         "name": "get_kpi_realtime",
-        "description": "ĐỌC KPI realtime toàn hệ thống ELC: thống kê leads, tồn kho theo trạng thái, Live Match hôm nay. Dùng khi CEO hỏi 'tình hình hiện tại', 'số liệu live', 'dashboard ngay bây giờ'.",
+        "description": "ĐỌC KPI realtime toàn hệ thống Happy Home: thống kê leads, tồn kho theo trạng thái, Live Match hôm nay. Dùng khi CEO hỏi 'tình hình hiện tại', 'số liệu live', 'dashboard ngay bây giờ'.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         "handler": _h_get_kpi_realtime,
         "write": False,
@@ -593,7 +593,7 @@ TOOLS: List[Dict[str, Any]] = [
                     "default": ["telegram"],
                 },
                 "message": {"type": "string", "description": "Nội dung thông báo"},
-                "subject": {"type": "string", "default": "Thông báo từ ELC"},
+                "subject": {"type": "string", "default": "Thông báo từ Happy Home"},
                 "user_ids": {"type": "array", "items": {"type": "string"}, "description": "Khi audience=specific_users"},
             },
             "required": ["audience", "message"],
@@ -610,7 +610,7 @@ TOOLS: List[Dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "topic": {"type": "string", "description": "Chủ đề/từ khoá cần nghiên cứu"},
-                "project": {"type": "string", "description": "Dự án ELC (tuỳ chọn)"},
+                "project": {"type": "string", "description": "Dự án Happy Home (tuỳ chọn)"},
                 "audience": {"type": "string", "description": "Đối tượng khách hàng (tuỳ chọn)"},
                 "language": {"type": "string", "enum": ["vi", "en", "bilingual"], "default": "vi"},
             },
@@ -1141,7 +1141,7 @@ async def _dispatch(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "capabilities": {"tools": {"listChanged": False}},
             "serverInfo": _SERVER_INFO,
             "instructions": (
-                "MCP bridge điều khiển hệ thống ELC. Tool tiền tố get_/list_ và db_query là "
+                "MCP bridge điều khiển hệ thống Happy Home. Tool tiền tố get_/list_ và db_query là "
                 "CHỈ ĐỌC. Các tool có mô tả '⚠️ HÀNH ĐỘNG GHI' (create_/update_/assign_/"
                 "bulk_/send_/announce/marketing_publish...) thay đổi dữ liệu hoặc gửi đi — "
                 "cần xác nhận trước khi gọi. Mọi hành động ghi đều được lưu audit."

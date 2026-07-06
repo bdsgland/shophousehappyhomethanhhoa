@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/keywords/pool",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/keywords/pool",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -88,7 +88,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft blog SEO 1000 ch\\u1eef ti\\u1ebfng Vi\\u1ec7t cho ELC H\\u00e0 N\\u1ed9i. Theo keyword cho tr\\u01b0\\u1edbc. C\\u00f3 H2/H3, internal link \\u0111\\u1ebfn /can-ho /tien-ich, CTA cu\\u1ed1i. Output JSON: {title, slug, content_md, meta_description, tags}.\", messages: [ { role: 'user', content: 'Keyword chính: ' + ($json.primary || '') + '. Phụ: ' + JSON.stringify($json.secondary || []) } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft blog SEO 1000 ch\\u1eef ti\\u1ebfng Vi\\u1ec7t cho Happy Home H\\u00e0 N\\u1ed9i. Theo keyword cho tr\\u01b0\\u1edbc. C\\u00f3 H2/H3, internal link \\u0111\\u1ebfn /can-ho /tien-ich, CTA cu\\u1ed1i. Output JSON: {title, slug, content_md, meta_description, tags}.\", messages: [ { role: 'user', content: 'Keyword chính: ' + ($json.primary || '') + '. Phụ: ' + JSON.stringify($json.secondary || []) } ] }) }}",
         "options": {}
       },
       "id": "cl28",

@@ -58,7 +58,7 @@ export default function FavoritesPage() {
             Nhấn vào biểu tượng trái tim ở danh mục căn để lưu lại những căn bạn quan tâm.
           </p>
           <Link
-            href="/dashboard/project/eurowindow-light-city"
+            href="/dashboard/project/happy-home-thanh-hoa"
             className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
           >
             Xem danh mục căn

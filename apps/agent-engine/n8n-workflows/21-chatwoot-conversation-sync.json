@@ -74,7 +74,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/leads",
+        "url": "={{ $env.HH_API_URL }}/leads",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -90,7 +90,7 @@
         "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').item.json.body.meta.sender.name, phone: $('Webhook').item.json.body.meta.sender.phone_number, email: $('Webhook').item.json.body.meta.sender.email, source: 'chatwoot', external_conversation_id: $('Webhook').item.json.body.id, ai_score: 80, tags: ['hot-lead'] }) }}"
       },
       "id": "h21",
-      "name": "POST leads ELC",
+      "name": "POST leads Happy Home",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -115,7 +115,7 @@
       "main": [
         [
           {
-            "node": "POST leads ELC",
+            "node": "POST leads Happy Home",
             "type": "main",
             "index": 0
           }

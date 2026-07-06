@@ -241,7 +241,7 @@ export function PricingCalculator() {
               <button
                 type="button"
                 onClick={() =>
-                  setSentMsg("Đã gửi yêu cầu tư vấn — chuyên viên ELC sẽ liên hệ bạn sớm.")
+                  setSentMsg("Đã gửi yêu cầu tư vấn — chuyên viên Happy Home sẽ liên hệ bạn sớm.")
                 }
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
               >

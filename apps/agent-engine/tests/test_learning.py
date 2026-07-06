@@ -36,15 +36,15 @@ def client(monkeypatch):
 
     # Seed admin + sale.
     admin = user_store.create_user(
-        email="admin@elc.net", full_name="Quản Trị",
+        email="admin@hhth.net", full_name="Quản Trị",
         password_hash=security.hash_password("admin123x"), role="admin",
     )
     sale = user_store.create_user(
-        email="sale@elc.net", full_name="Nguyễn Văn Sale",
+        email="sale@hhth.net", full_name="Nguyễn Văn Sale",
         password_hash=security.hash_password("sale123xy"), role="sale",
     )
     client_user = user_store.create_user(
-        email="client@elc.net", full_name="Khách Hàng",
+        email="client@hhth.net", full_name="Khách Hàng",
         password_hash=security.hash_password("client123x"), role="client",
     )
 
@@ -66,7 +66,7 @@ def _auth(c, role):
 
 def _upload_policy(c, role="admin"):
     text = (
-        "CHÍNH SÁCH BÁN HÀNG ELC 2026\n"
+        "CHÍNH SÁCH BÁN HÀNG Happy Home 2026\n"
         "Hoa hồng cho sale là 3% giá trị căn đã chốt.\n"
         "Chiết khấu thanh toán nhanh: 8%.\n"
     ).encode("utf-8")
@@ -74,7 +74,7 @@ def _upload_policy(c, role="admin"):
         "/learning/documents",
         headers=_auth(c, role),
         files={"file": ("policy_elc_2026.txt", text, "text/plain")},
-        data={"title": "Chính sách bán hàng ELC 2026", "category": "policy"},
+        data={"title": "Chính sách bán hàng Happy Home 2026", "category": "policy"},
     )
 
 
@@ -127,7 +127,7 @@ def test_ask_sync_mock_has_sources(client):
     r = client.post(
         "/learning/ask/sync",
         headers=_auth(client, "sale"),
-        json={"question": "Chính sách hoa hồng dự án ELC?"},
+        json={"question": "Chính sách hoa hồng dự án Happy Home?"},
     )
     assert r.status_code == 200, r.text
     body = r.json()

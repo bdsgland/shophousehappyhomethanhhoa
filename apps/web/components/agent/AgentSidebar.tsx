@@ -42,8 +42,8 @@ const NAV: NavItem[] = [
   { href: "/agent/favorites", label: "Căn hộ quan tâm", Icon: Heart },
   { href: "/agent/learning", label: "Kho học tập", Icon: GraduationCap },
   {
-    href: "/dashboard/project/eurowindow-light-city",
-    label: "Thông tin dự án ELC",
+    href: "/dashboard/project/happy-home-thanh-hoa",
+    label: "Thông tin dự án Happy Home",
     Icon: BookOpen,
   },
 ];

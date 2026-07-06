@@ -61,7 +61,7 @@ def _isolate(monkeypatch, tmp_path):
 
 def _make_sale(name: str) -> tuple[dict, FakeWS]:
     user = user_store.create_user(
-        email=f"{name.lower()}@elc.test",
+        email=f"{name.lower()}@hhth.test",
         full_name=name,
         password_hash="x",
         role="sale",
@@ -239,7 +239,7 @@ def _auth(user: dict) -> dict:
 
 def test_admin_stats_endpoint():
     admin = user_store.create_user(
-        email="admin@elc.test", full_name="Admin", password_hash="x", role="admin"
+        email="admin@hhth.test", full_name="Admin", password_hash="x", role="admin"
     )
     resp = client.get("/admin/match/stats?period=today", headers=_auth(admin))
     assert resp.status_code == 200

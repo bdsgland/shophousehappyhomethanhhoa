@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "ELC Admin — Eurowindow Light City",
-  description: "Cổng quản trị trung tâm hệ thống Proptech ELC",
+  title: "Happy Home Admin — Happy Home Thanh Hóa",
+  description: "Cổng quản trị trung tâm hệ thống Proptech Happy Home",
   robots: { index: false, follow: false },
 };
 

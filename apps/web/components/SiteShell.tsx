@@ -28,10 +28,10 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             <div className="h-9 w-9 rounded-lg bg-brand-500" />
             <div>
               <div className="text-sm font-semibold tracking-wide text-brand-900">
-                Eurowindow Light City
+                Shophouse Happy Home Thanh Hóa
               </div>
               <div className="text-[11px] uppercase tracking-widest text-brand-700">
-                Bừng sáng bên sông Mã
+                Cận thị · Cận giang · Cận lộ
               </div>
             </div>
           </Link>
@@ -43,9 +43,10 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       </main>
       <footer className="border-t border-brand-100 bg-white pb-16 lg:pb-0">
         <div className="mx-auto max-w-6xl px-6 py-6 text-xs text-brand-700">
-          © Eurowindow Holding — Khu đô thị Eurowindow Light City, phường Nguyệt
-          Viên, TP Thanh Hoá. Trang giới thiệu mang tính tham khảo; thông tin chi
-          tiết (giá, chính sách) vui lòng liên hệ chuyên viên kinh doanh.
+          © BDSG LAND — Đại lý phát triển kinh doanh dự án Shophouse Happy Home
+          Thanh Hóa (CĐT: Tập đoàn Vingroup — Công ty CP), phường Hạc Thành,
+          tỉnh Thanh Hóa. Trang giới thiệu mang tính tham khảo; thông tin chi
+          tiết (giá, chính sách) vui lòng liên hệ hotline 0967 806 686.
         </div>
       </footer>
       <BottomNav />

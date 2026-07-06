@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ping 6 platforms, đếm số fail\nconst targets = [\n  { name: 'agent-engine', url: 'https://api.eurowindowlightcity.net/health' },\n  { name: 'n8n',          url: 'https://n8n.eurowindowlightcity.net/healthz' },\n  { name: 'open-notebook',url: 'https://note.eurowindowlightcity.net/' },\n  { name: 'bot',          url: 'https://bot.eurowindowlightcity.net/' },\n  { name: 'chatwoot',     url: 'https://chat.eurowindowlightcity.net/' },\n  { name: 'web',          url: 'https://eurowindowlightcity.net/' },\n];\nconst results = await Promise.all(targets.map(async t => {\n  try {\n    const r = await this.helpers.httpRequest({ url: t.url, method: 'GET', timeout: 5000, returnFullResponse: true });\n    return { ...t, ok: r.statusCode < 500, status: r.statusCode };\n  } catch (e) {\n    return { ...t, ok: false, error: e.message };\n  }\n}));\nconst down = results.filter(r => !r.ok);\nreturn [{ json: { results, down, downCount: down.length } }];"
+        "jsCode": "// Ping 6 platforms, đếm số fail\nconst targets = [\n  { name: 'agent-engine', url: 'https://api-happyhomethanhhoa.bdsg.land/health' },\n  { name: 'n8n',          url: 'https://n8n-happyhomethanhhoa.bdsg.land/healthz' },\n  { name: 'open-notebook',url: 'https://note-happyhomethanhhoa.bdsg.land/' },\n  { name: 'bot',          url: 'https://bot-happyhomethanhhoa.bdsg.land/' },\n  { name: 'chatwoot',     url: 'https://chat-happyhomethanhhoa.bdsg.land/' },\n  { name: 'web',          url: 'https://happyhomethanhhoa.bdsg.land/' },\n];\nconst results = await Promise.all(targets.map(async t => {\n  try {\n    const r = await this.helpers.httpRequest({ url: t.url, method: 'GET', timeout: 5000, returnFullResponse: true });\n    return { ...t, ok: r.statusCode < 500, status: r.statusCode };\n  } catch (e) {\n    return { ...t, ok: false, error: e.message };\n  }\n}));\nconst down = results.filter(r => !r.ok);\nreturn [{ json: { results, down, downCount: down.length } }];"
       },
       "id": "cd19",
       "name": "Ping 6 platforms",
@@ -108,7 +108,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

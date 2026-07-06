@@ -116,7 +116,7 @@ export default function InventoryPage() {
     <div>
       <PageHeader
         title="Quỹ căn"
-        description="Quản lý quỹ căn ELC: bộ lọc, chỉnh giá & trạng thái, sơ đồ mặt bằng."
+        description="Quản lý quỹ căn Happy Home: bộ lọc, chỉnh giá & trạng thái, sơ đồ mặt bằng."
         action={
           <div className="flex flex-wrap gap-2">
             <Button

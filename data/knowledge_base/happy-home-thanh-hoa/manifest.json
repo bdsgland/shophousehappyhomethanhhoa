@@ -1,0 +1,17 @@
+{
+  "project": "happy-home-thanh-hoa",
+  "built_at": 1783315849,
+  "total_chunks": 8,
+  "new_chunks_this_run": 8,
+  "files_extracted": [
+    {
+      "file": "TÀI LIỆU BÁN HÀNG (Google Drive)/Brochure + Tờ gấp Happy Home Thanh Hóa",
+      "group": "tai-lieu-ban-hang",
+      "pages": 25,
+      "chars": 3088,
+      "chunks": 8,
+      "extractor": "manual-brochure-2026-07"
+    }
+  ],
+  "note": "KB khởi tạo từ brochure + tờ gấp chính thức. Chạy scripts/ingest_projects.py với bộ tài liệu đầy đủ (Drive) để mở rộng."
+}

@@ -527,7 +527,7 @@ export type InventoryStats = {
   reserved: number;
 };
 
-const INVENTORY_SLUG = "eurowindow-light-city";
+const INVENTORY_SLUG = "happy-home-thanh-hoa";
 
 /** Lấy danh sách quỹ căn. Trả null nếu không kết nối được API (để UI fallback). */
 export async function fetchInventory(opts?: {
@@ -672,7 +672,7 @@ export type ProjectDoc = {
   last_updated_at: string | null;
 };
 
-/** Nội dung biên tập dự án (CMS). Lỗi/không kết nối → null để UI fallback elc-data. */
+/** Nội dung biên tập dự án (CMS). Lỗi/không kết nối → null để UI fallback project-data. */
 export async function fetchProject(slug: string): Promise<ProjectDoc | null> {
   try {
     const res = await fetch(

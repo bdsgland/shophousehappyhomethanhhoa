@@ -60,7 +60,7 @@ router = APIRouter(prefix="/learning", tags=["learning"])
 _MAX_UPLOAD = 25 * 1024 * 1024
 
 SYSTEM_PROMPT_ASK = (
-    "Bạn là AI tư vấn nội bộ của Eurowindow Light City (ELC), hỗ trợ đội ngũ "
+    "Bạn là AI tư vấn nội bộ của Happy Home Thanh Hóa (Happy Home), hỗ trợ đội ngũ "
     "Sale. Trả lời NGẮN GỌN, chính xác, CHỈ dựa trên TÀI LIỆU CHÍNH THỐNG đã "
     "được cung cấp trong ngữ cảnh bên dưới. Luôn trích dẫn nguồn theo dạng "
     "[số] tương ứng đoạn tài liệu. Nếu ngữ cảnh không đủ thông tin, nói rõ "

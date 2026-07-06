@@ -23,12 +23,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         className="flex items-center gap-2.5 border-b border-border px-5 py-4"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary font-bold text-primary-foreground">
-          ELC
+          Happy Home
         </span>
         <div className="leading-tight">
-          <div className="text-sm font-semibold">ELC Admin</div>
+          <div className="text-sm font-semibold">Happy Home Admin</div>
           <div className="text-[11px] text-muted-foreground">
-            Eurowindow Light City
+            Happy Home Thanh Hóa
           </div>
         </div>
       </Link>
@@ -63,7 +63,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-        © 2026 ELC Proptech · v0.1
+        © 2026 Happy Home Proptech · v0.1
       </div>
     </div>
   );

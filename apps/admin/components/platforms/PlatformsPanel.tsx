@@ -36,7 +36,7 @@ export function PlatformsPanel() {
     <div>
       <div className="mb-4 flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Sức khoẻ & truy cập nhanh các nền tảng của hệ thống ELC.
+          Sức khoẻ & truy cập nhanh các nền tảng của hệ thống Happy Home.
         </p>
         <Button
           variant="outline"

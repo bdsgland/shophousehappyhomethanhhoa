@@ -14,7 +14,7 @@ import {
   MASTERPLAN_H,
   MASTERPLAN_IMG,
   MASTERPLAN_W,
-} from "@/components/dashboard/elc-data";
+} from "@/components/dashboard/project-data";
 
 export type MapUnit = {
   code: string;

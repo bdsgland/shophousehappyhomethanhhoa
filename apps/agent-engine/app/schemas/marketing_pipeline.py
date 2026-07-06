@@ -1,6 +1,6 @@
 """Schemas cho MARKETING PIPELINE — dây chuyền sản xuất content AI nhiều giai đoạn.
 
-Một PIPELINE = chuỗi GIAI ĐOẠN tuần tự cho 1 chủ đề/dự án bất động sản ELC:
+Một PIPELINE = chuỗi GIAI ĐOẠN tuần tự cho 1 chủ đề/dự án bất động sản Happy Home:
   research → script → content → video_script → publish.
 
 Tái dùng kiểu kênh/định dạng/tone với schemas/marketing.py. Field optional cho
@@ -55,7 +55,7 @@ class PipelineCreate(BaseModel):
 
     name: str = Field(min_length=2, max_length=160)
     topic: str = Field(min_length=2, max_length=600)  # chủ đề / từ khoá chính
-    project: Optional[str] = Field(default=None, max_length=200)  # dự án ELC
+    project: Optional[str] = Field(default=None, max_length=200)  # dự án Happy Home
     audience: Optional[str] = Field(default=None, max_length=400)
     content_format: ContentFormat = "generic"
     channel: CampaignChannel = "facebook"

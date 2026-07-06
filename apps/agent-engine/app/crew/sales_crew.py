@@ -32,7 +32,7 @@ AGENT_TEMPLATES: List[Dict[str, str]] = [
             "khớp với quỹ căn + tri thức dự án từ Knowledge Base nội bộ."
         ),
         "backstory": (
-            "Bạn là chuyên viên tư vấn dày dạn của Eurowindow Light City, nắm chắc "
+            "Bạn là chuyên viên tư vấn dày dạn của Happy Home Thanh Hóa, nắm chắc "
             "sản phẩm, pháp lý và chính sách bán hàng. Luôn dựa trên dữ liệu nội bộ, "
             "không bịa thông tin."
         ),

@@ -1,7 +1,7 @@
 {
-  "name": "Eurowindow Light City",
-  "short_name": "ELC",
-  "description": "Cổng khách hàng & công cụ kinh doanh Khu đô thị Eurowindow Light City — tư vấn AI, bảng hàng, phiếu giá, đặt lịch, Live Match.",
+  "name": "Happy Home Thanh Hóa",
+  "short_name": "Happy Home",
+  "description": "Cổng khách hàng & công cụ kinh doanh Shophouse Happy Home Thanh Hóa (đại lý BDSG LAND) — tư vấn AI, bảng hàng, phiếu giá, đặt lịch, Live Match.",
   "lang": "vi",
   "dir": "ltr",
   "start_url": "/?source=pwa",

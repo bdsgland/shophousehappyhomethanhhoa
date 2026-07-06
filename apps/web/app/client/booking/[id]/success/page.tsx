@@ -55,7 +55,7 @@ export default function BookingSuccessPage({
 
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
-            href="/dashboard/project/eurowindow-light-city"
+            href="/dashboard/project/happy-home-thanh-hoa"
             className="rounded-lg border border-brand-200 px-5 py-2.5 text-sm font-semibold text-brand-800 transition hover:border-indigo-300 hover:bg-indigo-50"
           >
             Xem căn khác

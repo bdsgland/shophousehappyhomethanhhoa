@@ -3,7 +3,7 @@
 MỤC TIÊU
   Cho phép admin tạo API key TOÀN QUYỀN (scope "admin_full") để công cụ ngoài
   (OpenClaw / script / tích hợp) gọi vào:
-    • REST API qua https://api.eurowindowlightcity.net/docs (Authorize → Bearer).
+    • REST API qua https://api-happyhomethanhhoa.bdsg.land/docs (Authorize → Bearer).
     • MCP server tại /mcp (header X-Api-Key hoặc Authorization: Bearer elc_sk_...).
 
 AN TOÀN (BẮT BUỘC)
@@ -36,7 +36,7 @@ _LOCK = threading.RLock()
 
 _STORE_FILE = "data/_runtime/api_keys.json"
 
-# Tiền tố nhận diện khoá ELC (giúp phát hiện rò rỉ + phân biệt với token khác).
+# Tiền tố nhận diện khoá Happy Home (giúp phát hiện rò rỉ + phân biệt với token khác).
 KEY_PREFIX = "elc_sk_"
 # Số byte ngẫu nhiên cho phần bí mật → token_hex(20) = 40 ký tự hex.
 _SECRET_BYTES = 20

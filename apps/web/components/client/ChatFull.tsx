@@ -5,10 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, Sparkles } from "@/components/dashboard/icons";
 import { postChat, type ChatTurn } from "@/lib/api";
 
-const PROJECT_SLUG = "eurowindow-light-city";
+const PROJECT_SLUG = "happy-home-thanh-hoa";
 
 const WELCOME =
-  "Em là trợ lý AI của dự án ELC. Anh/chị muốn tư vấn về căn nào, vị trí, giá cả, hay chính sách bán hàng?";
+  "Em là trợ lý AI của dự án Happy Home. Anh/chị muốn tư vấn về căn nào, vị trí, giá cả, hay chính sách bán hàng?";
 
 const SUGGESTIONS = [
   "Dự án còn căn nào dưới 3 tỷ không?",
@@ -81,7 +81,7 @@ export function ChatFull() {
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-3">
           <div className="mt-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-brand-800 ring-1 ring-brand-100">
-            Tư vấn dự án ELC
+            Tư vấn dự án Happy Home
           </div>
           <div className="mt-1 px-3 py-2 text-xs text-brand-400">
             Lịch sử trò chuyện sẽ lưu tại đây.
@@ -97,7 +97,7 @@ export function ChatFull() {
           </div>
           <div>
             <div className="text-sm font-semibold text-brand-900">
-              Trợ lý AI · Eurowindow Light City
+              Trợ lý AI · Happy Home Thanh Hóa
             </div>
             <div className="text-[11px] text-emerald-600">● Trực tuyến</div>
           </div>

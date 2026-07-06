@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/google-ads/yesterday",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/google-ads/yesterday",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $env.ADMIN_EMAIL }}",
         "subject": "=📊 Google Ads Report {{ new Date(Date.now()-86400000).toLocaleDateString('vi-VN') }}",
         "emailFormat": "text",

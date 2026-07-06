@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📚 Open-Notebook KB Sync\n\nWhen anh tag source `public` trong open-notebook → push content vào ELC learning KB.\n\n**Setup open-notebook:** webhook hook on source.tagged event → `/webhook/notebook-public-source`.",
+        "content": "## 📚 Open-Notebook KB Sync\n\nWhen anh tag source `public` trong open-notebook → push content vào Happy Home learning KB.\n\n**Setup open-notebook:** webhook hook on source.tagged event → `/webhook/notebook-public-source`.",
         "width": 380,
         "height": 280
       },
@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/learning/documents",
+        "url": "={{ $env.HH_API_URL }}/learning/documents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

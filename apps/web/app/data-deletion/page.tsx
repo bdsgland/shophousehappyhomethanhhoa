@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Xoá dữ liệu người dùng | Eurowindow Light City",
+  title: "Xoá dữ liệu người dùng | Happy Home Thanh Hóa",
   description:
-    "Hướng dẫn yêu cầu xoá dữ liệu người dùng khỏi nền tảng Eurowindow Light City — đáp ứng yêu cầu của Facebook App, Zalo OA và quy định bảo vệ dữ liệu cá nhân.",
+    "Hướng dẫn yêu cầu xoá dữ liệu người dùng khỏi nền tảng Happy Home Thanh Hóa — đáp ứng yêu cầu của Facebook App, Zalo OA và quy định bảo vệ dữ liệu cá nhân.",
   alternates: {
-    canonical: "https://www.eurowindowlightcity.net/data-deletion",
+    canonical: "https://happyhomethanhhoa.bdsg.land/data-deletion",
   },
   robots: { index: true, follow: true },
 };
@@ -19,8 +19,7 @@ export default function DataDeletionPage() {
 
       <p>
         <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>{" "}
-        (đơn vị phân phối F1 chính thức cho chủ đầu tư dự án Eurowindow Light
-        City, sau đây gọi là “chúng tôi”) cam kết hỗ trợ Quý khách thực hiện
+        (đại lý phát triển kinh doanh chính thức dự án Shophouse Happy Home Thanh Hóa, sau đây gọi là “chúng tôi”) cam kết hỗ trợ Quý khách thực hiện
         quyền yêu cầu xoá dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP về bảo
         vệ dữ liệu cá nhân và yêu cầu của các nền tảng kết nối (Facebook,
         Zalo, Google).
@@ -67,8 +66,8 @@ export default function DataDeletionPage() {
       <ol className="mt-2 list-decimal space-y-1 pl-6">
         <li>
           Đăng nhập tại{" "}
-          <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net/login">
-            eurowindowlightcity.net/login
+          <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land/login">
+            happyhomethanhhoa.bdsg.land/login
           </a>
           .
         </li>
@@ -82,8 +81,8 @@ export default function DataDeletionPage() {
       <h3 className="mt-6 text-lg font-semibold">Cách 2 — Gửi yêu cầu qua email</h3>
       <p className="mt-2">
         Quý khách gửi email đến{" "}
-        <a className="text-blue-600 underline" href="mailto:info@eurowindowlightcity.net?subject=Y%C3%AAu%20c%E1%BA%A7u%20xo%C3%A1%20d%E1%BB%AF%20li%E1%BB%87u%20c%C3%A1%20nh%C3%A2n">
-          info@eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="mailto:info@bdsg.land?subject=Y%C3%AAu%20c%E1%BA%A7u%20xo%C3%A1%20d%E1%BB%AF%20li%E1%BB%87u%20c%C3%A1%20nh%C3%A2n">
+          info@bdsg.land
         </a>{" "}
         với:
       </p>
@@ -118,7 +117,7 @@ export default function DataDeletionPage() {
           .
         </li>
         <li>
-          Tìm <strong>“Eurowindow Light City”</strong> trong danh sách ứng
+          Tìm <strong>“Happy Home Thanh Hóa”</strong> trong danh sách ứng
           dụng.
         </li>
         <li>Bấm <strong>Xoá</strong>.</li>
@@ -135,7 +134,7 @@ export default function DataDeletionPage() {
 
       <h3 className="mt-6 text-lg font-semibold">Cách 4 — Yêu cầu qua Zalo / Hotline</h3>
       <p className="mt-2">
-        Nhắn tin yêu cầu xoá dữ liệu qua Zalo OA Eurowindow Light City hoặc
+        Nhắn tin yêu cầu xoá dữ liệu qua Zalo OA Happy Home Thanh Hóa hoặc
         gọi hotline{" "}
         <a className="text-blue-600 underline" href="tel:0967806686">
           0967 806 686
@@ -166,13 +165,13 @@ export default function DataDeletionPage() {
       <p className="mt-2">
         <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>
         <br />
-        Đơn vị phân phối F1 chính thức dự án Eurowindow Light City
+        Đại lý phát triển kinh doanh dự án Shophouse Happy Home Thanh Hóa
         <br />
-        Địa chỉ: Phường Đông Hải và Đông Hương, TP. Thanh Hoá, tỉnh Thanh Hoá
+        Địa chỉ: Phường Hạc Thành, tỉnh Thanh Hóa
         <br />
         Email:{" "}
-        <a className="text-blue-600 underline" href="mailto:info@eurowindowlightcity.net">
-          info@eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="mailto:info@bdsg.land">
+          info@bdsg.land
         </a>
         <br />
         Hotline:{" "}
@@ -181,8 +180,8 @@ export default function DataDeletionPage() {
         </a>
         <br />
         Website:{" "}
-        <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
-          https://www.eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land">
+          https://happyhomethanhhoa.bdsg.land
         </a>
       </p>
     </main>

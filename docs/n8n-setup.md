@@ -1,4 +1,4 @@
-# Hướng dẫn cài đặt 3 Workflow n8n + Telegram Bot cho ELC
+# Hướng dẫn cài đặt 3 Workflow n8n + Telegram Bot cho Happy Home
 
 Tài liệu này hướng dẫn anh **tự** tạo Telegram Bot, import 3 workflow vào n8n và
 bật chạy. Tổng thời gian ~15 phút.
@@ -7,9 +7,9 @@ bật chạy. Tổng thời gian ~15 phút.
 
 | File JSON | Tên trong n8n | Khi nào chạy |
 |---|---|---|
-| `apps/agent-engine/n8n-workflows/01-hot-lead-alert.json` | ELC — 01 Hot Lead Alert | Khi có booking mới (FastAPI gọi) |
-| `apps/agent-engine/n8n-workflows/02-commission-calculator.json` | ELC — 02 Commission Calculator | Khi deal đóng (FastAPI gọi) |
-| `apps/agent-engine/n8n-workflows/03-daily-briefing.json` | ELC — 03 Daily Briefing | 7h sáng mỗi ngày (tự động) |
+| `apps/agent-engine/n8n-workflows/01-hot-lead-alert.json` | Happy Home — 01 Hot Lead Alert | Khi có booking mới (FastAPI gọi) |
+| `apps/agent-engine/n8n-workflows/02-commission-calculator.json` | Happy Home — 02 Commission Calculator | Khi deal đóng (FastAPI gọi) |
+| `apps/agent-engine/n8n-workflows/03-daily-briefing.json` | Happy Home — 03 Daily Briefing | 7h sáng mỗi ngày (tự động) |
 
 > ⚠️ **Lưu ý bảo mật:** KHÔNG dán bot token vào file code/JSON. Token chỉ nhập vào
 > **Credential của n8n** và **biến môi trường Railway**. File JSON chỉ chứa
@@ -21,9 +21,9 @@ bật chạy. Tổng thời gian ~15 phút.
 
 1. Mở Telegram, tìm **@BotFather** → bấm **Start**.
 2. Gõ lệnh `/newbot`.
-3. Đặt **tên hiển thị**: `ELC Sale Bot`.
-4. Đặt **username** (phải kết thúc bằng `bot`): `elc_sale_bot`
-   - Nếu trùng, thử `elc_sale_alert_bot`, `elc_sales_bot`… và **ghi nhớ username thực tế**.
+3. Đặt **tên hiển thị**: `Happy Home Sale Bot`.
+4. Đặt **username** (phải kết thúc bằng `bot`): `hh_sale_bot`
+   - Nếu trùng, thử `hh_sale_alert_bot`, `hh_sales_bot`… và **ghi nhớ username thực tế**.
 5. BotFather trả về **bot token** dạng:
    ```
    123456789:ABCdEfGhIJKlmNoPQRsTuVwXyz1234567890
@@ -31,7 +31,7 @@ bật chạy. Tổng thời gian ~15 phút.
    👉 **Copy token này**, dùng ở Bước 2. (Lỡ mất → gõ `/token` lấy lại.)
 6. (Tuỳ chọn) `/setdescription`, `/setuserpic` để bot đẹp hơn.
 
-> Nếu username bot KHÁC `elc_sale_bot`, đặt thêm env
+> Nếu username bot KHÁC `hh_sale_bot`, đặt thêm env
 > `TELEGRAM_BOT_USERNAME=<username_thực_tế>` ở Railway để link liên kết đúng.
 
 ---
@@ -39,15 +39,15 @@ bật chạy. Tổng thời gian ~15 phút.
 ## Bước 2 — Thêm token vào n8n Credentials + Railway env (~3 phút)
 
 ### 2a. Credential trong n8n
-1. Vào `https://n8n.eurowindowlightcity.net` → **Credentials** → **New**.
+1. Vào `https://n8n-happyhomethanhhoa.bdsg.land` → **Credentials** → **New**.
 2. Chọn loại **Telegram API**.
-3. Đặt tên đúng: **`ELC Sale Bot`** (3 workflow tham chiếu tên này).
+3. Đặt tên đúng: **`Happy Home Sale Bot`** (3 workflow tham chiếu tên này).
 4. Dán **bot token** ở Bước 1 → **Save**.
 
 ### 2b. Biến môi trường n8n (Settings → Variables hoặc env của container n8n)
 | Biến | Giá trị |
 |---|---|
-| `ELC_API_URL` | `https://api.eurowindowlightcity.net` |
+| `HH_API_URL` | `https://api-happyhomethanhhoa.bdsg.land` |
 | `INTERNAL_WEBHOOK_TOKEN` | một chuỗi bí mật (vd `openssl rand -hex 24`) — **phải trùng** env backend |
 | `MANAGER_TELEGRAM_CHAT_ID` | chat_id của manager/admin (xem cách lấy bên dưới) |
 | `ADMIN_TELEGRAM_CHAT_ID` | chat_id admin nhận tổng kết briefing |
@@ -60,9 +60,9 @@ bật chạy. Tổng thời gian ~15 phút.
 | Biến | Giá trị |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | bot token Bước 1 |
-| `TELEGRAM_BOT_USERNAME` | `elc_sale_bot` (hoặc username thực tế) |
+| `TELEGRAM_BOT_USERNAME` | `hh_sale_bot` (hoặc username thực tế) |
 | `INTERNAL_WEBHOOK_TOKEN` | **trùng** với giá trị đặt ở n8n |
-| `PLATFORM_N8N_URL` | `https://n8n.eurowindowlightcity.net` (đã mặc định) |
+| `PLATFORM_N8N_URL` | `https://n8n-happyhomethanhhoa.bdsg.land` (đã mặc định) |
 
 > Đặt xong env trên Railway → **Redeploy** service `agent-engine`.
 
@@ -74,7 +74,7 @@ Với **từng** file trong `apps/agent-engine/n8n-workflows/`:
 
 1. n8n → góc phải **⋯ (More)** → **Import from File…** (hoặc nút **+** → *Import from File*).
 2. Chọn file `01-hot-lead-alert.json` → workflow hiện ra.
-3. Mở các node **Telegram** (viền đỏ "credential") → chọn lại credential **ELC Sale Bot**.
+3. Mở các node **Telegram** (viền đỏ "credential") → chọn lại credential **Happy Home Sale Bot**.
 4. **Save**.
 5. Lặp lại cho `02-commission-calculator.json` và `03-daily-briefing.json`.
 
@@ -89,8 +89,8 @@ Với **từng** file trong `apps/agent-engine/n8n-workflows/`:
 Mở từng workflow → gạt công tắc **Active** (góc trên phải) sang **ON**.
 
 - WF01 & WF02: webhook chỉ "sống" khi workflow Active. URL production:
-  - `https://n8n.eurowindowlightcity.net/webhook/hot-lead-alert`
-  - `https://n8n.eurowindowlightcity.net/webhook/commission-calc`
+  - `https://n8n-happyhomethanhhoa.bdsg.land/webhook/hot-lead-alert`
+  - `https://n8n-happyhomethanhhoa.bdsg.land/webhook/commission-calc`
 - WF03: lịch cron `0 7 * * *` (giờ VN) chỉ chạy khi Active.
 
 ---
@@ -111,16 +111,16 @@ Mở từng workflow → gạt công tắc **Active** (góc trên phải) sang *
 ### 5.2. Test Hot Lead Alert
 Tạo booking test (qua app) **hoặc** giả lập bằng curl:
 ```bash
-curl -X POST https://api.eurowindowlightcity.net/webhooks/internal/booking-created \
+curl -X POST https://api-happyhomethanhhoa.bdsg.land/webhooks/internal/booking-created \
   -H "Content-Type: application/json" \
   -H "X-Internal-Token: $INTERNAL_WEBHOOK_TOKEN" \
   -d '{
     "lead_id": "test-lead-1",
-    "unit_id": "ELC-A1-1205",
+    "unit_id": "HH-B1-1205",
     "unit_summary": "Căn 2PN, 75m², view hồ, 3.2 tỷ",
     "booking_time": "2026-06-08 10:00",
     "sale_id": "<USER_ID_CỦA_SALE_ĐÃ_LIÊN_KẾT>",
-    "conversation_url": "https://chat.eurowindowlightcity.net/app/accounts/1/conversations/123",
+    "conversation_url": "https://chat-happyhomethanhhoa.bdsg.land/app/accounts/1/conversations/123",
     "ai_score": 92,
     "ai_summary": "Khách hỏi vay 70%, có ý đặt cọc"
   }'
@@ -130,7 +130,7 @@ curl -X POST https://api.eurowindowlightcity.net/webhooks/internal/booking-creat
 
 ### 5.3. Test Commission
 ```bash
-curl -X POST https://api.eurowindowlightcity.net/webhooks/internal/deal-closed \
+curl -X POST https://api-happyhomethanhhoa.bdsg.land/webhooks/internal/deal-closed \
   -H "Content-Type: application/json" \
   -H "X-Internal-Token: $INTERNAL_WEBHOOK_TOKEN" \
   -d '{

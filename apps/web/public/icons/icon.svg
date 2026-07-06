@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Eurowindow Light City">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Happy Home Thanh Hóa">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#c79a4f"/>
@@ -12,6 +12,6 @@
   <rect width="512" height="512" rx="112" fill="url(#g)"/>
   <circle cx="256" cy="212" r="74" fill="url(#sun)" opacity="0.95"/>
   <g fill="#ffffff" font-family="Inter, system-ui, sans-serif" font-weight="800" text-anchor="middle">
-    <text x="256" y="392" font-size="150" letter-spacing="6">ELC</text>
+    <text x="256" y="408" font-size="170" letter-spacing="8">HH</text>
   </g>
 </svg>

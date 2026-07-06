@@ -1,4 +1,4 @@
-"""Sinh phiếu báo giá PDF cho sale — thương hiệu Eurowindow Light City.
+"""Sinh phiếu báo giá PDF cho sale — thương hiệu Happy Home Thanh Hóa.
 
 Dùng reportlab (thuần Python, chạy được trên Railway, không cần lib hệ thống như
 weasyprint). Font DejaVu Sans bundle trong app/assets/fonts để render tiếng Việt
@@ -35,7 +35,7 @@ _FONT = "DejaVuSans"
 _FONT_BOLD = "DejaVuSans-Bold"
 _fonts_ready = False
 
-# Bảng màu thương hiệu ELC (cam/vàng đồng).
+# Bảng màu thương hiệu Happy Home (cam/vàng đồng).
 _BRAND = colors.HexColor("#C8821E")
 _BRAND_DARK = colors.HexColor("#7A4E12")
 _BG_SOFT = colors.HexColor("#FBF3E6")
@@ -157,7 +157,7 @@ def build_quote_pdf(*, quote_id: str, unit: dict, req, computed: dict) -> bytes:
     # ----- Header thương hiệu -----
     header = Table(
         [[
-            Paragraph("EUROWINDOW<br/>LIGHT CITY", styles["brand"]),
+            Paragraph("HAPPY HOME<br/>THANH HOA", styles["brand"]),
             Paragraph(
                 "PHIẾU BÁO GIÁ CĂN HỘ<br/>"
                 f"<font size=8 color='#8A7B66'>Mã phiếu: {quote_id[:8].upper()} · "
@@ -383,7 +383,7 @@ def build_policy_quote_pdf(*, quote_id: str, unit: dict, req, computed: dict) ->
 
     # Header
     header = Table(
-        [[Paragraph("EUROWINDOW<br/>LIGHT CITY", styles["brand"]),
+        [[Paragraph("HAPPY HOME<br/>THANH HOA", styles["brand"]),
           Paragraph("PHIẾU TÍNH GIÁ CĂN HỘ<br/>"
                     f"<font size=8 color='#8A7B66'>Mã phiếu: {quote_id[:8].upper()} · "
                     f"Ngày lập: {datetime.now().strftime('%d/%m/%Y')}</font>",

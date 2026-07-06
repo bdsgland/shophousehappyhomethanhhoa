@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🎨 Auto-publish Facebook Post\n\nDaily 9h: AI generate post BĐS (thông tin căn / giá / view / tiện ích) → publish lên Page ELC qua Graph API → log Sheets.\n\n**Cần env:** `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `GOOGLE_SHEET_LOG_ID`.",
+        "content": "## 🎨 Auto-publish Facebook Post\n\nDaily 9h: AI generate post BĐS (thông tin căn / giá / view / tiện ích) → publish lên Page Happy Home qua Graph API → log Sheets.\n\n**Cần env:** `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `GOOGLE_SHEET_LOG_ID`.",
         "width": 380,
         "height": 320
       },
@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/units/hot-pick",
+        "url": "={{ $env.HH_API_URL }}/admin/units/hot-pick",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -88,7 +88,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 content creator B\\u0110S ELC. Vi\\u1ebft Facebook post ~150 ch\\u1eef v\\u1ec1 1 c\\u0103n c\\u1ee5 th\\u1ec3. Format: d\\u00f2ng 1 hook h\\u1ea5p d\\u1eabn, sau \\u0111\\u00f3 4 d\\u00f2ng (th\\u00f4ng tin c\\u0103n / gi\\u00e1 / view / ti\\u1ec7n \\u00edch), k\\u1ebft th\\u00fac CTA inbox \\u0111\\u1ec3 xem. C\\u00f3 5-7 emoji & 3-5 hashtag #BatDongSan #LightCity #Hanoi.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 content creator B\\u0110S Happy Home. Vi\\u1ebft Facebook post ~150 ch\\u1eef v\\u1ec1 1 c\\u0103n c\\u1ee5 th\\u1ec3. Format: d\\u00f2ng 1 hook h\\u1ea5p d\\u1eabn, sau \\u0111\\u00f3 4 d\\u00f2ng (th\\u00f4ng tin c\\u0103n / gi\\u00e1 / view / ti\\u1ec7n \\u00edch), k\\u1ebft th\\u00fac CTA inbox \\u0111\\u1ec3 xem. C\\u00f3 5-7 emoji & 3-5 hashtag #BatDongSan #LightCity #Hanoi.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
         "options": {}
       },
       "id": "cl25",
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/posts/log",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/posts/log",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -148,7 +148,7 @@
         "jsonBody": "={{ JSON.stringify({ platform: 'facebook', content: $('Claude — viết post FB').item.json.content[0].text, fb_post_id: $json.id, unit_id: $('Random unit hot').item.json.unit_id }) }}"
       },
       "id": "h25c",
-      "name": "Log to ELC",
+      "name": "Log to Happy Home",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -196,7 +196,7 @@
       "main": [
         [
           {
-            "node": "Log to ELC",
+            "node": "Log to Happy Home",
             "type": "main",
             "index": 0
           }

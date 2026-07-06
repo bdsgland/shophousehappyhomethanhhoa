@@ -60,7 +60,7 @@ def _contacts(n, start=0):
 # ---------------------------------------------------------------------------
 
 def test_bulk_import_success_and_increments_task():
-    sale = _make_user("s1@elc.net")
+    sale = _make_user("s1@hhth.net")
     body = {"leads": _contacts(5), "skip_duplicates": True}
     r = client.post("/sale/leads/bulk-import", json=body, headers=_auth(sale))
     assert r.status_code == 200
@@ -74,7 +74,7 @@ def test_bulk_import_success_and_increments_task():
 
 
 def test_bulk_import_skips_duplicates():
-    sale = _make_user("s2@elc.net")
+    sale = _make_user("s2@hhth.net")
     contacts = _contacts(3)
     client.post(
         "/sale/leads/bulk-import",
@@ -95,7 +95,7 @@ def test_bulk_import_skips_duplicates():
 
 
 def test_phone_dedupe_normalizes_prefix():
-    sale = _make_user("s3@elc.net")
+    sale = _make_user("s3@hhth.net")
     client.post(
         "/sale/leads",
         json={"name": "A", "phone": "0901234567"},
@@ -127,7 +127,7 @@ def test_ai_score_computation():
 
 
 def test_ai_score_contact_logs_and_recency():
-    sale = _make_user("s4@elc.net")
+    sale = _make_user("s4@hhth.net")
     created = lead_store.create_lead(
         {"name": "B", "phone": "0912222222"}, imported_by_sale_id=sale["id"]
     )
@@ -144,8 +144,8 @@ def test_ai_score_contact_logs_and_recency():
 # ---------------------------------------------------------------------------
 
 def test_sale_cannot_see_other_sales_leads():
-    sale_a = _make_user("a@elc.net")
-    sale_b = _make_user("b@elc.net")
+    sale_a = _make_user("a@hhth.net")
+    sale_b = _make_user("b@hhth.net")
     client.post("/sale/leads", json={"name": "A", "phone": "0900000001"}, headers=_auth(sale_a))
     client.post("/sale/leads", json={"name": "B", "phone": "0900000002"}, headers=_auth(sale_b))
 
@@ -157,8 +157,8 @@ def test_sale_cannot_see_other_sales_leads():
 
 
 def test_sale_cannot_access_other_lead_detail():
-    sale_a = _make_user("a2@elc.net")
-    sale_b = _make_user("b2@elc.net")
+    sale_a = _make_user("a2@hhth.net")
+    sale_b = _make_user("b2@hhth.net")
     r = client.post(
         "/sale/leads", json={"name": "A", "phone": "0900000003"}, headers=_auth(sale_a)
     )
@@ -169,9 +169,9 @@ def test_sale_cannot_access_other_lead_detail():
 
 
 def test_admin_sees_all_leads():
-    sale_a = _make_user("a3@elc.net")
-    sale_b = _make_user("b3@elc.net")
-    admin = _make_user("admin@elc.net", role="admin")
+    sale_a = _make_user("a3@hhth.net")
+    sale_b = _make_user("b3@hhth.net")
+    admin = _make_user("admin@hhth.net", role="admin")
     client.post("/sale/leads", json={"name": "A", "phone": "0900000004"}, headers=_auth(sale_a))
     client.post("/sale/leads", json={"name": "B", "phone": "0900000005"}, headers=_auth(sale_b))
 
@@ -181,7 +181,7 @@ def test_admin_sees_all_leads():
 
 
 def test_sale_endpoint_forbidden_for_client():
-    cli = _make_user("client@elc.net", role="client")
+    cli = _make_user("client@hhth.net", role="client")
     r = client.get("/sale/leads", headers=_auth(cli))
     assert r.status_code == 403
 
@@ -191,7 +191,7 @@ def test_sale_endpoint_forbidden_for_client():
 # ---------------------------------------------------------------------------
 
 def test_daily_task_check_in_and_score():
-    sale = _make_user("s5@elc.net")
+    sale = _make_user("s5@hhth.net")
     # Import 10 lead → đạt 100% target new_leads (40% trọng số).
     client.post(
         "/sale/leads/bulk-import",
@@ -211,9 +211,9 @@ def test_daily_task_check_in_and_score():
 # ---------------------------------------------------------------------------
 
 def test_auto_distribute_to_top_sale():
-    top = _make_user("top@elc.net", full_name="Top Sale")
-    weak = _make_user("weak@elc.net", full_name="Weak Sale")
-    admin = _make_user("admin2@elc.net", role="admin")
+    top = _make_user("top@hhth.net", full_name="Top Sale")
+    weak = _make_user("weak@hhth.net", full_name="Weak Sale")
+    admin = _make_user("admin2@hhth.net", role="admin")
 
     # Top sale hoàn thành nhiều task → score cao hơn.
     client.post(
@@ -254,7 +254,7 @@ def test_auto_distribute_to_top_sale():
 # ---------------------------------------------------------------------------
 
 def test_lead_engaged_marks_hot_and_distributes():
-    sale = _make_user("s6@elc.net")
+    sale = _make_user("s6@hhth.net")
     # Có 1 lead imported sẵn (chính là khách sẽ register + book).
     lead = lead_store.create_lead(
         {"name": "KH Nét", "phone": "0988888888", "email": "net@gmail.com"},
@@ -292,8 +292,8 @@ def test_lead_engaged_no_match():
 # ---------------------------------------------------------------------------
 
 def test_admin_stats_and_soft_delete():
-    sale = _make_user("s7@elc.net")
-    admin = _make_user("admin3@elc.net", role="admin")
+    sale = _make_user("s7@hhth.net")
+    admin = _make_user("admin3@hhth.net", role="admin")
     r = client.post(
         "/sale/leads", json={"name": "X", "phone": "0900000099"}, headers=_auth(sale)
     )
@@ -310,8 +310,8 @@ def test_admin_stats_and_soft_delete():
 
 
 def test_contact_log_requires_ownership():
-    sale_a = _make_user("a8@elc.net")
-    sale_b = _make_user("b8@elc.net")
+    sale_a = _make_user("a8@hhth.net")
+    sale_b = _make_user("b8@hhth.net")
     r = client.post(
         "/sale/leads", json={"name": "A", "phone": "0900000077"}, headers=_auth(sale_a)
     )

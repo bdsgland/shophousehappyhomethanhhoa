@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🎁 Welcome on Register\n\nFastAPI POST khi user đăng ký mới.\n\n**Cần:**\n- `ELC_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `CHATWOOT_API_URL`, `CHATWOOT_API_TOKEN`\n- SMTP credential\n\n**Payload:** `{ user_id, full_name, email, phone, source }`",
+        "content": "## 🎁 Welcome on Register\n\nFastAPI POST khi user đăng ký mới.\n\n**Cần:**\n- `HH_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- `CHATWOOT_API_URL`, `CHATWOOT_API_TOKEN`\n- SMTP credential\n\n**Payload:** `{ user_id, full_name, email, phone, source }`",
         "width": 380,
         "height": 280
       },
@@ -40,11 +40,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.email }}",
-        "subject": "=🏠 Chào mừng {{ $('Webhook').item.json.body.full_name }} đến với Eurowindow Light City",
+        "subject": "=🏠 Chào mừng {{ $('Webhook').item.json.body.full_name }} đến với Happy Home Thanh Hóa",
         "emailFormat": "text",
-        "text": "=Xin chào {{ $('Webhook').item.json.body.full_name }},\n\nCảm ơn bạn đã đăng ký Eurowindow Light City. Đội sale sẽ liên hệ trong 24h.\n\nXem dự án: https://eurowindowlightcity.net",
+        "text": "=Xin chào {{ $('Webhook').item.json.body.full_name }},\n\nCảm ơn bạn đã đăng ký Happy Home Thanh Hóa. Đội sale sẽ liên hệ trong 24h.\n\nXem dự án: https://happyhomethanhhoa.bdsg.land",
         "options": {}
       },
       "id": "email1",

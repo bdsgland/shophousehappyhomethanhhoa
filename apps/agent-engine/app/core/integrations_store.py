@@ -729,8 +729,8 @@ async def _test_email_google() -> dict:
         res = await asyncio.to_thread(
             gmail_sender.send_email,
             recipient,
-            "ELC — Test gửi email qua Gmail API",
-            "Đây là email kiểm tra kết nối Gmail API (qua Google Workspace) của hệ thống ELC.",
+            "Happy Home — Test gửi email qua Gmail API",
+            "Đây là email kiểm tra kết nối Gmail API (qua Google Workspace) của hệ thống Happy Home.",
         )
         return {
             "ok": True,

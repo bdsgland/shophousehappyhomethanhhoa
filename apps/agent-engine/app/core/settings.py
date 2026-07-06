@@ -82,11 +82,11 @@ class Settings(BaseSettings):
         return (self.crew_model or self.llm_model or "claude-haiku-4-5-20251001").strip()
 
     # Knowledge base mặc định cho kênh chat (Chatwoot webhook).
-    elc_project_slug: str = "eurowindow-light-city"
+    elc_project_slug: str = "happy-home-thanh-hoa"
 
     # Chatwoot Agent Bot integration (webhook /webhook/chatwoot).
     # CHATWOOT_API_TOKEN đặt trên Railway sau khi tạo Agent Bot (xem hướng dẫn).
-    chatwoot_base_url: str = "https://chat.eurowindowlightcity.net"
+    chatwoot_base_url: str = "https://chat-happyhomethanhhoa.bdsg.land"
     chatwoot_api_token: str = ""  # TODO: điền access token của Agent Bot
     chatwoot_account_id: int = 1
     chatwoot_bds_team_id: int = 0  # 0 = chưa cấu hình → bỏ qua auto-assign
@@ -96,26 +96,26 @@ class Settings(BaseSettings):
     cors_allow_origins: str = (
         "http://localhost:3000,"
         "http://localhost:3001,"
-        "https://eurowindowlightcity.net,"
-        "https://www.eurowindowlightcity.net,"
-        "https://admin.eurowindowlightcity.net,"
-        "https://app.eurowindowlightcity.net"
+        "https://happyhomethanhhoa.bdsg.land,"
+        "https://happyhomethanhhoa.bdsg.land,"
+        "https://admin-happyhomethanhhoa.bdsg.land,"
+        "https://app-happyhomethanhhoa.bdsg.land"
     )
 
     # URL các nền tảng vệ tinh — dùng cho /admin/platforms/health.
     # Override qua env (PLATFORM_N8N_URL, ...) nếu subdomain thực tế khác.
-    platform_n8n_url: str = "https://n8n.eurowindowlightcity.net"
+    platform_n8n_url: str = "https://n8n-happyhomethanhhoa.bdsg.land"
     # Dify (LLM platform có RAG) — thay thế Open Notebook làm "bộ não tri thức".
     # URL console/self-host để hiển thị trên trang nền tảng admin + health-check.
-    platform_dify_url: str = "https://ai.eurowindowlightcity.net"
-    platform_bot_url: str = "https://bot.eurowindowlightcity.net"
-    platform_chat_url: str = "https://chat.eurowindowlightcity.net"
+    platform_dify_url: str = "https://ai-happyhomethanhhoa.bdsg.land"
+    platform_bot_url: str = "https://bot-happyhomethanhhoa.bdsg.land"
+    platform_chat_url: str = "https://chat-happyhomethanhhoa.bdsg.land"
 
     # ----- Dify (bộ não tri thức RAG) — thay thế Open Notebook -----
     # Dify self-host. Chatbot tư vấn + OpenClaw gọi qua các biến dưới đây. ĐỂ TRỐNG
     # → mọi tính năng Dify TẮT an toàn (chatbot fallback Claude trực tiếp, tool MCP
     # trả "Dify chưa cấu hình"), KHÔNG crash. TUYỆT ĐỐI không commit key thật.
-    #   - DIFY_API_URL: base URL Dify (vd https://ai.eurowindowlightcity.net).
+    #   - DIFY_API_URL: base URL Dify (vd https://ai-happyhomethanhhoa.bdsg.land).
     #     Client tự ghép /v1/... nên KHÔNG cần kèm /v1 ở đây.
     #   - DIFY_API_KEY: App API key của ứng dụng Chatbot/Agent (bắt đầu app-...).
     #   - DIFY_DATASET_API_KEY: API key Knowledge Base (datasets, bắt đầu dataset-...)
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
     # Telegram Bot (sale nhận alert + briefing). Token lấy từ @BotFather, đặt
     # env TELEGRAM_BOT_TOKEN trên Railway. KHÔNG commit token vào code.
     telegram_bot_token: str = ""
-    telegram_bot_username: str = "elc_sale_bot"  # không có @, dùng dựng link t.me
+    telegram_bot_username: str = "hh_sale_bot"  # không có @, dùng dựng link t.me
 
     # Secret chia sẻ cho webhook nội bộ + n8n gọi vào API (header X-Internal-Token).
     # Trống ở dev = không bắt buộc; production NÊN đặt env INTERNAL_WEBHOOK_TOKEN.
@@ -202,7 +202,7 @@ class Settings(BaseSettings):
     def _n8n_base(self) -> str:
         # platform_n8n_url do module platforms cấu hình; fallback nếu chưa có.
         return getattr(
-            self, "platform_n8n_url", "https://n8n.eurowindowlightcity.net"
+            self, "platform_n8n_url", "https://n8n-happyhomethanhhoa.bdsg.land"
         ).rstrip("/")
 
     def hot_lead_webhook_url(self) -> str:
@@ -225,7 +225,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"  # web (client + sale)
     admin_url: str = "http://localhost:3001"  # cổng quản trị admin
     # Domain workspace: chỉ email thuộc domain này mới được đăng nhập role=admin.
-    google_workspace_domain: str = "eurowindowlightcity.net"
+    google_workspace_domain: str = "happyhomethanhhoa.bdsg.land"
 
     # Auth (MVP — JWT đơn giản, file-based user store)
     jwt_secret: str = ""  # trống → dùng secret tạm theo process (chỉ dev)
@@ -349,7 +349,7 @@ class Settings(BaseSettings):
     # Trạng thái + lịch sử job đồng bộ tài liệu từ Google Drive (atomic JSON).
     # Resolve giống users_file (DATA_DIR Railway volume / agent-engine / CWD).
     drive_sync_jobs_file: str = "data/_runtime/drive_sync_jobs.json"
-    # Folder Drive mặc định gợi ý trên UI admin (chủ đầu tư ELC).
+    # Folder Drive mặc định gợi ý trên UI admin (chủ đầu tư Happy Home).
     drive_default_folder_url: str = (
         "https://drive.google.com/drive/folders/1Cct7yxa-BmJzxfaVc9R-CAVmSbFeLpAV"
     )
@@ -361,7 +361,7 @@ class Settings(BaseSettings):
     match_invite_timeout_seconds: int = 15
     # Coi sale là "mất kết nối" nếu không heartbeat quá ngưỡng này (giây).
     match_presence_stale_seconds: int = 60
-    # Refresh token OAuth của tài khoản Workspace (info@eurowindowlightcity.net)
+    # Refresh token OAuth của tài khoản Workspace (info@bdsg.land)
     # dùng tạo Google Meet qua Calendar API. Lấy qua scripts/get_google_refresh_token.py
     # hoặc từ credential n8n. Để trống → tạo Meet trả lỗi, hệ thống fallback
     # "sale sẽ gọi điện". KHÔNG commit token vào code — đặt env trên Railway.
@@ -400,7 +400,7 @@ class Settings(BaseSettings):
     stringee_token_ttl: int = 3600
     # Base URL CÔNG KHAI để Stringee gọi webhook (answer_url/event_url) + dựng
     # eventUrl ghi âm trong SCCO. Phải là domain Stringee truy cập được từ ngoài.
-    stringee_webhook_base: str = "https://api.eurowindowlightcity.net"
+    stringee_webhook_base: str = "https://api-happyhomethanhhoa.bdsg.land"
 
 
 settings = Settings()

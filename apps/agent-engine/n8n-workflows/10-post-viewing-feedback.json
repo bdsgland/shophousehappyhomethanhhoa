@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/bookings/completed-yesterday",
+        "url": "={{ $env.HH_API_URL }}/admin/bookings/completed-yesterday",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -81,11 +81,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $json.lead_email }}",
         "subject": "=📊 Cảm ơn bạn đã xem căn — chia sẻ trải nghiệm 30s nhé?",
         "emailFormat": "text",
-        "text": "=Xin chào {{ $json.lead_name }},\n\nBạn đã xem căn {{ $json.unit_id }} hôm qua. Vui lòng đánh giá trải nghiệm (1-10):\n\nhttps://eurowindowlightcity.net/survey?booking_id={{ $json.booking_id }}\n\nCảm ơn bạn!",
+        "text": "=Xin chào {{ $json.lead_name }},\n\nBạn đã xem căn {{ $json.unit_id }} hôm qua. Vui lòng đánh giá trải nghiệm (1-10):\n\nhttps://happyhomethanhhoa.bdsg.land/survey?booking_id={{ $json.booking_id }}\n\nCảm ơn bạn!",
         "options": {}
       },
       "id": "em10",

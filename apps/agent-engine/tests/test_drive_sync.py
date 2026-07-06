@@ -68,7 +68,7 @@ def test_extract_folder_id(stores):
 
 def test_add_document_source_hash_dedup(stores):
     learning_store, _ = stores
-    content = "CHÍNH SÁCH BÁN HÀNG ELC. Hoa hồng 3%.".encode("utf-8")
+    content = "CHÍNH SÁCH BÁN HÀNG Happy Home. Hoa hồng 3%.".encode("utf-8")
     chash = learning_store._content_hash(content)
     assert learning_store.exists_by_hash(chash) is False
 
@@ -128,7 +128,7 @@ def test_run_sync_job_mocked(stores, monkeypatch):
         skip_existing=True, reindex_rag=True,
     )
     drive_sync.create_job("job-1", req.folder_url)
-    result = asyncio.run(drive_sync.run_sync_job("job-1", req, "admin@elc.net"))
+    result = asyncio.run(drive_sync.run_sync_job("job-1", req, "admin@hhth.net"))
 
     assert result.success is True
     assert result.total_files == 4

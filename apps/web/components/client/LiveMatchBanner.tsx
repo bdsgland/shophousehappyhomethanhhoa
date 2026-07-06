@@ -28,7 +28,7 @@ export function LiveMatchBanner() {
   if (phase === "completed") {
     return (
       <div className="rounded-2xl border border-brand-100 bg-white p-5 text-sm text-brand-700 shadow-sm">
-        Cảm ơn bạn đã trao đổi với chuyên viên ELC 💙 Bạn có thể đặt lịch xem nhà
+        Cảm ơn bạn đã trao đổi với chuyên viên Happy Home 💙 Bạn có thể đặt lịch xem nhà
         hoặc tiếp tục hỏi trợ lý AI bất cứ lúc nào.
       </div>
     );

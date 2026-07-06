@@ -2,7 +2,7 @@
 
 /**
  * Layout khu QUẢN TRỊ SÀN F2 (đa-tenant) — tách hẳn khỏi /agency (admin/manager
- * toàn nền tảng). Tự quản toàn bộ chrome: header thương hiệu ELC + sidebar điều
+ * toàn nền tảng). Tự quản toàn bộ chrome: header thương hiệu Happy Home + sidebar điều
  * hướng (mobile-first: thanh cuộn ngang trên điện thoại, cột dọc trên desktop) +
  * banner "chờ duyệt". Chỉ role "agency" vào được (middleware đã gác cứng).
  *
@@ -77,7 +77,7 @@ export default function AgencyAdminLayout({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link href="/agency-admin" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-              ELC
+              Happy Home
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide text-white">

@@ -34,7 +34,7 @@ export function NewsCard({ item }: { item: NewsListItem }) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-brand-300">
-              Eurowindow Light City
+              Happy Home Thanh Hóa
             </div>
           )}
         </div>

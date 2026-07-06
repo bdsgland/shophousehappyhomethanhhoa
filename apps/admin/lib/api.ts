@@ -120,7 +120,7 @@ import type {
 } from "./types";
 
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.eurowindowlightcity.net";
+  process.env.NEXT_PUBLIC_API_URL || "https://api-happyhomethanhhoa.bdsg.land";
 
 export class ApiError extends Error {
   status: number;

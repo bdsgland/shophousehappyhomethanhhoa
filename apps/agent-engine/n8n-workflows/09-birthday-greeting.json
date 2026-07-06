@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/users/birthday-today",
+        "url": "={{ $env.HH_API_URL }}/admin/users/birthday-today",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -102,7 +102,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 customer success ELC. Vi\\u1ebft l\\u1eddi ch\\u00fac sinh nh\\u1eadt \\u1ea5m \\u00e1p, k\\u00e8m voucher 5% g\\u00f3i n\\u1ed9i th\\u1ea5t n\\u1ebfu kh\\u00e1ch \\u0111\\u1eb7t c\\u1ecdc trong 30 ng\\u00e0y. T\\u1ed1i \\u0111a 80 ch\\u1eef. Ti\\u1ebfng Vi\\u1ec7t.\", messages: [ { role: 'user', content: 'Khách: ' + $json.full_name + ', tuổi ' + ($json.age || '?') } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 customer success Happy Home. Vi\\u1ebft l\\u1eddi ch\\u00fac sinh nh\\u1eadt \\u1ea5m \\u00e1p, k\\u00e8m voucher 5% g\\u00f3i n\\u1ed9i th\\u1ea5t n\\u1ebfu kh\\u00e1ch \\u0111\\u1eb7t c\\u1ecdc trong 30 ng\\u00e0y. T\\u1ed1i \\u0111a 80 ch\\u1eef. Ti\\u1ebfng Vi\\u1ec7t.\", messages: [ { role: 'user', content: 'Khách: ' + $json.full_name + ', tuổi ' + ($json.age || '?') } ] }) }}",
         "options": {}
       },
       "id": "cl9",
@@ -117,11 +117,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Tách users').item.json.email }}",
         "subject": "=🎂 Chúc mừng sinh nhật {{ $('Tách users').item.json.full_name }}!",
         "emailFormat": "text",
-        "text": "={{ $json.content[0].text }}\n\nMã voucher: ELC-BDAY-{{ $('Tách users').item.json.user_id }}",
+        "text": "={{ $json.content[0].text }}\n\nMã voucher: HH-BDAY-{{ $('Tách users').item.json.user_id }}",
         "options": {}
       },
       "id": "em9",

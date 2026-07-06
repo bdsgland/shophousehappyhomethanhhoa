@@ -45,7 +45,7 @@ def _isolate(monkeypatch, tmp_path):
 
 def _admin_headers() -> dict:
     u = user_store.create_user(
-        email="admin@elc.net", full_name="Admin", password_hash="x", role="admin"
+        email="admin@hhth.net", full_name="Admin", password_hash="x", role="admin"
     )
     token, _ = create_access_token(u["id"], {"role": "admin", "email": u["email"]})
     return {"Authorization": f"Bearer {token}"}

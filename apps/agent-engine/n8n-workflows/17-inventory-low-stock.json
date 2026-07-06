@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/inventory/low",
+        "url": "={{ $env.HH_API_URL }}/admin/inventory/low",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -100,7 +100,7 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $env.ADMIN_EMAIL }}",
         "subject": "=📦 Cảnh báo inventory thấp: {{ $json.count }} loại căn còn < 10%",
         "emailFormat": "text",

@@ -356,14 +356,14 @@ async def platforms_health(_admin: dict = Depends(require_admin)) -> dict:
             entry = {k: v for k, v in p.items() if k != "url"}
             entry["url"] = p["url"]
             if p["url"] == "self":
-                entry["url"] = "https://api.eurowindowlightcity.net"
+                entry["url"] = "https://api-happyhomethanhhoa.bdsg.land"
                 entry["status"] = "up"
                 entry["code"] = 200
                 results.append(entry)
                 continue
             try:
                 r = await client.get(
-                    p["url"], headers={"User-Agent": "ELC-Admin-HealthCheck/1.0"}
+                    p["url"], headers={"User-Agent": "HH-Admin-HealthCheck/1.0"}
                 )
                 entry["code"] = r.status_code
                 entry["status"] = "up" if r.status_code < 500 else "down"

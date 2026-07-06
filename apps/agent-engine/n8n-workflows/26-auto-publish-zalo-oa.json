@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/units/hot-pick",
+        "url": "={{ $env.HH_API_URL }}/admin/units/hot-pick",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -88,7 +88,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft tin nh\\u1eafn broadcast Zalo OA 200 ch\\u1eef v\\u1ec1 c\\u0103n B\\u0110S ELC. Gi\\u1ecdng th\\u00e2n thi\\u1ec7n, nhi\\u1ec1u emoji. C\\u00f3 link \\u0111\\u1eb7t l\\u1ecbch xem.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft tin nh\\u1eafn broadcast Zalo OA 200 ch\\u1eef v\\u1ec1 c\\u0103n B\\u0110S Happy Home. Gi\\u1ecdng th\\u00e2n thi\\u1ec7n, nhi\\u1ec1u emoji. C\\u00f3 link \\u0111\\u1eb7t l\\u1ecbch xem.\", messages: [ { role: 'user', content: 'Căn: ' + JSON.stringify($json) } ] }) }}",
         "options": {}
       },
       "id": "cl26",

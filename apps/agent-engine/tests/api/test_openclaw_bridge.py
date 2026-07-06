@@ -90,7 +90,7 @@ def test_accept_with_god_token():
 def test_create_user_any_role_and_list():
     r = client.post(
         "/openclaw/users",
-        json={"email": "boss@elc.net", "full_name": "Sếp", "role": "admin"},
+        json={"email": "boss@hhth.net", "full_name": "Sếp", "role": "admin"},
         headers=HDR,
     )
     assert r.status_code == 201
@@ -106,7 +106,7 @@ def test_create_user_any_role_and_list():
 def test_impersonate_returns_jwt():
     u = client.post(
         "/openclaw/users",
-        json={"email": "imp@elc.net", "full_name": "X", "role": "sale", "password": "pw123456"},
+        json={"email": "imp@hhth.net", "full_name": "X", "role": "sale", "password": "pw123456"},
         headers=HDR,
     ).json()["user"]
     r = client.post(f"/openclaw/users/{u['id']}/impersonate", headers=HDR)
@@ -118,7 +118,7 @@ def test_impersonate_returns_jwt():
 def test_soft_delete_user():
     u = client.post(
         "/openclaw/users",
-        json={"email": "del@elc.net", "full_name": "Y", "role": "sale"},
+        json={"email": "del@hhth.net", "full_name": "Y", "role": "sale"},
         headers=HDR,
     ).json()["user"]
     r = client.delete(f"/openclaw/users/{u['id']}", headers=HDR)
@@ -257,7 +257,7 @@ def test_requests_are_audited():
     # Mỗi request /openclaw được middleware ghi audit (tag OPENCLAW_GOD_MODE).
     client.post(
         "/openclaw/users",
-        json={"email": "audit@elc.net", "full_name": "A", "role": "sale", "password": "pw123456"},
+        json={"email": "audit@hhth.net", "full_name": "A", "role": "sale", "password": "pw123456"},
         headers=HDR,
     )
     events = audit_store.list_events(prefix="openclaw.", limit=50)

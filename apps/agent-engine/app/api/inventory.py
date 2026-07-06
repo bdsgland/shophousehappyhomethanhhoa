@@ -18,17 +18,13 @@ from app.core import inventory_store
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
-SLUG = "eurowindow-light-city"
+SLUG = "happy-home-thanh-hoa"
 
-# 7 phân khu — khớp với SUBZONES bên frontend.
+# 3 block shophouse khối đế — khớp với SUBZONES bên frontend (project-data.ts).
 _ZONES = [
-    ("Bình Minh", "Liền kề", "BM"),
-    ("Mặt Trời", "Liền kề", "MT"),
-    ("Cầu Vồng", "Liền kề", "CV"),
-    ("Ánh Sao", "Liền kề", "AS"),
-    ("Ánh Trăng", "Biệt thự", "AT"),
-    ("Ánh Sáng", "Shophouse", "AG"),
-    ("Hừng Đông", "Liền kề", "HD"),
+    ("Block 1", "Shophouse", "B1"),
+    ("Block 2", "Shophouse", "B2"),
+    ("Block 3", "Shophouse", "B3"),
 ]
 
 _STATUSES = ["Còn hàng", "Đặt cọc", "Đã bán"]
@@ -37,13 +33,13 @@ _STATUSES = ["Còn hàng", "Đặt cọc", "Đã bán"]
 _QUY_OPTIONS = ["exclusive", "bonus", "agency_f1", "mid", "not_open"]
 _DEFAULT_QUY = "not_open"
 
-# Giá khởi điểm theo loại sản phẩm (tỷ đồng) — tham khảo thị trường.
-_BASE_PRICE = {"Liền kề": 1.9, "Shophouse": 4.2, "Biệt thự": 5.5}
+# Giá khởi điểm theo loại sản phẩm (tỷ đồng) — tham khảo, chưa có bảng giá chính thức.
+_BASE_PRICE = {"Liền kề": 1.9, "Shophouse": 3.2, "Biệt thự": 5.5}
 
 # Kích thước ảnh mặt bằng tổng (px) — dùng cho toạ độ marker trên Leaflet CRS.Simple.
-# Khớp file: public/elc-assets/.../ELC_ban do phan khu_tong-01.jpg (2001 x 1126).
-_MAP_W = 2001
-_MAP_H = 1126
+# Khớp file: public/hh-assets/to-gap-01-web.jpg (1920 x 905).
+_MAP_W = 1920
+_MAP_H = 905
 _MARGIN = 110
 
 

@@ -15,7 +15,7 @@ import {
 } from "@/lib/api";
 import { readToken } from "@/lib/auth";
 
-const PROJECT_SLUG = "eurowindow-light-city";
+const PROJECT_SLUG = "happy-home-thanh-hoa";
 
 export default function AgencyAdminTrainingPage() {
   const [docs, setDocs] = useState<ProjectDocument[]>([]);

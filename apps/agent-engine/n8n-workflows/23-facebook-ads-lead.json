@@ -54,7 +54,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/leads",
+        "url": "={{ $env.HH_API_URL }}/leads",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -70,7 +70,7 @@
         "jsonBody": "={{ JSON.stringify({ full_name: $json.full_name, phone: $json.phone, email: $json.email, source: 'fb_ads', external_id: $json.fb_lead_id, custom: { budget: $json.budget, form_id: $json.form_id } }) }}"
       },
       "id": "h23",
-      "name": "POST lead ELC",
+      "name": "POST lead Happy Home",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -95,7 +95,7 @@
       "main": [
         [
           {
-            "node": "POST lead ELC",
+            "node": "POST lead Happy Home",
             "type": "main",
             "index": 0
           }

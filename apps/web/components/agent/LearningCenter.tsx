@@ -72,7 +72,7 @@ export function LearningCenter({
         </h1>
         <p className="text-sm text-brand-700">
           Tài liệu chính thống, hỏi đáp AI có trích dẫn nguồn và lập phiếu báo giá
-          căn hộ Eurowindow Light City.
+          căn hộ Happy Home Thanh Hóa.
         </p>
       </header>
 
@@ -244,7 +244,7 @@ function patchLast(msgs: AskMsg[], fn: (last: AskMsg) => AskMsg): AskMsg[] {
 }
 
 const ASK_SUGGESTIONS = [
-  "Chính sách hoa hồng dự án ELC?",
+  "Chính sách hoa hồng dự án Happy Home?",
   "Tiến độ thanh toán chuẩn gồm những đợt nào?",
   "Pháp lý dự án đã có những giấy tờ gì?",
   "Chiết khấu thanh toán nhanh là bao nhiêu?",
@@ -255,7 +255,7 @@ function AskTab({ token }: { token: string }) {
     {
       role: "assistant",
       content:
-        "Em là AI tư vấn nội bộ ELC. Anh/chị hỏi về chính sách, pháp lý, giá hay " +
+        "Em là AI tư vấn nội bộ Happy Home. Anh/chị hỏi về chính sách, pháp lý, giá hay " +
         "tiến độ — em trả lời dựa trên tài liệu chính thống và trích dẫn nguồn.",
     },
   ]);

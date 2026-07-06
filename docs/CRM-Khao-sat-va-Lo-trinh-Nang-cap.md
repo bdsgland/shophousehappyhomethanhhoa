@@ -63,7 +63,7 @@ Schema đồng bộ `apps/agent-engine/app/schemas/crm.py` ↔ `apps/web/lib/crm
 ## B. HẠ TẦNG TÁI DÙNG ĐƯỢC cho 4 hướng
 
 ### B.1. AI / Claude
-- **Đã có:** RAG offline BM25 (`app/agents/retrieval.py`, KB Eurowindow Light City ~59 chunk), Sales Agent dùng Claude (`app/agents/sales_agent.py`) trả lời khách qua Chatwoot/web. Config tại `app/core/settings.py` (`ANTHROPIC_API_KEY`, `LLM_MODEL`, `USE_MOCK_LLM`). Dùng Claude tại: `sales_agent.py`, `webhook.py`, `learning.py`, `openclaw_bridge.py`.
+- **Đã có:** RAG offline BM25 (`app/agents/retrieval.py`, KB Happy Home Thanh Hóa ~59 chunk), Sales Agent dùng Claude (`app/agents/sales_agent.py`) trả lời khách qua Chatwoot/web. Config tại `app/core/settings.py` (`ANTHROPIC_API_KEY`, `LLM_MODEL`, `USE_MOCK_LLM`). Dùng Claude tại: `sales_agent.py`, `webhook.py`, `learning.py`, `openclaw_bridge.py`.
 - **Intent scoring = keyword** (`sales_agent._score_intent`): "giá"+8, "xem nhà"+18, "đặt cọc"+25, threshold 70 → handoff. **Chưa có LLM classification, chưa có LLM lead-scoring.**
 - **Phụ thuộc ngoài:** `ANTHROPIC_API_KEY`.
 

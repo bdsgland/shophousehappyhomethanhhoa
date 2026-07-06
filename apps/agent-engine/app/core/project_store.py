@@ -13,8 +13,8 @@ CHỈ giữ nội dung TỰ DO (overview/location/training/subzones/gallery360/p
 text/timeline/news). Quỹ căn → inventory_store; Tài liệu → learning_store; số
 liệu phiếu giá → sales_policy_store.
 
-Seed: slug eurowindow-light-city lấy từ core/project_seed.py (chuyển từ
-apps/web/.../elc-data.ts) để không mất nội dung đang hiển thị. Slug khác chưa có
+Seed: slug happy-home-thanh-hoa lấy từ core/project_seed.py (chuyển từ
+apps/web/.../project-data.ts) để không mất nội dung đang hiển thị. Slug khác chưa có
 file → tạo ProjectDoc rỗng (admin tự nhập).
 """
 
@@ -103,7 +103,7 @@ def _write_atomic(slug: str, doc: ProjectDoc) -> None:
     path = _project_path(slug)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    # by_alias=True để PriceRow.price_from xuất ra key "from" (khớp web elc-data).
+    # by_alias=True để PriceRow.price_from xuất ra key "from" (khớp web project-data).
     data = doc.model_dump(mode="json", by_alias=True)
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -130,7 +130,7 @@ def _rotate(slug: str, bdir: Path) -> None:
 
 
 def _seed_for(slug: str) -> ProjectDoc:
-    """ProjectDoc mặc định khi chưa có file: ELC = seed đầy đủ; khác = rỗng."""
+    """ProjectDoc mặc định khi chưa có file: Happy Home = seed đầy đủ; khác = rỗng."""
     if slug == DEFAULT_SLUG:
         return default_elc_project()
     return ProjectDoc(slug=slug, name=slug)
@@ -174,7 +174,7 @@ def exists(slug: str) -> bool:
 
 
 def list_projects() -> list[ProjectSummary]:
-    """Danh sách dự án (đảm bảo dự án ELC mặc định luôn xuất hiện dù chưa có file)."""
+    """Danh sách dự án (đảm bảo dự án Happy Home mặc định luôn xuất hiện dù chưa có file)."""
     with _LOCK:
         out: dict[str, ProjectSummary] = {}
         pdir = _projects_dir()
@@ -193,7 +193,7 @@ def list_projects() -> list[ProjectSummary]:
                     version=int(raw.get("version", 1) or 1),
                     last_updated_at=raw.get("last_updated_at"),
                 )
-        # Luôn hiển thị dự án ELC mặc định (auto-seed lần đầu khi admin mở).
+        # Luôn hiển thị dự án Happy Home mặc định (auto-seed lần đầu khi admin mở).
         if DEFAULT_SLUG not in out:
             seed = default_elc_project()
             out[DEFAULT_SLUG] = ProjectSummary(

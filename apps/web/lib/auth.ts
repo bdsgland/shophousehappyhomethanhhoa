@@ -59,7 +59,7 @@ export function readToken(): string | null {
  */
 export const ADMIN_APP_URL =
   process.env.NEXT_PUBLIC_ADMIN_APP_URL ??
-  "https://admin.eurowindowlightcity.net";
+  "https://admin-happyhomethanhhoa.bdsg.land";
 
 /** true nếu href là URL tuyệt đối (http/https) → cần điều hướng bằng window.location. */
 export function isExternalUrl(href: string): boolean {

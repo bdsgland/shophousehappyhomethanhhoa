@@ -109,7 +109,7 @@ export function LearningUpload() {
   return (
     <div className="space-y-6">
       <Link
-        href="/dashboard/project/eurowindow-light-city"
+        href="/dashboard/project/happy-home-thanh-hoa"
         className="inline-flex items-center gap-1 text-sm text-brand-600 hover:text-orange-700"
       >
         <ChevronLeft size={16} /> Về dashboard

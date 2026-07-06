@@ -23,7 +23,7 @@
 # Phiên bản ghim — cập nhật khi nâng cấp có kiểm thử.
 crewai==0.175.0
 
-# crewai-tools: KHÔNG bắt buộc cho scaffold v1 (các tool tích hợp ELC được viết
+# crewai-tools: KHÔNG bắt buộc cho scaffold v1 (các tool tích hợp Happy Home được viết
 # tay trong app/crew/tools.py để không phụ thuộc thêm). Bỏ comment nếu cần bộ
 # tool dựng sẵn của CrewAI (web search, file read, ...).
 # crewai-tools==0.55.0

@@ -72,11 +72,11 @@ export function InstallPrompt() {
     <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-50 px-3 lg:left-auto lg:right-4 lg:bottom-4 lg:max-w-sm lg:px-0">
       <div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-lg">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-bold text-white">
-          ELC
+          Happy Home
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-brand-900">
-            Cài đặt ứng dụng ELC
+            Cài đặt ứng dụng Happy Home
           </div>
           <div className="truncate text-xs text-brand-600">
             Mở nhanh từ màn hình chính, dùng như app.

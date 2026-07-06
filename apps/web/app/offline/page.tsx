@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Ngoại tuyến — Eurowindow Light City",
+  title: "Ngoại tuyến — Happy Home Thanh Hóa",
 };
 
 export default function OfflinePage() {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-100 text-2xl font-bold text-brand-700">
-        ELC
+        Happy Home
       </div>
       <h1 className="mt-5 text-xl font-bold text-brand-900">
         Bạn đang ngoại tuyến

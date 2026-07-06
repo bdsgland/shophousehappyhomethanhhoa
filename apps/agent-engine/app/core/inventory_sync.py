@@ -4,7 +4,7 @@ Luồng: admin dán link Sheets → fetch CSV → parse từng dòng → map san
 (field tiếng Việt tương thích ngược + mở rộng min-max) → ghi xuống inventory_store
 (có auto-backup). Không cần API key Google: dùng endpoint export CSV công khai.
 
-Cấu trúc sheet THẬT (Eurowindow Light City — đã đọc 2026-06-08), 112 căn liền kề
+Cấu trúc sheet THẬT (Happy Home Thanh Hóa — đã đọc 2026-06-08), 112 căn liền kề
 PK Mặt Trời, cột theo INDEX (header có cột trùng tên nên KHÔNG dùng DictReader):
   0  STT
   1  PHÂN KHU            -> khu          (vd "PK MẶT TRỜI")
@@ -112,7 +112,7 @@ async def fetch_sheet_csv(sheet_url: str, gid: int = 0) -> list[list[str]]:
         for url in _csv_urls(sheet_id, gid):
             try:
                 r = await client.get(
-                    url, headers={"User-Agent": "ELC-Inventory-Sync/1.0"}
+                    url, headers={"User-Agent": "HH-Inventory-Sync/1.0"}
                 )
             except Exception as e:  # noqa: BLE001
                 last_err = f"{type(e).__name__}: {e}"

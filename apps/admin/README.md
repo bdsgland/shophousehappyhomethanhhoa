@@ -1,7 +1,7 @@
-# ELC Admin Dashboard
+# Happy Home Admin Dashboard
 
-Cổng quản trị trung tâm cho hệ thống **Eurowindow Light City (ELC) Proptech**.
-Deploy tại `admin.eurowindowlightcity.net`.
+Cổng quản trị trung tâm cho hệ thống **Happy Home Thanh Hóa (Happy Home) Proptech**.
+Deploy tại `admin-happyhomethanhhoa.bdsg.land`.
 
 ## Stack
 
@@ -10,7 +10,7 @@ Deploy tại `admin.eurowindowlightcity.net`.
 - TanStack React Query (fetch + cache)
 - Recharts (biểu đồ KPI)
 - Lucide icons
-- Auth: JWT từ FastAPI `api.eurowindowlightcity.net` — **chỉ chấp nhận role=admin**
+- Auth: JWT từ FastAPI `api-happyhomethanhhoa.bdsg.land` — **chỉ chấp nhận role=admin**
 
 ## Chạy local
 
@@ -28,8 +28,8 @@ npm run dev                  # http://localhost:3001
 
 | Biến | Giá trị |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://api.eurowindowlightcity.net` |
-| `NEXT_PUBLIC_CHATWOOT_URL` | `https://chat.eurowindowlightcity.net` |
+| `NEXT_PUBLIC_API_URL` | `https://api-happyhomethanhhoa.bdsg.land` |
+| `NEXT_PUBLIC_CHATWOOT_URL` | `https://chat-happyhomethanhhoa.bdsg.land` |
 
 ## Cấu trúc
 

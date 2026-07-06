@@ -59,14 +59,14 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/leaderboard/update",
+        "url": "={{ $env.HH_API_URL }}/admin/leaderboard/update",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

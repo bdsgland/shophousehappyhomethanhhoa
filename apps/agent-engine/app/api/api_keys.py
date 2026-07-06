@@ -2,7 +2,7 @@
 
 Cho phép admin TẠO & QUẢN LÝ API key TOÀN QUYỀN (scope admin_full) để công cụ
 ngoài (OpenClaw / script / tích hợp) điều khiển hệ thống qua:
-  • REST API trên https://api.eurowindowlightcity.net/docs (nút Authorize → Bearer).
+  • REST API trên https://api-happyhomethanhhoa.bdsg.land/docs (nút Authorize → Bearer).
   • MCP server tại /mcp (header X-Api-Key hoặc Authorization: Bearer elc_sk_...).
 
 Endpoints (CHỈ require_admin — chỉ admin được tạo/thu hồi):

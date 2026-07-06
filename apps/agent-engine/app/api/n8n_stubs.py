@@ -449,11 +449,11 @@ def marketing_keywords(
     STUB: danh sách từ khoá BĐS cố định. TODO Phase 3: kéo từ Google Search Console.
     """
     keywords = [
-        "biệt thự eurowindow light city",
+        "biệt thự happy home thanh hoa",
         "căn hộ cao cấp hà nội",
         "đầu tư bất động sản 2026",
         "shophouse light city giá",
-        "tiến độ eurowindow light city",
+        "tiến độ happy home thanh hoa",
         "chính sách bán hàng light city",
         "nhà phố thương mại hà nội",
     ]

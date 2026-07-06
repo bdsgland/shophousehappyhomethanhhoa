@@ -340,12 +340,12 @@ function UsageGuide() {
           <p>
             Mở{" "}
             <a
-              href="https://api.eurowindowlightcity.net/docs"
+              href="https://api-happyhomethanhhoa.bdsg.land/docs"
               target="_blank"
               rel="noreferrer"
               className="text-primary hover:underline"
             >
-              api.eurowindowlightcity.net/docs
+              api-happyhomethanhhoa.bdsg.land/docs
             </a>{" "}
             → bấm nút <b>Authorize</b> → dán khoá <code className="rounded bg-muted px-1">elc_sk_...</code>{" "}
             vào ô Bearer → Authorize. Sau đó gọi thử endpoint{" "}
@@ -355,7 +355,7 @@ function UsageGuide() {
         <div>
           <p className="font-medium text-foreground">2. Làm header cho MCP (OpenClaw)</p>
           <p>
-            Trỏ công cụ MCP tới <code className="rounded bg-muted px-1">https://api.eurowindowlightcity.net/mcp</code>{" "}
+            Trỏ công cụ MCP tới <code className="rounded bg-muted px-1">https://api-happyhomethanhhoa.bdsg.land/mcp</code>{" "}
             và đặt một trong hai header:
           </p>
           <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 text-xs text-foreground">

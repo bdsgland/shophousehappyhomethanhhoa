@@ -6,7 +6,7 @@ export default function ChatPage() {
       <header>
         <h1 className="text-2xl font-bold text-brand-900">Chat AI tư vấn</h1>
         <p className="text-sm text-brand-700">
-          Trợ lý AI 24/7 giải đáp về quỹ căn, giá, chính sách và tiện ích dự án ELC.
+          Trợ lý AI 24/7 giải đáp về quỹ căn, giá, chính sách và tiện ích dự án Happy Home.
         </p>
       </header>
       <ChatFull />

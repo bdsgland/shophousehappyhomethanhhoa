@@ -1,7 +1,7 @@
 # Sprint 1.1 — Runbook triển khai (Railway)
 
-> Mục tiêu: bật **lưu trữ bền vững** cho service `RAI-ELC` (agent-engine) và
-> import **108 khách hàng ELC** vào hệ thống.
+> Mục tiêu: bật **lưu trữ bền vững** cho service `shophousehappyhomethanhhoa` (agent-engine) và
+> import **108 khách hàng Happy Home** vào hệ thống.
 >
 > Code đã sẵn trên `origin/main` (commit `ca30f58`). Railway tự deploy mỗi khi
 > push main → khi anh làm các bước dưới, image đã có sẵn script import + lớp DB.
@@ -27,11 +27,11 @@ mỗi lần deploy**, và admin được tạo lại tự động lúc khởi đ
 
 ## Bước 0 — Đảm bảo có mật khẩu admin cố định (1 phút)
 
-Railway → project **noble-gratitude** → service **RAI-ELC** → tab **Variables**:
+Railway → project **noble-gratitude** → service **shophousehappyhomethanhhoa** → tab **Variables**:
 
 | Biến | Giá trị | Ghi chú |
 |---|---|---|
-| `ADMIN_EMAIL` | `admin@eurowindowlightcity.net` | nếu chưa có |
+| `ADMIN_EMAIL` | `admin@bdsg.land` | nếu chưa có |
 | `ADMIN_PASSWORD` | *(mật khẩu anh tự đặt, ghi nhớ lại)* | **quan trọng** để login sau deploy |
 
 > Nếu 2 biến này đã tồn tại và anh nhớ mật khẩu → bỏ qua Bước 0.
@@ -40,7 +40,7 @@ Railway → project **noble-gratitude** → service **RAI-ELC** → tab **Variab
 
 ## Bước A — Gắn Volume (lưu trữ bền vững)
 
-Service **RAI-ELC** → tab **Settings** (hoặc **Volumes**) → **+ New Volume** /
+Service **shophousehappyhomethanhhoa** → tab **Settings** (hoặc **Volumes**) → **+ New Volume** /
 **Add Volume**:
 
 | Trường | Giá trị |
@@ -55,7 +55,7 @@ Lưu lại. (Railway sẽ xếp 1 lần redeploy — chưa cần lo, làm xong B
 
 ## Bước B — Set biến môi trường `DATA_DIR` (mấu chốt!)
 
-Vẫn ở service **RAI-ELC** → tab **Variables** → thêm:
+Vẫn ở service **shophousehappyhomethanhhoa** → tab **Variables** → thêm:
 
 | Biến | Giá trị |
 |---|---|
@@ -83,13 +83,13 @@ Railway thường tự xếp redeploy sau khi đổi Volume/Variables. Nếu có
   - `[DB] Chưa cấu hình DATABASE_URL → chạy JSON thuần.` (bình thường nếu chưa làm Postgres)
   - `[SEED] Admin already exists` **hoặc** `[SEED] Admin created: ...` (admin OK)
 
-✅ Kiểm tra nhanh service sống: mở `https://api.eurowindowlightcity.net/health`.
+✅ Kiểm tra nhanh service sống: mở `https://api-happyhomethanhhoa.bdsg.land/health`.
 
 ---
 
-## Bước D — Import 108 khách (chạy trong Console của RAI-ELC)
+## Bước D — Import 108 khách (chạy trong Console của shophousehappyhomethanhhoa)
 
-Service **RAI-ELC** → mở **Console** / **Shell** (terminal trong container).
+Service **shophousehappyhomethanhhoa** → mở **Console** / **Shell** (terminal trong container).
 
 ### D.1 — Đưa file Excel vào volume
 
@@ -97,15 +97,15 @@ File khách hàng là **PII**, không nằm trong code. Đẩy lên volume bằn
 
 **Trên máy Mac của anh** (Terminal, tại thư mục dự án):
 ```bash
-base64 < "data/customers/eurowindow-light-city/sheet-data-quang-cao-elc.xlsx" | pbcopy
+base64 < "data/customers/happy-home-thanh-hoa/sheet-data-quang-cao-hh.xlsx" | pbcopy
 ```
 (đã copy chuỗi base64 vào clipboard)
 
 **Trong Console Railway**, dán vào file rồi giải mã ra Excel trên volume:
 ```bash
-cat > /tmp/elc.b64    # dán (Cmd+V) toàn bộ chuỗi, xong nhấn Enter rồi Ctrl-D
-base64 -d /tmp/elc.b64 > /app/data/sheet-data-quang-cao-elc.xlsx
-ls -la /app/data/sheet-data-quang-cao-elc.xlsx   # phải thấy ~65 KB
+cat > /tmp/hh.b64    # dán (Cmd+V) toàn bộ chuỗi, xong nhấn Enter rồi Ctrl-D
+base64 -d /tmp/hh.b64 > /app/data/sheet-data-quang-cao-hh.xlsx
+ls -la /app/data/sheet-data-quang-cao-hh.xlsx   # phải thấy ~65 KB
 ```
 
 ### D.2 — Chạy script import
@@ -115,9 +115,9 @@ Trong Console Railway:
 cd /app
 . /opt/venv/bin/activate
 # Xem trước (KHÔNG ghi) — phải báo "có SĐT hợp lệ: 108"
-python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-elc.xlsx --dry-run
+python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-hh.xlsx --dry-run
 # Import thật
-python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-elc.xlsx
+python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-hh.xlsx
 ```
 
 Kết quả mong đợi (in ra ngay):
@@ -129,11 +129,11 @@ Tổng user sau import: 112   (108 khách + admin + sale + client cũ)
 ```
 
 > Script tự khử trùng lặp theo SĐT → chạy lại nhiều lần **không** tạo trùng.
-> Khách không có email nên hệ thống sinh email định danh `kh-<sđt>@elc-import.local`.
+> Khách không có email nên hệ thống sinh email định danh `kh-<sđt>@hh-import.local`.
 
 ### D.3 — (Tuỳ chọn) Xoá file Excel khỏi volume sau import
 ```bash
-rm -f /app/data/sheet-data-quang-cao-elc.xlsx /tmp/elc.b64
+rm -f /app/data/sheet-data-quang-cao-hh.xlsx /tmp/hh.b64
 ```
 
 ---
@@ -143,12 +143,12 @@ rm -f /app/data/sheet-data-quang-cao-elc.xlsx /tmp/elc.b64
 `/admin/users` yêu cầu token admin. Trên máy Mac (thay `<ADMIN_PASSWORD>`):
 
 ```bash
-TOKEN=$(curl -s -X POST https://api.eurowindowlightcity.net/auth/login \
+TOKEN=$(curl -s -X POST https://api-happyhomethanhhoa.bdsg.land/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@eurowindowlightcity.net","password":"<ADMIN_PASSWORD>"}' \
+  -d '{"email":"admin@bdsg.land","password":"<ADMIN_PASSWORD>"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-curl -s https://api.eurowindowlightcity.net/admin/users \
+curl -s https://api-happyhomethanhhoa.bdsg.land/admin/users \
   -H "Authorization: Bearer $TOKEN" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print('Tổng user =', len(d))"
 ```
@@ -159,7 +159,7 @@ curl -s https://api.eurowindowlightcity.net/admin/users \
 
 ## ✅ Kiểm tra bền vững (quan trọng) — dữ liệu KHÔNG mất khi deploy lại
 
-1. Railway → RAI-ELC → bấm **Redeploy** (hoặc đổi 1 biến nhỏ để trigger).
+1. Railway → shophousehappyhomethanhhoa → bấm **Redeploy** (hoặc đổi 1 biến nhỏ để trigger).
 2. Chờ ACTIVE, chạy lại lệnh verify ở Bước E.
 3. ✅ Nếu vẫn ≥ 108 → volume hoạt động đúng, dữ liệu đã **bền vững**. 🎉
 

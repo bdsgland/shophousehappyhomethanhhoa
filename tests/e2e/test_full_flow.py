@@ -1,6 +1,6 @@
-"""End-to-end test cho quy trình hoàn chỉnh ELC.
+"""End-to-end test cho quy trình hoàn chỉnh Happy Home.
 
-Chạy thẳng vào API production (api.eurowindowlightcity.net) để xác minh
+Chạy thẳng vào API production (api-happyhomethanhhoa.bdsg.land) để xác minh
 luồng khách hàng từ đăng ký → đăng nhập → xem kho căn → yêu thích → đặt lịch.
 
 Cách chạy:
@@ -23,8 +23,8 @@ import uuid
 
 import requests
 
-BASE_URL = os.environ.get("E2E_BASE_URL", "https://api.eurowindowlightcity.net").rstrip("/")
-PROJECT_SLUG = "eurowindow-light-city"  # khớp inventory.SLUG
+BASE_URL = os.environ.get("E2E_BASE_URL", "https://api-happyhomethanhhoa.bdsg.land").rstrip("/")
+PROJECT_SLUG = "happy-home-thanh-hoa"  # khớp inventory.SLUG
 TIMEOUT = 20
 
 
@@ -42,7 +42,7 @@ def test_complete_flow() -> None:
     5. Khách tạo booking → verify hiện trong /me/bookings
     (6-8 sale/admin: chỉ chạy nếu có credential thật qua env)
     """
-    test_email = f"e2e_test_{uuid.uuid4().hex[:8]}@elc.test"
+    test_email = f"e2e_test_{uuid.uuid4().hex[:8]}@hhth.test"
     password = "Test123!@#"
     _p(f"\n🌐 API base: {BASE_URL}")
     _p(f"👤 Test user: {test_email}")

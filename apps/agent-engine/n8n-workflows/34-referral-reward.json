@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/sales/{{ $('Webhook').item.json.body.sponsor_sale_id }}/bonus",
+        "url": "={{ $env.HH_API_URL }}/admin/sales/{{ $('Webhook').item.json.body.sponsor_sale_id }}/bonus",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -88,7 +88,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft l\\u1eddi ch\\u00fac m\\u1eebng ng\\u1eafn 60 ch\\u1eef cho sale ELC khi h\\u1ecd c\\u00f3 downline \\u0111\\u1ea7u ti\\u00ean. Th\\u00e2n thi\\u1ec7n, c\\u00f3 emoji.\", messages: [ { role: 'user', content: 'Sponsor: ' + $('Webhook').item.json.body.sponsor_name + ', downline: ' + $('Webhook').item.json.body.downline_name } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"Vi\\u1ebft l\\u1eddi ch\\u00fac m\\u1eebng ng\\u1eafn 60 ch\\u1eef cho sale Happy Home khi h\\u1ecd c\\u00f3 downline \\u0111\\u1ea7u ti\\u00ean. Th\\u00e2n thi\\u1ec7n, c\\u00f3 emoji.\", messages: [ { role: 'user', content: 'Sponsor: ' + $('Webhook').item.json.body.sponsor_name + ', downline: ' + $('Webhook').item.json.body.downline_name } ] }) }}",
         "options": {}
       },
       "id": "cl34",
@@ -122,13 +122,13 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.sponsor_email }}",
         "subject": "=🎁 Chúc mừng có downline đầu tiên + bonus 2M",
         "emailFormat": "text",

@@ -11,35 +11,35 @@ export interface PlatformMeta {
 }
 
 const CHATWOOT =
-  process.env.NEXT_PUBLIC_CHATWOOT_URL || "https://chat.eurowindowlightcity.net";
+  process.env.NEXT_PUBLIC_CHATWOOT_URL || "https://chat-happyhomethanhhoa.bdsg.land";
 
 export const PLATFORMS: PlatformMeta[] = [
   {
     key: "api",
     name: "Agent Engine (API)",
     description: "Backend FastAPI: auth, leads, inventory, chat AI.",
-    url: "https://api.eurowindowlightcity.net/docs",
+    url: "https://api-happyhomethanhhoa.bdsg.land/docs",
     embeddable: false,
   },
   {
     key: "n8n",
     name: "n8n Automation",
     description: "Workflow tự động hoá: webhook, đồng bộ lead, gửi thông báo.",
-    url: "https://n8n.eurowindowlightcity.net",
+    url: "https://n8n-happyhomethanhhoa.bdsg.land",
     embeddable: false,
   },
   {
     key: "dify",
     name: "Dify",
     description: "Bộ não tri thức (LLM platform + RAG): chatbot, knowledge base.",
-    url: "https://ai.eurowindowlightcity.net",
+    url: "https://ai-happyhomethanhhoa.bdsg.land",
     embeddable: false,
   },
   {
     key: "bot",
     name: "OpenClaw",
     description: "Agent đa năng (browser automation).",
-    url: "https://bot.eurowindowlightcity.net",
+    url: "https://bot-happyhomethanhhoa.bdsg.land",
     embeddable: false,
   },
   {

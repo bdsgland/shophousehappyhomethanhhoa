@@ -1,5 +1,5 @@
 /*
- * Service Worker — Eurowindow Light City PWA (v1)
+ * Service Worker — Happy Home Thanh Hóa PWA (v1)
  *
  * Chiến lược an toàn cho app động + auth:
  *  - CHỈ xử lý request CÙNG ORIGIN, method GET. Mọi request khác (POST, hoặc
@@ -14,7 +14,7 @@
  * khi cần chỉ việc bỏ comment + cấu hình VAPID phía backend.
  */
 
-const VERSION = "elc-v1";
+const VERSION = "hhth-v1";
 const APP_SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/offline";
@@ -64,7 +64,7 @@ function isStaticAsset(url) {
   return (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/elc-assets/") ||
+    url.pathname.startsWith("/hh-assets/") ||
     /\.(?:css|js|woff2?|ttf|otf|png|jpg|jpeg|gif|webp|svg|ico)$/i.test(
       url.pathname,
     )
@@ -131,7 +131,7 @@ self.addEventListener("fetch", (event) => {
  * self.addEventListener("push", (event) => {
  *   const data = event.data ? event.data.json() : {};
  *   event.waitUntil(
- *     self.registration.showNotification(data.title || "Eurowindow Light City", {
+ *     self.registration.showNotification(data.title || "Happy Home Thanh Hóa", {
  *       body: data.body || "",
  *       icon: "/icons/icon.svg",
  *       badge: "/icons/icon.svg",

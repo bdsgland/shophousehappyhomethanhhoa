@@ -161,7 +161,7 @@ def _fallback_keywords(topic: str) -> list[str]:
         f"mua {topic}",
         f"{topic} chính sách",
         "bất động sản Thanh Hoá",
-        "Eurowindow Light City",
+        "Happy Home Thanh Hóa",
     ]
     out: list[str] = []
     for k in base:

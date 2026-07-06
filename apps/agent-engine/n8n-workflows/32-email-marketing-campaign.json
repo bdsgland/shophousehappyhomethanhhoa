@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/segments/preview",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/segments/preview",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -99,7 +99,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $json.email, name: $json.full_name }] }], from: { email: $env.SENDGRID_FROM_EMAIL, name: 'ELC' }, template_id: $('Webhook').item.json.body.template_id, dynamic_template_data: { full_name: $json.full_name, voucher_code: 'ELC-' + $json.user_id } }) }}"
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $json.email, name: $json.full_name }] }], from: { email: $env.SENDGRID_FROM_EMAIL, name: 'Happy Home' }, template_id: $('Webhook').item.json.body.template_id, dynamic_template_data: { full_name: $json.full_name, voucher_code: 'Happy Home-' + $json.user_id } }) }}"
       },
       "id": "h32b",
       "name": "SendGrid send",
@@ -114,7 +114,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/campaigns/{{ $('Webhook').item.json.body.campaign_id }}/log",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/campaigns/{{ $('Webhook').item.json.body.campaign_id }}/log",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

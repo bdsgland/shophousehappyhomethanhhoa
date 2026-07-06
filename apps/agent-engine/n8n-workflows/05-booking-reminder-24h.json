@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🔔 Booking Reminder 24h\n\nChạy mỗi giờ, check booking sắp đến trong 24h.\n\n**Cần:** `ELC_API_URL`, SMTP, Telegram credential.\n\n**Endpoint:** `GET /admin/bookings/upcoming-24h`",
+        "content": "## 🔔 Booking Reminder 24h\n\nChạy mỗi giờ, check booking sắp đến trong 24h.\n\n**Cần:** `HH_API_URL`, SMTP, Telegram credential.\n\n**Endpoint:** `GET /admin/bookings/upcoming-24h`",
         "width": 380,
         "height": 280
       },
@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/bookings/upcoming-24h",
+        "url": "={{ $env.HH_API_URL }}/admin/bookings/upcoming-24h",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $json.lead_email }}",
         "subject": "=🔔 Nhắc lịch xem căn vào {{ $json.booking_time }}",
         "emailFormat": "text",
@@ -119,7 +119,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

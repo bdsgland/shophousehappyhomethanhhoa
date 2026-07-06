@@ -43,7 +43,7 @@ const config: Config = {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         danger: "hsl(var(--danger))",
-        // Vàng đồng thương hiệu ELC (đồng bộ apps/web).
+        // Vàng đồng thương hiệu Happy Home (đồng bộ apps/web).
         brand: {
           50: "#fbf7f0",
           100: "#f3e8d3",

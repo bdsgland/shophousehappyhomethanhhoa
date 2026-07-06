@@ -115,7 +115,7 @@ def _api_key_principal(rec: dict) -> dict:
         "principal": "api_key",
         "role": "admin",
         "full_name": f"API Key — {rec.get('name')}",
-        "email": "api-key@eurowindowlightcity.net",
+        "email": "api-key@bdsg.land",
         "api_key_id": rec.get("id"),
         "api_key_name": rec.get("name"),
         "scope": rec.get("scope"),
@@ -263,7 +263,7 @@ _OPENCLAW_PRINCIPAL = {
     "principal": "openclaw_ceo",
     "role": "god",
     "full_name": "OpenClaw — Trợ lý AI CEO",
-    "email": "openclaw@eurowindowlightcity.net",
+    "email": "openclaw@bdsg.land",
 }
 
 

@@ -1,4 +1,4 @@
-"""Endpoint đặt lịch xem nhà — flow chốt giá trị của Eurowindow Light City.
+"""Endpoint đặt lịch xem nhà — flow chốt giá trị của Happy Home Thanh Hóa.
 
 Khoảnh khắc khách bấm "Đặt lịch xem nhà" = HOT LEAD. Mỗi booking:
   - Tự tạo/khớp Lead (dedupe theo phone/email).
@@ -125,7 +125,7 @@ def _find_or_create_lead(
     sale_id: Optional[str],
     notes: Optional[str],
 ) -> Lead:
-    """Khớp lead đã có (dedupe phone/email) hoặc tạo mới gắn dự án ELC."""
+    """Khớp lead đã có (dedupe phone/email) hoặc tạo mới gắn dự án Happy Home."""
     existing = leads_store._find_existing(phone, email)
     if existing:
         if sale_id and not existing.assigned_sale_id:
@@ -141,8 +141,8 @@ def _find_or_create_lead(
         phone=phone,
         email=email,
         source_channel="booking",
-        project="Eurowindow Light City",
-        project_slug="eurowindow-light-city",
+        project="Happy Home Thanh Hóa",
+        project_slug="happy-home-thanh-hoa",
         notes=notes,
         status="hot",
         intent_score=70,

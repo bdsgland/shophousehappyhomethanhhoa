@@ -1,5 +1,5 @@
 {
-  "name": "ELC — 01 Hot Lead Alert",
+  "name": "Happy Home — 01 Hot Lead Alert",
   "active": false,
   "settings": {
     "executionOrder": "v1",
@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🔥 Hot Lead Alert\nFastAPI gọi webhook này khi có booking mới.\n\n**Cần cấu hình (n8n → Settings → Variables/Env):**\n- `ELC_API_URL` = https://api.eurowindowlightcity.net\n- `INTERNAL_WEBHOOK_TOKEN` = trùng env backend\n- `MANAGER_TELEGRAM_CHAT_ID` = chat_id manager/admin\n- Credential **Telegram** = bot token từ @BotFather\n\nGợi ý nút bấm: thêm Inline Keyboard trong node Telegram nếu muốn (xem docs/n8n-setup.md).",
+        "content": "## 🔥 Hot Lead Alert\nFastAPI gọi webhook này khi có booking mới.\n\n**Cần cấu hình (n8n → Settings → Variables/Env):**\n- `HH_API_URL` = https://api-happyhomethanhhoa.bdsg.land\n- `INTERNAL_WEBHOOK_TOKEN` = trùng env backend\n- `MANAGER_TELEGRAM_CHAT_ID` = chat_id manager/admin\n- Credential **Telegram** = bot token từ @BotFather\n\nGợi ý nút bấm: thêm Inline Keyboard trong node Telegram nếu muốn (xem docs/n8n-setup.md).",
         "height": 320,
         "width": 380
       },
@@ -49,7 +49,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.ELC_API_URL }}/leads/{{ $('Webhook').item.json.body.lead_id }}/contacted_at",
+        "url": "={{ $env.HH_API_URL }}/leads/{{ $('Webhook').item.json.body.lead_id }}/contacted_at",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -132,13 +132,13 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $('Webhook').item.json.body.sale_email }}",
         "subject": "=[HOT LEAD] {{ $('Webhook').item.json.body.lead_name }} — phản hồi ngay",
         "emailFormat": "text",

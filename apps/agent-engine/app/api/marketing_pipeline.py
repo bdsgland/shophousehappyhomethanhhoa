@@ -117,7 +117,7 @@ def _publish_email(content_text: str, *, recipients: list[str], subject: Optiona
             return {"channel": "email", "status": "needs_connection",
                     "detail": "Gmail API chưa sẵn sàng — kết nối Google Workspace (scope gmail.send)."}
         res = gmail_sender.send_email(
-            recipients, subject or "Thông tin từ ELC", content_text, html=False
+            recipients, subject or "Thông tin từ Happy Home", content_text, html=False
         )
         return {"channel": "email", "status": "posted",
                 "detail": f"Đã gửi email tới {len(recipients)} người nhận.",

@@ -31,7 +31,7 @@ type Tab = {
 const CLIENT_TABS: Tab[] = [
   { href: "/client", label: "Dự án", Icon: Home, match: "/client" },
   {
-    href: "/dashboard/project/eurowindow-light-city",
+    href: "/dashboard/project/happy-home-thanh-hoa",
     label: "Bảng hàng",
     Icon: Grid,
     match: "/dashboard/project",

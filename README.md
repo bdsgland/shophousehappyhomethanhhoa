@@ -1,7 +1,9 @@
-# Agent Proptech
+# Shophouse Happy Home Thanh Hóa — Hệ thống bán hàng
 
-> **AI-agent nhân bản saleman bất động sản cao cấp.**
-> Tự học dự án • Tìm khách • Chăm khách • Chấm điểm quan tâm • Bàn giao khách "nóng" cho saleman thật để chốt.
+> **Hệ thống bán hàng dự án Shophouse Happy Home Thanh Hóa** — vận hành bởi **BDSG LAND**, đại lý nhà phát triển kinh doanh bất động sản (CĐT: Tập đoàn Vingroup — Công ty CP).
+> Nền tảng AI-agent: tự học dự án • tìm khách • chăm khách 24/7 • chấm điểm quan tâm • bàn giao khách "nóng" cho saleman thật để chốt.
+>
+> 🌐 Website: https://happyhomethanhhoa.bdsg.land · ☎ Hotline: 0967 806 686
 
 ---
 
@@ -18,10 +20,6 @@
 5. **Bàn giao cho saleman thật** — khi khách đủ ngưỡng quan tâm, tự động gửi cảnh báo + tóm tắt hội thoại cho saleman để gặp và chốt.
 
 Kết quả: **saleman chỉ làm việc cuối phễu** — gặp khách đã thật sự quan tâm. Hiệu suất đội sale tăng nhiều lần mà không cần tuyển thêm người.
-
-> ⚠️ Phân khúc tập trung: **bất động sản CAO CẤP** (căn hộ hạng sang, biệt thự, shophouse premium…). KHÔNG phục vụ nhà ở xã hội/NOXH.
-
----
 
 ## 2. Các module chính
 

@@ -124,7 +124,7 @@ function CrmInner() {
 
       {/* Tham khảo nhanh thông tin dự án (page chi tiết 11 tab) */}
       <Link
-        href="/dashboard/project/eurowindow-light-city"
+        href="/dashboard/project/happy-home-thanh-hoa"
         className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 shadow-sm transition hover:border-amber-400 hover:shadow-md"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white">
@@ -132,7 +132,7 @@ function CrmInner() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold text-brand-900">
-            Thông tin dự án Eurowindow Light City
+            Thông tin dự án Happy Home Thanh Hóa
           </span>
           <span className="block text-xs text-brand-600">
             Brochure, phân khu, mặt bằng quỹ căn, ảnh 360°, chính sách bán hàng

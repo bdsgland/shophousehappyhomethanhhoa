@@ -128,6 +128,6 @@ async def facebook_data_deletion(signed_request: str = Form("")) -> JSONResponse
 
     # URL mà FB sẽ link để user tra cứu tiến độ.
     status_url = (
-        f"https://www.eurowindowlightcity.net/data-deletion?code={confirmation_code}"
+        f"https://happyhomethanhhoa.bdsg.land/data-deletion?code={confirmation_code}"
     )
     return JSONResponse({"url": status_url, "confirmation_code": confirmation_code})

@@ -445,7 +445,7 @@ function ArticleEditor({
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="VD: Eurowindow Light City cập nhật tiến độ tháng 6"
+                placeholder="VD: Happy Home Thanh Hóa cập nhật tiến độ tháng 6"
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -498,7 +498,7 @@ function ArticleEditor({
               <Input
                 value={form.project_slug}
                 onChange={(e) => setForm({ ...form, project_slug: e.target.value })}
-                placeholder="vd: eurowindow-light-city"
+                placeholder="vd: happy-home-thanh-hoa"
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -661,7 +661,7 @@ function AiWriteDialog({
           <Textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="VD: Tiềm năng đầu tư căn hộ Eurowindow Light City Thanh Hoá"
+            placeholder="VD: Tiềm năng đầu tư căn hộ Happy Home Thanh Hóa Thanh Hoá"
           />
         </Field>
         <div className="grid grid-cols-3 gap-3">
@@ -683,7 +683,7 @@ function AiWriteDialog({
           <Input
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            placeholder="căn hộ thanh hoá, eurowindow light city"
+            placeholder="căn hộ thanh hoá, happy home thanh hoa"
           />
         </Field>
 
@@ -858,7 +858,7 @@ function SeoTab() {
               <Input
                 value={form.title_template}
                 onChange={(e) => setForm({ ...form, title_template: e.target.value })}
-                placeholder="%s | Eurowindow Light City"
+                placeholder="%s | Happy Home Thanh Hóa"
               />
             </Field>
           </div>
@@ -895,14 +895,14 @@ function SeoTab() {
               <Input
                 value={form.base_url}
                 onChange={(e) => setForm({ ...form, base_url: e.target.value })}
-                placeholder="https://www.eurowindowlightcity.net"
+                placeholder="https://happyhomethanhhoa.bdsg.land"
               />
             </Field>
             <Field label="Twitter handle">
               <Input
                 value={form.twitter_handle}
                 onChange={(e) => setForm({ ...form, twitter_handle: e.target.value })}
-                placeholder="@eurowindow"
+                placeholder="@happyhome"
               />
             </Field>
           </div>

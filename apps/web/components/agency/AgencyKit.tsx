@@ -311,7 +311,7 @@ export function SeverityBadge({ severity }: { severity?: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Biểu đồ THUẦN SVG (không phụ thuộc thư viện ngoài) — brand ELC
+// Biểu đồ THUẦN SVG (không phụ thuộc thư viện ngoài) — brand Happy Home
 // ---------------------------------------------------------------------------
 
 export type TrendPoint = {

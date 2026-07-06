@@ -22,7 +22,7 @@ class DriveSyncRequest(BaseModel):
         description="Link folder Google Drive (chứa folders/<id> trong URL)"
     )
     project_slug: str = Field(
-        default="eurowindow-light-city", description="Slug dự án (gắn metadata)"
+        default="happy-home-thanh-hoa", description="Slug dự án (gắn metadata)"
     )
     skip_existing: bool = Field(
         default=True, description="Bỏ qua file đã có (so khớp theo content hash)"

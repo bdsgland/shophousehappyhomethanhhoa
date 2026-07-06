@@ -34,8 +34,8 @@ const NAV: NavItem[] = [
   { href: "/client/favorites", label: "Căn yêu thích", Icon: Heart },
   { href: "/client/profile", label: "Thông tin cá nhân", Icon: User },
   {
-    href: "/dashboard/project/eurowindow-light-city",
-    label: "Tìm hiểu dự án ELC",
+    href: "/dashboard/project/happy-home-thanh-hoa",
+    label: "Tìm hiểu dự án Happy Home",
     Icon: BookOpen,
   },
 ];

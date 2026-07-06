@@ -168,7 +168,7 @@ function GeneralTab({
   if (loading || !form) return <Skeleton className="h-64 w-full" />;
 
   const fields: { key: keyof SystemConfig["general"]; label: string; placeholder: string }[] = [
-    { key: "site_name", label: "Tên hệ thống", placeholder: "Eurowindow Light City" },
+    { key: "site_name", label: "Tên hệ thống", placeholder: "Happy Home Thanh Hóa" },
     { key: "logo_url", label: "URL logo", placeholder: "https://…/logo.png" },
     { key: "contact_email", label: "Email liên hệ", placeholder: "info@…" },
     { key: "contact_phone", label: "Hotline", placeholder: "1900 0000" },

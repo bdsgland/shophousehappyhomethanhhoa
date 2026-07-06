@@ -60,7 +60,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Tổng quan"
-        description="Bức tranh toàn hệ thống ELC theo thời gian thực."
+        description="Bức tranh toàn hệ thống Happy Home theo thời gian thực."
         action={
           <Button
             variant="outline"

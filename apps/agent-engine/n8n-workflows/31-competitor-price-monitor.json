@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🔍 Competitor Price Monitor\n\nDaily. Scrape giá Vinhomes/Sungroup/Eurowindow đối thủ → so sánh → alert nếu họ giảm.\n\nDùng proxy ELC endpoint vì scraping cần lib + proxy IP.",
+        "content": "## 🔍 Competitor Price Monitor\n\nDaily. Scrape giá Vinhomes/Sungroup/Happy Home đối thủ → so sánh → alert nếu họ giảm.\n\nDùng proxy Happy Home endpoint vì scraping cần lib + proxy IP.",
         "width": 380,
         "height": 280
       },
@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/competitor-prices",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/competitor-prices",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -132,7 +132,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

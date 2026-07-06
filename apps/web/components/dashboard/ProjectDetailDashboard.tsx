@@ -65,7 +65,7 @@ import {
   TRAININGS,
   UNITS,
   ZONE_FILTERS,
-} from "@/components/dashboard/elc-data";
+} from "@/components/dashboard/project-data";
 import {
   fetchInventory,
   fetchInventoryStats,
@@ -91,13 +91,13 @@ import {
 
 // Mô tả Vị trí + ghi chú hoa hồng mặc định (fallback khi store/elc trống).
 const DEFAULT_LOCATION_DESC =
-  "Eurowindow Light City toạ lạc tại phường Nguyệt Viên, TP Thanh Hoá — ngay cửa ngõ phía Bắc thành phố, liền kề Quốc lộ 1A và cầu Hoằng Long. Vị trí kết nối thuận tiện tới trung tâm hành chính, trường học, bệnh viện và hệ thống thương mại dịch vụ, mang đến giá trị an cư và đầu tư bền vững bên dòng sông Mã.";
+  "Happy Home Thanh Hóa toạ lạc tại phường Hạc Thành, TP Thanh Hoá — ngay cửa ngõ phía Bắc thành phố, liền kề Quốc lộ 1A và cầu Hoằng Long. Vị trí kết nối thuận tiện tới trung tâm hành chính, trường học, bệnh viện và hệ thống thương mại dịch vụ, mang đến giá trị an cư và đầu tư bền vững bên dòng sông Mã.";
 const DEFAULT_COMMISSION_NOTE =
   "Mức hoa hồng cạnh tranh kèm thưởng nóng theo căn cho đại lý F1. Chi tiết theo phụ lục hợp đồng phân phối từng đợt — đang cập nhật.";
 const DEFAULT_TAGLINE =
-  "Theo dõi thông tin chi tiết và bảng giá, quỹ căn, mặt bằng, tiến độ và chính sách bán hàng dự án EUROWINDOW LIGHT CITY.";
+  "Theo dõi thông tin chi tiết và bảng giá, quỹ căn, mặt bằng, tiến độ và chính sách bán hàng dự án HAPPY HOME THANH HÓA.";
 
-const DEFAULT_PROJECT_SLUG = "eurowindow-light-city";
+const DEFAULT_PROJECT_SLUG = "happy-home-thanh-hoa";
 
 type ComponentType<P> = (props: P) => JSX.Element;
 
@@ -131,7 +131,7 @@ export function ProjectDetailDashboard({
   const [activeTab, setActiveTab] = useState("tong-quan");
   const [shareMsg, setShareMsg] = useState(false);
   const [role, setRole] = useState<string | null>(null);
-  // Nội dung dự án từ CMS (project_store). null = chưa có/lỗi → fallback elc-data.
+  // Nội dung dự án từ CMS (project_store). null = chưa có/lỗi → fallback project-data.
   const [content, setContent] = useState<ProjectContent | null>(null);
   const [meta, setMeta] = useState<{
     name: string;
@@ -156,7 +156,7 @@ export function ProjectDetailDashboard({
     };
   }, [slug]);
 
-  // Resolve từng section: ưu tiên CMS, rỗng → fallback elc-data tĩnh.
+  // Resolve từng section: ưu tiên CMS, rỗng → fallback project-data tĩnh.
   const heroImages: ProjectHeroImage[] = content?.overview.hero_images?.length
     ? content.overview.hero_images
     : HERO_IMAGES;
@@ -192,7 +192,7 @@ export function ProjectDetailDashboard({
   const news: ProjectNewsItem[] = content?.news.items?.length
     ? content.news.items
     : NEWS;
-  const projectName = meta?.name || "EUROWINDOW LIGHT CITY";
+  const projectName = meta?.name || "HAPPY HOME THANH HÓA";
   const projectTagline = meta?.tagline || DEFAULT_TAGLINE;
   const projectStatus = meta?.status || "Đang mở bán";
 
@@ -536,10 +536,10 @@ function LocationTab({
           </ul>
         </div>
 
-        {/* Google Maps embed — toạ độ thật Nguyệt Viên, TP Thanh Hoá */}
+        {/* Google Maps embed — toạ độ thật Hạc Thành, TP Thanh Hoá */}
         <div className="overflow-hidden rounded-xl border border-brand-100 bg-white shadow-sm">
           <iframe
-            title="Bản đồ Eurowindow Light City"
+            title="Bản đồ Happy Home Thanh Hóa"
             src={`https://www.google.com/maps?q=${mapLat},${mapLng}&z=15&output=embed`}
             className="h-full min-h-[300px] w-full"
             loading="lazy"
@@ -1416,7 +1416,7 @@ function DocumentsTab({ slug }: { slug: string }) {
 
 function NewsTab({ items, slug }: { items: ProjectNewsItem[]; slug: string }) {
   // Ưu tiên tin tức đồng bộ từ news_store (public API); trống/lỗi → fallback
-  // nội dung dự án (project_store) → elc-data NEWS (qua prop items).
+  // nội dung dự án (project_store) → project-data NEWS (qua prop items).
   const [apiNews, setApiNews] = useState<ProjectNewsItem[] | null>(null);
 
   useEffect(() => {

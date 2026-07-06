@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 💸 API Cost Monitor\n\nDaily 23h, check Anthropic usage hôm nay. Nếu > $100 → Telegram alert.\n\n**Lưu ý:** Anthropic admin API cần Admin key — workflow tạm dùng endpoint ELC nội bộ.",
+        "content": "## 💸 API Cost Monitor\n\nDaily 23h, check Anthropic usage hôm nay. Nếu > $100 → Telegram alert.\n\n**Lưu ý:** Anthropic admin API cần Admin key — workflow tạm dùng endpoint Happy Home nội bộ.",
         "width": 380,
         "height": 280
       },
@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/cost/anthropic-today",
+        "url": "={{ $env.HH_API_URL }}/admin/cost/anthropic-today",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -119,7 +119,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

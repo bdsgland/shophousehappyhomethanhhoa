@@ -20,8 +20,8 @@ ngắn, userId = sale). Thiếu cấu hình Stringee → 503 "chưa cấu hình"
 Webhook trả/nhận an toàn: mọi lỗi đều nuốt + log, luôn trả 200 cho Stringee.
 
 Khai báo trong Stringee Dashboard (Project → Manage answer_url / event_url):
-  answer_url = https://api.eurowindowlightcity.net/webhook/stringee/answer
-  event_url  = https://api.eurowindowlightcity.net/webhook/stringee/event
+  answer_url = https://api-happyhomethanhhoa.bdsg.land/webhook/stringee/answer
+  event_url  = https://api-happyhomethanhhoa.bdsg.land/webhook/stringee/event
 """
 
 from __future__ import annotations

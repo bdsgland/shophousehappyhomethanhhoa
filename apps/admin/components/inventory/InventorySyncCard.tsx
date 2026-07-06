@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-// Link bảng hàng ELC chủ đầu tư share (prefill — admin có thể dán link khác).
+// Link bảng hàng Happy Home chủ đầu tư share (prefill — admin có thể dán link khác).
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1M3NYPPWPmbt6xCiPcaULxc_19_I7m1WCVrfjZ2FeFec/edit?usp=sharing";
 

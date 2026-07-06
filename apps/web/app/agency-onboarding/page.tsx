@@ -145,7 +145,7 @@ export default function AgencyOnboardingPage() {
     try {
       const res = await submitAgencyForReview(token);
       hydrate(res);
-      setNotice("Đã gửi hồ sơ. Đội ngũ ELC sẽ xem xét và phản hồi sớm.");
+      setNotice("Đã gửi hồ sơ. Đội ngũ Happy Home sẽ xem xét và phản hồi sớm.");
     } catch (err) {
       setError((err as Error).message || "Gửi duyệt thất bại.");
     } finally {
@@ -171,7 +171,7 @@ export default function AgencyOnboardingPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-              ELC
+              Happy Home
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide text-white">
@@ -241,7 +241,7 @@ export default function AgencyOnboardingPage() {
                 </div>
               ) : agency.submitted_for_review ? (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Hồ sơ đã gửi duyệt — đang chờ ELC xem xét. Bạn vẫn có thể cập
+                  Hồ sơ đã gửi duyệt — đang chờ Happy Home xem xét. Bạn vẫn có thể cập
                   nhật thông tin.
                 </div>
               ) : null}

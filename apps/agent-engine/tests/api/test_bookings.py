@@ -73,7 +73,7 @@ def _tomorrow_10am() -> str:
 
 def _payload(**over):
     base = {
-        "unit_id": "ELC-A1-1205",
+        "unit_id": "HH-B1-1205",
         "scheduled_at": _tomorrow_10am(),
         "customer_name": "Nguyễn Văn A",
         "customer_phone": "0900000001",
@@ -109,7 +109,7 @@ def test_create_booking_anonymous_creates_lead_and_triggers_n8n(n8n_calls):
 
 
 def test_create_booking_with_referral_links_sale(n8n_calls):
-    sale = _make_user("sale@elc.net", role="sale", full_name="Trần Sale")
+    sale = _make_user("sale@hhth.net", role="sale", full_name="Trần Sale")
     ref = sale["referral_code"]
     assert ref
 
@@ -120,7 +120,7 @@ def test_create_booking_with_referral_links_sale(n8n_calls):
 
 def test_ai_score_uses_favorites_and_account_age(n8n_calls):
     # Khách có > 1 favorite (+15) → score 65 (chưa tính tuổi tài khoản mới tạo).
-    user = _make_user("rich@elc.net", favorites=["ELC-A1-01", "ELC-A1-02"])
+    user = _make_user("rich@hhth.net", favorites=["HH-B1-01", "HH-B1-02"])
     resp = client.post("/bookings", json=_payload(), headers=_auth(user))
     assert resp.status_code == 201
     assert resp.json()["ai_score"] == 65
@@ -131,8 +131,8 @@ def test_ai_score_uses_favorites_and_account_age(n8n_calls):
 # ---------------------------------------------------------------------------
 
 def test_list_bookings_role_scoping(n8n_calls):
-    sale = _make_user("s2@elc.net", role="sale")
-    admin = _make_user("admin2@elc.net", role="admin")
+    sale = _make_user("s2@hhth.net", role="sale")
+    admin = _make_user("admin2@hhth.net", role="admin")
     # Booking gắn sale qua referral.
     client.post("/bookings", json=_payload(referral_code=sale["referral_code"]))
     # Booking không gắn sale.
@@ -150,8 +150,8 @@ def test_list_bookings_role_scoping(n8n_calls):
 
 
 def test_me_bookings_for_client(n8n_calls):
-    user = _make_user("client3@elc.net")
-    client.post("/bookings", json=_payload(customer_email="client3@elc.net"), headers=_auth(user))
+    user = _make_user("client3@hhth.net")
+    client.post("/bookings", json=_payload(customer_email="client3@hhth.net"), headers=_auth(user))
     r = client.get("/me/bookings", headers=_auth(user))
     assert r.status_code == 200
     assert len(r.json()) == 1
@@ -162,7 +162,7 @@ def test_me_bookings_for_client(n8n_calls):
 # ---------------------------------------------------------------------------
 
 def test_sale_confirms_booking(n8n_calls):
-    sale = _make_user("s4@elc.net", role="sale")
+    sale = _make_user("s4@hhth.net", role="sale")
     create = client.post(
         "/bookings", json=_payload(referral_code=sale["referral_code"])
     )
@@ -173,9 +173,9 @@ def test_sale_confirms_booking(n8n_calls):
 
 
 def test_client_cannot_set_completed(n8n_calls):
-    user = _make_user("c5@elc.net")
+    user = _make_user("c5@hhth.net")
     create = client.post(
-        "/bookings", json=_payload(customer_email="c5@elc.net"), headers=_auth(user)
+        "/bookings", json=_payload(customer_email="c5@hhth.net"), headers=_auth(user)
     )
     bid = create.json()["id"]
     r = client.patch(f"/bookings/{bid}", json={"status": "completed"}, headers=_auth(user))
@@ -183,11 +183,11 @@ def test_client_cannot_set_completed(n8n_calls):
 
 
 def test_client_cancel_within_24h_blocked(n8n_calls):
-    user = _make_user("c6@elc.net")
+    user = _make_user("c6@hhth.net")
     soon = (datetime.utcnow() + timedelta(hours=5)).isoformat()
     create = client.post(
         "/bookings",
-        json=_payload(customer_email="c6@elc.net", scheduled_at=soon),
+        json=_payload(customer_email="c6@hhth.net", scheduled_at=soon),
         headers=_auth(user),
     )
     bid = create.json()["id"]
@@ -196,9 +196,9 @@ def test_client_cancel_within_24h_blocked(n8n_calls):
 
 
 def test_client_cancel_far_future_ok(n8n_calls):
-    user = _make_user("c7@elc.net")
+    user = _make_user("c7@hhth.net")
     create = client.post(
-        "/bookings", json=_payload(customer_email="c7@elc.net"), headers=_auth(user)
+        "/bookings", json=_payload(customer_email="c7@hhth.net"), headers=_auth(user)
     )
     bid = create.json()["id"]
     r = client.patch(f"/bookings/{bid}", json={"status": "cancelled"}, headers=_auth(user))
@@ -211,7 +211,7 @@ def test_client_cancel_far_future_ok(n8n_calls):
 # ---------------------------------------------------------------------------
 
 def test_reschedule_resets_to_pending(n8n_calls):
-    sale = _make_user("s8@elc.net", role="sale")
+    sale = _make_user("s8@hhth.net", role="sale")
     create = client.post(
         "/bookings", json=_payload(referral_code=sale["referral_code"])
     )
@@ -236,5 +236,5 @@ def test_list_requires_auth():
 
 
 def test_get_missing_booking_404():
-    admin = _make_user("admin9@elc.net", role="admin")
+    admin = _make_user("admin9@hhth.net", role="admin")
     assert client.get("/bookings/nope", headers=_auth(admin)).status_code == 404

@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho anh **PHAM VAN THU** làm theo **sau khi code đã xong**, để
 bật tính năng "Đăng nhập với Google" cho khách hàng, sale và admin của hệ thống
-Eurowindow Light City (ELC).
+Happy Home Thanh Hóa (Happy Home).
 
 > ⚠️ **Quan trọng:** Đăng nhập Google là **tính năng bổ sung**. Luồng đăng nhập
 > bằng email + mật khẩu cũ **vẫn hoạt động bình thường**, không bị thay thế.
@@ -27,7 +27,7 @@ Người dùng bấm "Đăng nhập với Google"
 ## 1. Vì sao phải tạo OAuth client **External** RIÊNG
 
 Anh đang có 1 OAuth client kiểu **Internal** (chỉ cho người trong tổ chức
-`eurowindowlightcity.net`). Client đó **không dùng được** cho Sign-in vì khách
+`happyhomethanhhoa.bdsg.land`). Client đó **không dùng được** cho Sign-in vì khách
 hàng cá nhân (Gmail thường) sẽ **không đăng nhập được**.
 
 ➡️ Phải **tạo 1 OAuth client mới kiểu "External"** RIÊNG cho Sign-in:
@@ -46,14 +46,14 @@ hàng cá nhân (Gmail thường) sẽ **không đăng nhập được**.
 ## 2. Các bước trên Google Cloud Console
 
 1. **Tạo / chọn project**
-   - Vào <https://console.cloud.google.com/> → tạo project mới tên `ELC Sign-in`
+   - Vào <https://console.cloud.google.com/> → tạo project mới tên `Happy Home Sign-in`
      (hoặc dùng project có sẵn cũng được).
 
 2. **OAuth consent screen** (Màn hình đồng ý)
    - Menu **APIs & Services → OAuth consent screen**.
    - User Type: chọn **External** → Create.
-   - App name: `Eurowindow Light City`
-   - User support email: `info@eurowindowlightcity.net`
+   - App name: `Happy Home Thanh Hóa`
+   - User support email: `info@bdsg.land`
    - Developer contact: email của anh.
    - **Publishing status: để ở Testing** (đủ cho tối đa 100 user).
    - Ở mục **Test users** → bấm **Add users** → thêm các Gmail sẽ dùng để test
@@ -67,32 +67,32 @@ hàng cá nhân (Gmail thường) sẽ **không đăng nhập được**.
 4. **Tạo OAuth client ID**
    - Menu **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
    - Application type: **Web application**.
-   - Name: `ELC Sign-in Client`.
+   - Name: `Happy Home Sign-in Client`.
    - **Authorized redirect URIs** — thêm cả 2 dòng:
      ```
-     https://api.eurowindowlightcity.net/auth/google/callback
+     https://api-happyhomethanhhoa.bdsg.land/auth/google/callback
      http://localhost:8000/auth/google/callback
      ```
    - Bấm **Create** → copy lại **Client ID** và **Client Secret**.
 
 ---
 
-## 3. Đặt biến môi trường (Railway — service RAI-ELC / agent-engine)
+## 3. Đặt biến môi trường (Railway — service shophousehappyhomethanhhoa / agent-engine)
 
 Vào Railway → service backend (agent-engine) → tab **Variables** → thêm 4 biến:
 
 ```
 GOOGLE_OAUTH_CLIENT_ID=<Client ID vừa copy>
 GOOGLE_OAUTH_CLIENT_SECRET=<Client Secret vừa copy>
-GOOGLE_OAUTH_REDIRECT_URI=https://api.eurowindowlightcity.net/auth/google/callback
-FRONTEND_URL=https://eurowindowlightcity.net
+GOOGLE_OAUTH_REDIRECT_URI=https://api-happyhomethanhhoa.bdsg.land/auth/google/callback
+FRONTEND_URL=https://happyhomethanhhoa.bdsg.land
 ```
 
 Tuỳ chọn (nếu khác mặc định):
 
 ```
-ADMIN_URL=https://admin.eurowindowlightcity.net        # cổng admin
-GOOGLE_WORKSPACE_DOMAIN=eurowindowlightcity.net        # domain admin
+ADMIN_URL=https://admin-happyhomethanhhoa.bdsg.land        # cổng admin
+GOOGLE_WORKSPACE_DOMAIN=happyhomethanhhoa.bdsg.land        # domain admin
 ```
 
 > 🔒 **Không** commit Client Secret vào code/Git. Chỉ đặt trong Railway Variables.
@@ -101,8 +101,8 @@ Sau khi thêm xong → bấm **Deploy** lại service.
 
 ### Biến phía frontend (đã có sẵn, kiểm tra cho chắc)
 
-- Web (`apps/web`): `NEXT_PUBLIC_AGENT_ENGINE_URL=https://api.eurowindowlightcity.net`
-- Admin (`apps/admin`): `NEXT_PUBLIC_API_URL=https://api.eurowindowlightcity.net`
+- Web (`apps/web`): `NEXT_PUBLIC_AGENT_ENGINE_URL=https://api-happyhomethanhhoa.bdsg.land`
+- Admin (`apps/admin`): `NEXT_PUBLIC_API_URL=https://api-happyhomethanhhoa.bdsg.land`
 
 ---
 
@@ -110,7 +110,7 @@ Sau khi thêm xong → bấm **Deploy** lại service.
 
 - **role=client / sale**: bất kỳ tài khoản Google nào cũng tạo được tài khoản mới.
   Nếu sale đăng ký qua link `?ref=...` thì mã giới thiệu được gắn làm upline.
-- **role=admin**: chỉ chấp nhận email thuộc domain `eurowindowlightcity.net`.
+- **role=admin**: chỉ chấp nhận email thuộc domain `happyhomethanhhoa.bdsg.land`.
   - Email ngoài domain → bị từ chối (`error=not_workspace`).
   - Tài khoản client/sale sẵn có (dù đúng domain) **không** tự lên admin
     (`error=not_admin`) — chống leo thang quyền.
@@ -120,15 +120,15 @@ Sau khi thêm xong → bấm **Deploy** lại service.
 
 ## 5. Kiểm thử (test flow)
 
-1. Mở <https://eurowindowlightcity.net/login>.
+1. Mở <https://happyhomethanhhoa.bdsg.land/login>.
 2. Bấm **"Đăng nhập với Google"** → chọn 1 Gmail **đã thêm vào Test users**
-   (khác `info@eurowindowlightcity.net`).
+   (khác `info@bdsg.land`).
 3. Sau khi đồng ý, trình duyệt quay về `/auth/callback#token=...` rồi tự vào khu
    khách hàng `/client` (tài khoản mới) hoặc portal tương ứng.
 4. Mở DevTools → Application → Cookies: thấy cookie `auth_token` + `auth_user`.
-5. Test admin: mở <https://admin.eurowindowlightcity.net/login> → bấm
+5. Test admin: mở <https://admin-happyhomethanhhoa.bdsg.land/login> → bấm
    **"Đăng nhập với Google (Admin)"** → đăng nhập bằng email workspace
-   (`...@eurowindowlightcity.net`) → vào được dashboard admin.
+   (`...@bdsg.land`) → vào được dashboard admin.
 
 ### Các mã lỗi có thể gặp (hiện trên trang /auth/callback)
 

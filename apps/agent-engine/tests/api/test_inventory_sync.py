@@ -66,7 +66,7 @@ def fake_fetch(monkeypatch):
 
 def _admin_headers():
     u = user_store.create_user(
-        email="admin@elc.net", full_name="Admin ELC", password_hash="x", role="admin"
+        email="admin@hhth.net", full_name="Admin Happy Home", password_hash="x", role="admin"
     )
     token, _ = create_access_token(u["id"], {"role": "admin", "email": u["email"]})
     return {"Authorization": f"Bearer {token}"}
@@ -207,7 +207,7 @@ def test_sync_endpoint_and_public_read(fake_fetch):
     assert body["total_units"] == 3
 
     # Public endpoint phản ánh dữ liệu đã sync
-    pub = client.get("/inventory/eurowindow-light-city/units")
+    pub = client.get("/inventory/happy-home-thanh-hoa/units")
     assert pub.status_code == 200
     units = pub.json()
     assert len(units) == 3

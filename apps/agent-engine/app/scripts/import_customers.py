@@ -1,9 +1,9 @@
-"""Import khách hàng ELC từ file Excel quảng cáo vào user store.
+"""Import khách hàng Happy Home từ file Excel quảng cáo vào user store.
 
 File nguồn (PII — KHÔNG commit): cột `TÊN KH`, `SĐT`, `SĐT Quét`, `Link Facebook`.
 Chỉ những dòng CÓ số điện thoại hợp lệ mới được import (đó là ~108 khách thật).
 
-Vì file không có email, ta sinh email định danh từ SĐT: `kh-<sdt>@elc-import.local`
+Vì file không có email, ta sinh email định danh từ SĐT: `kh-<sdt>@hh-import.local`
 (placeholder — khách thật sẽ cập nhật email khi đăng ký). Khử trùng lặp theo cả
 SĐT lẫn email so với user đang có.
 
@@ -15,7 +15,7 @@ Chạy (từ apps/agent-engine, đã activate venv):
     python -m app.scripts.import_customers --file /path/to.xlsx --sheet "Trang tính1"
 
 Trên Railway (sau khi upload file lên volume /app/data):
-    python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-elc.xlsx
+    python -m app.scripts.import_customers --file /app/data/sheet-data-quang-cao-hh.xlsx
 """
 
 from __future__ import annotations
@@ -29,10 +29,10 @@ from pathlib import Path
 from typing import Optional
 
 DEFAULT_FILE = (
-    "data/customers/eurowindow-light-city/sheet-data-quang-cao-elc.xlsx"
+    "data/customers/happy-home-thanh-hoa/sheet-data-quang-cao-hh.xlsx"
 )
-DEFAULT_SOURCE = "ELC Quảng cáo"
-EMAIL_DOMAIN = "elc-import.local"
+DEFAULT_SOURCE = "Happy Home Quảng cáo"
+EMAIL_DOMAIN = "hh-import.local"
 
 # Tên cột trong file (linh hoạt: chấp nhận vài biến thể hay gặp).
 COL_NAME = ["TÊN KH", "Tên KH", "TEN KH", "Họ tên", "Name"]
@@ -121,7 +121,7 @@ def _read_rows(file_path: str, sheet: Optional[str]):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Import khách hàng ELC từ Excel.")
+    ap = argparse.ArgumentParser(description="Import khách hàng Happy Home từ Excel.")
     ap.add_argument("--file", default=DEFAULT_FILE, help="Đường dẫn file Excel.")
     ap.add_argument("--sheet", default=None, help="Tên sheet (mặc định sheet đầu).")
     ap.add_argument("--source", default=DEFAULT_SOURCE, help="Gắn nhãn nguồn data.")

@@ -1,16 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { HERO_IMAGES, SUBZONES } from "@/components/dashboard/elc-data";
+import { HERO_IMAGES, SUBZONES } from "@/components/dashboard/project-data";
 
 export const metadata: Metadata = {
   title:
-    "ELC Agency — Trở thành đại lý phân phối Eurowindow Light City | Nền tảng Proptech AI",
+    "Happy Home Agency — Trở thành đại lý phân phối Happy Home Thanh Hóa | Nền tảng Proptech AI",
   description:
-    "Báo cáo realtime, trung tâm quyết định, đội Sale AI 1000 chăm khách tự động, tự động hoá 90% vận hành, hoa hồng minh bạch và CRM 360 cho sàn và đại lý phân phối Eurowindow Light City.",
+    "Báo cáo realtime, trung tâm quyết định, đội Sale AI 1000 chăm khách tự động, tự động hoá 90% vận hành, hoa hồng minh bạch và CRM 360 cho sàn và đại lý phân phối Happy Home Thanh Hóa.",
 };
 
-const PROJECT_HREF = "/dashboard/project/eurowindow-light-city";
+const PROJECT_HREF = "/dashboard/project/happy-home-thanh-hoa";
 
 // Công cụ điều hành cho chủ sàn / đại lý — nhấn lợi ích kinh doanh.
 const FEATURES: { icon: string; title: string; desc: string }[] = [
@@ -54,7 +54,7 @@ const STATS: { value: string; label: string }[] = [
 ];
 
 const BENEFITS: string[] = [
-  "Sản phẩm độc quyền 176ha — biên hoa hồng hấp dẫn",
+  "Quỹ shophouse khối đế độc quyền — biên hoa hồng hấp dẫn",
   "Bộ tài liệu, bảng hàng và phiếu giá chuẩn hoá sẵn",
   "Đội Sale AI hỗ trợ chăm khách, không bỏ lỡ cơ hội",
   "Báo cáo & đối soát hoa hồng minh bạch theo thời gian thực",
@@ -64,11 +64,11 @@ function Logo() {
   return (
     <Link href="/" className="flex items-center gap-3">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-        ELC
+        Happy Home
       </div>
       <div className="leading-tight">
         <div className="text-sm font-semibold tracking-wide text-white">
-          Eurowindow Light City
+          Happy Home Thanh Hóa
         </div>
         <div className="text-[11px] uppercase tracking-widest text-brand-100">
           Trung tâm điều hành sàn
@@ -111,7 +111,7 @@ export default function LandingAgencyPage() {
               Dành cho Sàn &amp; Đại lý phân phối
             </span>
             <h1 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
-              Trở thành đại lý phân phối ELC — vận hành bằng nền tảng Proptech AI
+              Trở thành đại lý phân phối Happy Home — vận hành bằng nền tảng Proptech AI
               mạnh nhất
             </h1>
             <p className="mt-4 text-base leading-relaxed text-brand-100 sm:text-lg">
@@ -187,10 +187,10 @@ export default function LandingAgencyPage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-5 lg:grid-cols-2 lg:items-center">
           <div>
             <h2 className="text-xl font-bold text-brand-900 sm:text-2xl">
-              Vì sao hợp tác phân phối ELC?
+              Vì sao hợp tác phân phối Happy Home?
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-brand-700">
-              Một đại đô thị 176ha do Eurowindow Holding phát triển, kết hợp nền
+              Dự án 18 tòa · 2.824 căn hộ do Tập đoàn Vingroup phát triển, kết hợp nền
               tảng công nghệ giúp sàn vận hành tinh gọn và bứt tốc doanh số.
             </p>
             <ul className="mt-5 space-y-3">
@@ -211,7 +211,7 @@ export default function LandingAgencyPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={HERO_IMAGES[7]?.src ?? HERO_IMAGES[0]?.src}
-              alt="Tổng quan Eurowindow Light City"
+              alt="Tổng quan Happy Home Thanh Hóa"
               className="h-full min-h-[280px] w-full object-cover"
             />
           </div>
@@ -280,7 +280,7 @@ export default function LandingAgencyPage() {
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-brand-700">
               Đăng nhập bằng tài khoản chủ sàn để vào trung tâm điều hành, hoặc
-              đăng ký làm đại lý phân phối để bắt đầu bán ELC bằng nền tảng AI.
+              đăng ký làm đại lý phân phối để bắt đầu bán Happy Home bằng nền tảng AI.
             </p>
             <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
@@ -303,8 +303,7 @@ export default function LandingAgencyPage() {
       {/* ===== Footer ===== */}
       <footer className="border-t border-brand-100 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-brand-700 sm:px-5">
-          © Eurowindow Holding — Khu đô thị Eurowindow Light City, phường Nguyệt
-          Viên, TP Thanh Hoá. Trung tâm điều hành dành cho sàn và đại lý phân
+          © BDSG LAND — Đại lý phát triển kinh doanh dự án Shophouse Happy Home Thanh Hóa (CĐT: Tập đoàn Vingroup), phường Hạc Thành, tỉnh Thanh Hóa. Trung tâm điều hành dành cho sàn và đại lý phân
           phối chính thức.
         </div>
       </footer>

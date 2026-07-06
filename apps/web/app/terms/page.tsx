@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Điều khoản dịch vụ | Eurowindow Light City",
+  title: "Điều khoản dịch vụ | Happy Home Thanh Hóa",
   description:
-    "Điều khoản dịch vụ của nền tảng Eurowindow Light City — quy định sử dụng website, ứng dụng, dịch vụ tư vấn và đặt lịch xem nhà.",
+    "Điều khoản dịch vụ của nền tảng Happy Home Thanh Hóa — quy định sử dụng website, ứng dụng, dịch vụ tư vấn và đặt lịch xem nhà.",
   alternates: {
-    canonical: "https://www.eurowindowlightcity.net/terms",
+    canonical: "https://happyhomethanhhoa.bdsg.land/terms",
   },
   robots: { index: true, follow: true },
 };
@@ -20,22 +20,19 @@ export default function TermsOfServicePage() {
       <p>
         Vui lòng đọc kỹ Điều khoản dịch vụ (“Điều khoản”) này trước khi sử dụng
         website{" "}
-        <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
-          eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land">
+          happyhomethanhhoa.bdsg.land
         </a>{" "}
         và các ứng dụng do <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh
-        Thanh Hoá</strong> (đơn vị phân phối F1 chính thức cho chủ đầu tư dự
-        án Eurowindow Light City, sau đây gọi là “chúng tôi”) cung cấp (“Nền
+        Thanh Hoá</strong> (đại lý phát triển kinh doanh chính thức dự án Shophouse Happy Home Thanh Hóa, sau đây gọi là “chúng tôi”) cung cấp (“Nền
         tảng”). Khi truy cập hoặc sử dụng Nền tảng, Quý khách (“người dùng”)
         đồng ý chịu sự ràng buộc bởi các Điều khoản dưới đây.
       </p>
 
       <h2 className="mt-8 text-xl font-semibold">1. Phạm vi dịch vụ</h2>
       <p className="mt-2">
-        Nền tảng cung cấp thông tin về dự án bất động sản Eurowindow Light
-        City (do Eurowindow Holding làm chủ đầu tư) và các dịch vụ phân phối
-        do BDSG — Chi nhánh Thanh Hoá triển khai với vai trò đơn vị phân phối
-        F1: tiện ích đặt lịch tư vấn, ghép sale tư vấn trực tuyến, đăng ký
+        Nền tảng cung cấp thông tin về dự án bất động sản Shophouse Happy Home Thanh Hóa (do Tập đoàn Vingroup làm chủ đầu tư) và các dịch vụ phân phối
+        do BDSG — Chi nhánh Thanh Hoá triển khai với vai trò đại lý phát triển kinh doanh: tiện ích đặt lịch tư vấn, ghép sale tư vấn trực tuyến, đăng ký
         đại lý phân phối thứ cấp F2, cổng quản trị và các công cụ AI hỗ trợ.
         Mọi giao dịch đặt cọc/mua bán bất động sản được thực hiện qua hợp
         đồng riêng giữa khách hàng với chủ đầu tư và các bên uỷ quyền hợp
@@ -106,7 +103,7 @@ export default function TermsOfServicePage() {
       <h2 className="mt-8 text-xl font-semibold">5. Quyền sở hữu trí tuệ</h2>
       <p className="mt-2">
         Toàn bộ thiết kế, mã nguồn, hình ảnh, tài liệu trên Nền tảng thuộc
-        quyền sở hữu của Eurowindow Light City hoặc bên cấp phép. Mọi hành vi
+        quyền sở hữu của Happy Home Thanh Hóa hoặc bên cấp phép. Mọi hành vi
         sao chép, sửa đổi, phân phối khi chưa có sự đồng ý bằng văn bản là vi
         phạm và sẽ bị xử lý theo luật sở hữu trí tuệ Việt Nam.
       </p>
@@ -132,9 +129,8 @@ export default function TermsOfServicePage() {
       <h2 className="mt-8 text-xl font-semibold">7. Đặt cọc, thanh toán và huỷ</h2>
       <p className="mt-2">
         Các giao dịch đặt cọc, thanh toán, ký kết hợp đồng mua bán được thực
-        hiện trực tiếp giữa khách hàng và chủ đầu tư dự án Eurowindow Light
-        City (Eurowindow Holding) thông qua BDSG — Chi nhánh Thanh Hoá với
-        vai trò đơn vị phân phối F1, theo chính sách bán hàng từng thời kỳ
+        hiện trực tiếp giữa khách hàng và chủ đầu tư dự án Shophouse Happy Home Thanh Hóa (Tập đoàn Vingroup) thông qua BDSG — Chi nhánh Thanh Hoá với
+        vai trò đại lý phát triển kinh doanh, theo chính sách bán hàng từng thời kỳ
         do chủ đầu tư ban hành. Phí đặt cọc, lịch thanh toán, điều kiện huỷ
         — vui lòng xem bảng giá và hợp đồng cụ thể. Nền tảng không thay thế
         hợp đồng kinh tế giữa các bên.
@@ -167,13 +163,13 @@ export default function TermsOfServicePage() {
       <p className="mt-2">
         <strong>Công ty Cổ phần Tập đoàn BDSG — Chi nhánh Thanh Hoá</strong>
         <br />
-        Đơn vị phân phối F1 chính thức dự án Eurowindow Light City
+        Đại lý phát triển kinh doanh dự án Shophouse Happy Home Thanh Hóa
         <br />
-        Địa chỉ: Phường Đông Hải và Đông Hương, TP. Thanh Hoá, tỉnh Thanh Hoá
+        Địa chỉ: Phường Hạc Thành, tỉnh Thanh Hóa
         <br />
         Email:{" "}
-        <a className="text-blue-600 underline" href="mailto:info@eurowindowlightcity.net">
-          info@eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="mailto:info@bdsg.land">
+          info@bdsg.land
         </a>
         <br />
         Hotline:{" "}
@@ -182,8 +178,8 @@ export default function TermsOfServicePage() {
         </a>
         <br />
         Website:{" "}
-        <a className="text-blue-600 underline" href="https://www.eurowindowlightcity.net">
-          https://www.eurowindowlightcity.net
+        <a className="text-blue-600 underline" href="https://happyhomethanhhoa.bdsg.land">
+          https://happyhomethanhhoa.bdsg.land
         </a>
       </p>
     </main>

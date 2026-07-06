@@ -1,5 +1,5 @@
 {
-  "name": "ELC — 02 Commission Calculator",
+  "name": "Happy Home — 02 Commission Calculator",
   "active": false,
   "settings": {
     "executionOrder": "v1",
@@ -8,7 +8,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 💰 Commission Calculator\nFastAPI gọi khi deal `closed`.\n\n**Cấu hình env n8n:**\n- `ELC_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- Credential **Telegram** (ELC Sale Bot)\n- (Tuỳ chọn) Google Sheets — node đang *disabled*, bật khi đã nối credential.\n\nNode **Tính hoa hồng** chứa công thức 5 bậc CHÍNH XÁC theo agent-engine.",
+        "content": "## 💰 Commission Calculator\nFastAPI gọi khi deal `closed`.\n\n**Cấu hình env n8n:**\n- `HH_API_URL`, `INTERNAL_WEBHOOK_TOKEN`\n- Credential **Telegram** (Happy Home Sale Bot)\n- (Tuỳ chọn) Google Sheets — node đang *disabled*, bật khi đã nối credential.\n\nNode **Tính hoa hồng** chứa công thức 5 bậc CHÍNH XÁC theo agent-engine.",
         "height": 300,
         "width": 380
       },
@@ -34,7 +34,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// === Công thức hoa hồng 5 bậc ELC — CHÍNH XÁC theo agent-engine ===\nconst body = $input.first().json.body;\nconst dealAmount = Number(body.deal_amount);\nconst TY = 1e9; // 1 tỷ VND\n\n// Tổng pool hoa hồng dự án = 4% giá trị deal.\nconst pool = dealAmount * 0.04;\n\n// Bậc lũy tiến frontline tính trên monthly volume SAU khi cộng deal này.\nconst volumeAfter = Number(body.sale_monthly_volume_before || 0) + dealAmount;\nfunction frontlinePct(v) {\n  if (v < 5 * TY) return 50;\n  if (v < 10 * TY) return 55;\n  if (v < 15 * TY) return 60;\n  if (v < 20 * TY) return 62;\n  return 65;\n}\nconst flPct = frontlinePct(volumeAfter);\n\n// 5 bậc: company 20% / director 10% / manager 5% / leader 15% / frontline lũy tiến.\nconst tierDefs = [\n  { role: 'company',   label: 'Ekip công ty',   pct: 20,    name: 'Ekip công ty', chat_id: '',                              user_id: '' },\n  { role: 'director',  label: 'Giám đốc',       pct: 10,    name: body.director_name || 'Giám đốc',   chat_id: body.director_telegram_chat_id || '', user_id: body.director_id || '' },\n  { role: 'manager',   label: 'Trưởng phòng',   pct: 5,     name: body.manager_name || 'Trưởng phòng', chat_id: body.manager_telegram_chat_id || '', user_id: body.manager_id || '' },\n  { role: 'leader',    label: 'Sale Leader',    pct: 15,    name: body.leader_name || 'Sale Leader',   chat_id: body.leader_telegram_chat_id || '',  user_id: body.leader_id || '' },\n  { role: 'frontline', label: 'Sale Frontline', pct: flPct, name: body.sale_name || 'Sale',           chat_id: body.sale_telegram_chat_id || '',    user_id: body.sale_id || '' },\n];\n\nfunction fmt(n) { return Math.round(n).toLocaleString('vi-VN'); }\n\nconst tiers = tierDefs.map(t => ({\n  role: t.role,\n  user_id: t.user_id,\n  pct: t.pct,\n  amount: Math.round(pool * t.pct / 100),\n}));\n\n// Chỉ gửi Telegram cho người đã liên kết chat_id.\nconst recipients = tierDefs.filter(t => t.chat_id).map(t => {\n  const amount = Math.round(pool * t.pct / 100);\n  const message = t.role === 'frontline'\n    ? `🎉 Bạn đã chốt deal ${fmt(dealAmount)}đ — hoa hồng *${fmt(amount)}đ* (bậc ${t.pct}%)!`\n    : `💰 Deal mới: ${fmt(dealAmount)}đ\\nHoa hồng ${t.label} của bạn: *${fmt(amount)}đ*`;\n  return { role: t.role, name: t.name, chat_id: t.chat_id, pct: t.pct, amount, message, deal_id: body.deal_id };\n});\n\nconst distribution = {\n  deal_id: body.deal_id,\n  deal_amount: dealAmount,\n  commission_pool: Math.round(pool),\n  sale_id: body.sale_id,\n  sale_monthly_volume_after: volumeAfter,\n  frontline_tier_pct: flPct,\n  tiers,\n  recipients,\n};\n\nreturn [{ json: distribution }];"
+        "jsCode": "// === Công thức hoa hồng 5 bậc Happy Home — CHÍNH XÁC theo agent-engine ===\nconst body = $input.first().json.body;\nconst dealAmount = Number(body.deal_amount);\nconst TY = 1e9; // 1 tỷ VND\n\n// Tổng pool hoa hồng dự án = 4% giá trị deal.\nconst pool = dealAmount * 0.04;\n\n// Bậc lũy tiến frontline tính trên monthly volume SAU khi cộng deal này.\nconst volumeAfter = Number(body.sale_monthly_volume_before || 0) + dealAmount;\nfunction frontlinePct(v) {\n  if (v < 5 * TY) return 50;\n  if (v < 10 * TY) return 55;\n  if (v < 15 * TY) return 60;\n  if (v < 20 * TY) return 62;\n  return 65;\n}\nconst flPct = frontlinePct(volumeAfter);\n\n// 5 bậc: company 20% / director 10% / manager 5% / leader 15% / frontline lũy tiến.\nconst tierDefs = [\n  { role: 'company',   label: 'Ekip công ty',   pct: 20,    name: 'Ekip công ty', chat_id: '',                              user_id: '' },\n  { role: 'director',  label: 'Giám đốc',       pct: 10,    name: body.director_name || 'Giám đốc',   chat_id: body.director_telegram_chat_id || '', user_id: body.director_id || '' },\n  { role: 'manager',   label: 'Trưởng phòng',   pct: 5,     name: body.manager_name || 'Trưởng phòng', chat_id: body.manager_telegram_chat_id || '', user_id: body.manager_id || '' },\n  { role: 'leader',    label: 'Sale Leader',    pct: 15,    name: body.leader_name || 'Sale Leader',   chat_id: body.leader_telegram_chat_id || '',  user_id: body.leader_id || '' },\n  { role: 'frontline', label: 'Sale Frontline', pct: flPct, name: body.sale_name || 'Sale',           chat_id: body.sale_telegram_chat_id || '',    user_id: body.sale_id || '' },\n];\n\nfunction fmt(n) { return Math.round(n).toLocaleString('vi-VN'); }\n\nconst tiers = tierDefs.map(t => ({\n  role: t.role,\n  user_id: t.user_id,\n  pct: t.pct,\n  amount: Math.round(pool * t.pct / 100),\n}));\n\n// Chỉ gửi Telegram cho người đã liên kết chat_id.\nconst recipients = tierDefs.filter(t => t.chat_id).map(t => {\n  const amount = Math.round(pool * t.pct / 100);\n  const message = t.role === 'frontline'\n    ? `🎉 Bạn đã chốt deal ${fmt(dealAmount)}đ — hoa hồng *${fmt(amount)}đ* (bậc ${t.pct}%)!`\n    : `💰 Deal mới: ${fmt(dealAmount)}đ\\nHoa hồng ${t.label} của bạn: *${fmt(amount)}đ*`;\n  return { role: t.role, name: t.name, chat_id: t.chat_id, pct: t.pct, amount, message, deal_id: body.deal_id };\n});\n\nconst distribution = {\n  deal_id: body.deal_id,\n  deal_amount: dealAmount,\n  commission_pool: Math.round(pool),\n  sale_id: body.sale_id,\n  sale_monthly_volume_after: volumeAfter,\n  frontline_tier_pct: flPct,\n  tiers,\n  recipients,\n};\n\nreturn [{ json: distribution }];"
       },
       "id": "code-calc",
       "name": "Tính hoa hồng",
@@ -45,7 +45,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/commissions/distribute",
+        "url": "={{ $env.HH_API_URL }}/commissions/distribute",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -95,7 +95,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     },
@@ -109,7 +109,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "ELC Commission Log",
+          "value": "Happy Home Commission Log",
           "mode": "name"
         },
         "columns": {

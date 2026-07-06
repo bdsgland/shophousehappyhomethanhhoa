@@ -56,11 +56,11 @@ export default function RegisterAgencyPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <Link href="/landing/agency" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-              ELC
+              Happy Home
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide text-white">
-                Eurowindow Light City
+                Happy Home Thanh Hóa
               </div>
               <div className="text-[11px] uppercase tracking-widest text-brand-100">
                 Đăng ký đại lý phân phối

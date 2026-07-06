@@ -47,7 +47,7 @@ def n8n_calls(monkeypatch):
     return calls
 
 
-def _make_sale(email="sale@elc.net", full_name="Trần B", chat_id=None):
+def _make_sale(email="sale@hhth.net", full_name="Trần B", chat_id=None):
     user = user_store.create_user(
         email=email, full_name=full_name, password_hash="x", role="sale"
     )
@@ -57,7 +57,7 @@ def _make_sale(email="sale@elc.net", full_name="Trần B", chat_id=None):
     return user
 
 
-def _auth(user_id, role="sale", email="sale@elc.net"):
+def _auth(user_id, role="sale", email="sale@hhth.net"):
     token, _ = create_access_token(user_id, {"role": role, "email": email})
     return {"Authorization": f"Bearer {token}"}
 
@@ -78,7 +78,7 @@ def test_booking_created_forwards_enriched_payload(n8n_calls):
         "/webhooks/internal/booking-created",
         json={
             "lead_id": "lead-1",
-            "unit_id": "ELC-A1-1205",
+            "unit_id": "HH-B1-1205",
             "unit_summary": "Căn 2PN, 75m², view hồ, 3.2 tỷ",
             "booking_time": "2026-06-08 10:00",
             "sale_id": sale["id"],

@@ -14,7 +14,7 @@ import {
   formatBookingTime,
 } from "@/lib/booking";
 
-const CHATWOOT_URL = "https://chat.eurowindowlightcity.net";
+const CHATWOOT_URL = "https://chat-happyhomethanhhoa.bdsg.land";
 
 export default function AgentBookingDetailPage({
   params,

@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         print(f"[DB] Khởi tạo lỗi, fallback JSON: {type(e).__name__}: {e}")
 
-    admin_email = os.getenv("ADMIN_EMAIL", "admin@eurowindowlightcity.net")
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@bdsg.land")
     admin_password = os.getenv("ADMIN_PASSWORD") or "".join(
         secrets.choice(string.ascii_letters + string.digits) for _ in range(16)
     )
@@ -112,7 +112,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — cho phép MỌI subdomain của eurowindowlightcity.net (www/app/agency/admin/
+# CORS — cho phép MỌI subdomain của happyhomethanhhoa.bdsg.land (www/app/agency/admin/
 # api... + subdomain tương lai) qua regex, KHÔNG phải sửa env mỗi lần thêm subdomain.
 # Vẫn giữ allow_origins (env CORS_ALLOW_ORIGINS hoặc default) để có localhost dev +
 # tương thích cũ. Starlette cho phép origin nếu KHỚP allow_origins HOẶC allow_origin_regex.
@@ -120,7 +120,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()],
-    allow_origin_regex=r"https?://([a-z0-9-]+\.)?eurowindowlightcity\.net",
+    allow_origin_regex=r"https?://([a-z0-9-]+\.)?bdsg\.land",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -268,7 +268,7 @@ for _cr in _CRITICAL_ROUTES:
 # --- MCP server (streamable-http) cho bot OpenClaw ---------------------------
 # OpenClaw CHỈ tiêu thụ MCP server (không gọi REST thường). Module openclaw_mcp
 # bọc các thao tác /openclaw thành MCP tools va expose ASGI app, mount tại /mcp.
-# URL production: https://api.eurowindowlightcity.net/mcp
+# URL production: https://api-happyhomethanhhoa.bdsg.land/mcp
 # Lỗi import KHÔNG làm chết app (log rõ, các route khác vẫn phục vụ).
 try:
     from app.api.openclaw_mcp import mcp_asgi_app

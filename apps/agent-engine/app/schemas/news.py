@@ -168,17 +168,17 @@ class SeoPageOverride(BaseModel):
 class SeoSettings(BaseModel):
     """Cấu hình SEO mặc định toàn site + override từng trang."""
 
-    site_name: str = "Eurowindow Light City"
-    # Template tiêu đề, %s = tiêu đề trang. VD "%s | Eurowindow Light City".
-    title_template: str = "%s | Eurowindow Light City"
-    default_title: str = "Eurowindow Light City — Bừng sáng bên sông Mã"
+    site_name: str = "Happy Home Thanh Hóa"
+    # Template tiêu đề, %s = tiêu đề trang. VD "%s | Happy Home Thanh Hóa".
+    title_template: str = "%s | Happy Home Thanh Hóa"
+    default_title: str = "Shophouse Happy Home Thanh Hóa — Cận thị · Cận giang · Cận lộ"
     default_description: str = (
-        "Khu đô thị Eurowindow Light City 176ha tại phường Nguyệt Viên, "
+        "Shophouse Happy Home tại trung tâm hành chính mới TP. Thanh Hóa, "
         "TP Thanh Hoá. Trang giới thiệu chính thức kèm trợ lý tư vấn AI 24/7."
     )
     default_keywords: list[str] = Field(default_factory=list)
     default_og_image: str = ""
-    base_url: str = "https://www.eurowindowlightcity.net"
+    base_url: str = "https://happyhomethanhhoa.bdsg.land"
     twitter_handle: str = ""
     robots: str = "index, follow"
     # Override theo page key (vd "home", "news", "project").

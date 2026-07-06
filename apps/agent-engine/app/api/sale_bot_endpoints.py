@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(tags=["sale-bot"])
 
-DATA_DIR = Path(os.environ.get("ELC_DATA_DIR", "/app/data"))
+DATA_DIR = Path(os.environ.get("HH_DATA_DIR", "/app/data"))
 INVENTORY_FILE = DATA_DIR / "inventory.json"
 LEADS_FILE = DATA_DIR / "leads.json"
 BOOKINGS_FILE = DATA_DIR / "bookings.json"

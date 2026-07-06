@@ -1,7 +1,7 @@
 import { LearningUpload } from "@/components/dashboard/LearningUpload";
 
 export const metadata = {
-  title: "Tải tài liệu | Kho học tập ELC",
+  title: "Tải tài liệu | Kho học tập Happy Home",
 };
 
 export default function LearningUploadPage() {

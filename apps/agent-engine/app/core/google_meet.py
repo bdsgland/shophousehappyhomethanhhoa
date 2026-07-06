@@ -101,7 +101,7 @@ async def create_meet_event(
     *,
     customer_email: str,
     sale_email: str,
-    summary: str = "ELC — Tư vấn trực tuyến",
+    summary: str = "Happy Home — Tư vấn trực tuyến",
     duration_minutes: int = 30,
 ) -> dict[str, Any]:
     """Tạo Calendar event có Google Meet link.
@@ -123,7 +123,7 @@ async def create_meet_event(
         "summary": summary,
         "description": (
             "Cuộc tư vấn trực tuyến tự động ghép qua hệ thống Live Match của "
-            "Eurowindow Light City."
+            "Happy Home Thanh Hóa."
         ),
         "start": {"dateTime": now.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
         "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},

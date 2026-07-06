@@ -130,7 +130,7 @@ _CATEGORY_RULES: list[tuple[str, str, list[str]]] = [
 
 _UNCATEGORIZED = ("other", "Khác")
 
-# Bỏ emoji + tiền tố "ELC — 01 " / "35-" để so khớp keyword sạch hơn.
+# Bỏ emoji + tiền tố "Happy Home — 01 " / "35-" để so khớp keyword sạch hơn.
 _PREFIX_RE = re.compile(r"^\s*(elc\s*[—\-:]*\s*)?\d{1,3}\s*[-—.]*\s*", re.IGNORECASE)
 _EMOJI_RE = re.compile(
     "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF←-⇿⌀-⏿]+"

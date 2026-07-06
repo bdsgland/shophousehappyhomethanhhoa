@@ -45,7 +45,7 @@ class User(Base):
     """Người dùng hệ thống: admin / sale / client (khách hàng).
 
     Superset của schema JSON hiện tại (user_store) + field phục vụ import:
-    `source` (nguồn data) và `facebook_url` (từ file quảng cáo ELC).
+    `source` (nguồn data) và `facebook_url` (từ file quảng cáo Happy Home).
     """
 
     __tablename__ = "users"
@@ -65,7 +65,7 @@ class User(Base):
     # Hồ sơ mở rộng
     dob = Column(String, nullable=True)
     region = Column(String, nullable=True)
-    source = Column(String, nullable=True)  # vd "ELC Quảng cáo"
+    source = Column(String, nullable=True)  # vd "Happy Home Quảng cáo"
     facebook_url = Column(String, nullable=True)
     telegram_chat_id = Column(String, nullable=True, index=True)
     projects_interested = Column(JSON, nullable=False, default=list)

@@ -2,8 +2,8 @@
 
 Cách dùng:
     python scripts/import_customers.py <file_path> \\
-        --project "Eurowindow Light City" \\
-        --project-slug eurowindow-light-city \\
+        --project "Happy Home Thanh Hóa" \\
+        --project-slug happy-home-thanh-hoa \\
         --source "Quảng cáo Facebook" \\
         [--api-url http://localhost:8000] \\
         [--dry-run]
@@ -180,8 +180,8 @@ def read_table(path: Path) -> pd.DataFrame:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Import lead từ CSV/Excel vào agent-engine")
     parser.add_argument("file", type=Path, help="Đường dẫn file .xlsx / .csv")
-    parser.add_argument("--project", required=True, help='Tên hiển thị, vd "Eurowindow Light City"')
-    parser.add_argument("--project-slug", required=True, help='Slug, vd "eurowindow-light-city"')
+    parser.add_argument("--project", required=True, help='Tên hiển thị, vd "Happy Home Thanh Hóa"')
+    parser.add_argument("--project-slug", required=True, help='Slug, vd "happy-home-thanh-hoa"')
     parser.add_argument("--source", default="import", help='Nguồn lead, vd "Quảng cáo Facebook"')
     parser.add_argument("--api-url", default="http://localhost:8000", help="URL agent-engine")
     parser.add_argument("--dry-run", action="store_true", help="Chỉ in báo cáo, không POST")

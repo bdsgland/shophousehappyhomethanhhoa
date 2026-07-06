@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.ELC_API_URL }}/admin/kpi/today",
+        "url": "={{ $env.HH_API_URL }}/admin/kpi/today",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -88,7 +88,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 CFO ELC. T\\u00f3m t\\u1eaft KPI ng\\u00e0y theo bullet: leads m\\u1edbi / bookings / deals / doanh thu / commission \\u0111\\u00e3 chi. Highlight b\\u1ea5t th\\u01b0\\u1eddng. T\\u1ed1i \\u0111a 200 ch\\u1eef.\", messages: [ { role: 'user', content: 'KPI: ' + JSON.stringify($json) } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: \"B\\u1ea1n l\\u00e0 CFO Happy Home. T\\u00f3m t\\u1eaft KPI ng\\u00e0y theo bullet: leads m\\u1edbi / bookings / deals / doanh thu / commission \\u0111\\u00e3 chi. Highlight b\\u1ea5t th\\u01b0\\u1eddng. T\\u1ed1i \\u0111a 200 ch\\u1eef.\", messages: [ { role: 'user', content: 'KPI: ' + JSON.stringify($json) } ] }) }}",
         "options": {}
       },
       "id": "cl16",
@@ -122,7 +122,7 @@
       "credentials": {
         "telegramApi": {
           "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
-          "name": "ELC Sale Bot"
+          "name": "Happy Home Sale Bot"
         }
       }
     }

@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/audience/match",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/audience/match",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -81,11 +81,11 @@
     },
     {
       "parameters": {
-        "fromEmail": "no-reply@eurowindowlightcity.net",
+        "fromEmail": "no-reply@bdsg.land",
         "toEmail": "={{ $json.email }}",
         "subject": "=🎪 Mời tham dự sự kiện mở bán {{ $('Webhook').item.json.body.event_name }} ngày {{ $('Webhook').item.json.body.event_date }}",
         "emailFormat": "text",
-        "text": "=Xin chào {{ $json.full_name }},\n\nELC trân trọng mời bạn dự sự kiện mở bán '{{ $('Webhook').item.json.body.event_name }}' lúc {{ $('Webhook').item.json.body.event_date }}.\n\nXác nhận tham dự: https://eurowindowlightcity.net/rsvp?event={{ $('Webhook').item.json.body.event_id }}&user={{ $json.user_id }}",
+        "text": "=Xin chào {{ $json.full_name }},\n\nELC trân trọng mời bạn dự sự kiện mở bán '{{ $('Webhook').item.json.body.event_name }}' lúc {{ $('Webhook').item.json.body.event_date }}.\n\nXác nhận tham dự: https://happyhomethanhhoa.bdsg.land/rsvp?event={{ $('Webhook').item.json.body.event_id }}&user={{ $json.user_id }}",
         "options": {}
       },
       "id": "em33",
@@ -101,7 +101,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ELC_API_URL }}/admin/marketing/events/{{ $('Webhook').item.json.body.event_id }}/invites",
+        "url": "={{ $env.HH_API_URL }}/admin/marketing/events/{{ $('Webhook').item.json.body.event_id }}/invites",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

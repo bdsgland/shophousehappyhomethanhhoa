@@ -36,7 +36,7 @@
           "messageValues": [
             {
               "role": "system",
-              "content": "Bạn là trợ lý AI cho sale ELC (Eurowindow Light City). Parse intent message thành JSON CHÍNH XÁC, KHÔNG markdown, KHÔNG giải thích.\n\nSchema:\n{\n  \"intent\": \"price_quote\" | \"lead_info\" | \"booking_list\" | \"unknown\",\n  \"params\": { ... }\n}\n\nVí dụ:\n- \"Báo giá căn A12\" → {\"intent\":\"price_quote\",\"params\":{\"unit_id\":\"A12\"}}\n- \"Báo giá căn hộ tầng 5 toà B\" → {\"intent\":\"price_quote\",\"params\":{\"floor\":5,\"tower\":\"B\"}}\n- \"Khách Nguyễn Văn A là ai\" → {\"intent\":\"lead_info\",\"params\":{\"q\":\"Nguyễn Văn A\"}}\n- \"Lead SĐT 0901234567\" → {\"intent\":\"lead_info\",\"params\":{\"q\":\"0901234567\"}}\n- \"Lịch hẹn ngày mai\" → {\"intent\":\"booking_list\",\"params\":{\"date\":\"tomorrow\"}}\n- \"Lịch của tôi tuần này\" → {\"intent\":\"booking_list\",\"params\":{\"range\":\"this_week\"}}\n- Bất kỳ điều gì không hiểu → {\"intent\":\"unknown\",\"params\":{}}\n\nCHỈ trả về JSON object, không có gì khác."
+              "content": "Bạn là trợ lý AI cho sale Happy Home (Happy Home Thanh Hóa). Parse intent message thành JSON CHÍNH XÁC, KHÔNG markdown, KHÔNG giải thích.\n\nSchema:\n{\n  \"intent\": \"price_quote\" | \"lead_info\" | \"booking_list\" | \"unknown\",\n  \"params\": { ... }\n}\n\nVí dụ:\n- \"Báo giá căn A12\" → {\"intent\":\"price_quote\",\"params\":{\"unit_id\":\"A12\"}}\n- \"Báo giá căn hộ tầng 5 toà B\" → {\"intent\":\"price_quote\",\"params\":{\"floor\":5,\"tower\":\"B\"}}\n- \"Khách Nguyễn Văn A là ai\" → {\"intent\":\"lead_info\",\"params\":{\"q\":\"Nguyễn Văn A\"}}\n- \"Lead SĐT 0901234567\" → {\"intent\":\"lead_info\",\"params\":{\"q\":\"0901234567\"}}\n- \"Lịch hẹn ngày mai\" → {\"intent\":\"booking_list\",\"params\":{\"date\":\"tomorrow\"}}\n- \"Lịch của tôi tuần này\" → {\"intent\":\"booking_list\",\"params\":{\"range\":\"this_week\"}}\n- Bất kỳ điều gì không hiểu → {\"intent\":\"unknown\",\"params\":{}}\n\nCHỈ trả về JSON object, không có gì khác."
             },
             {
               "role": "user",
@@ -57,7 +57,7 @@
       "credentials": {
         "anthropicApi": {
           "id": "anthropic_main",
-          "name": "Anthropic ELC"
+          "name": "Anthropic Happy Home"
         }
       }
     },
@@ -93,7 +93,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.eurowindowlightcity.net/inventory/quote",
+        "url": "=https://api-happyhomethanhhoa.bdsg.land/inventory/quote",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -113,7 +113,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.eurowindowlightcity.net/crm/leads/search",
+        "url": "=https://api-happyhomethanhhoa.bdsg.land/crm/leads/search",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -131,7 +131,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.eurowindowlightcity.net/bookings",
+        "url": "=https://api-happyhomethanhhoa.bdsg.land/bookings",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
